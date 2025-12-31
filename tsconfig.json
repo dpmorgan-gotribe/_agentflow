@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "references": [
+    { "path": "packages/tsconfig" },
+    { "path": "packages/config" },
+    { "path": "packages/core" },
+    { "path": "packages/agents" },
+    { "path": "packages/langgraph" },
+    { "path": "packages/database" },
+    { "path": "packages/mcp-servers" },
+    { "path": "apps/api" },
+    { "path": "apps/cli" }
+  ],
+  "files": []
+}

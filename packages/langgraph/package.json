@@ -1,0 +1,46 @@
+{
+  "name": "@aigentflow/langgraph",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./graphs": {
+      "types": "./dist/graphs/index.d.ts",
+      "import": "./dist/graphs/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts src/graphs/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts src/graphs/index.ts --format esm --dts --watch",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@langchain/anthropic": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^0.2.0",
+    "@aigentflow/core": "workspace:*",
+    "@aigentflow/database": "workspace:*",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@aigentflow/config": "workspace:*",
+    "@aigentflow/tsconfig": "workspace:*",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.0.0"
+  }
+}
