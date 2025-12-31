@@ -116,3 +116,87 @@ export class CompositionError extends PromptError {
     this.name = 'CompositionError';
   }
 }
+
+/**
+ * Error for meta-prompt rendering failures
+ */
+export class MetaPromptRenderError extends PromptError {
+  readonly metaPromptId: string;
+
+  constructor(
+    message: string,
+    metaPromptId: string,
+    context: Record<string, unknown> = {}
+  ) {
+    super(message, 'META_PROMPT_RENDER_ERROR', {
+      ...context,
+      metaPromptId,
+    });
+    this.name = 'MetaPromptRenderError';
+    this.metaPromptId = metaPromptId;
+  }
+}
+
+/**
+ * Error for meta-prompt context validation failures
+ */
+export class MetaPromptContextError extends PromptError {
+  readonly invalidFields: string[];
+
+  constructor(
+    message: string,
+    invalidFields: string[],
+    context: Record<string, unknown> = {}
+  ) {
+    super(message, 'META_PROMPT_CONTEXT_ERROR', {
+      ...context,
+      invalidFields,
+    });
+    this.name = 'MetaPromptContextError';
+    this.invalidFields = invalidFields;
+  }
+}
+
+/**
+ * Error for meta-prompt activation condition failures
+ */
+export class MetaPromptActivationError extends PromptError {
+  readonly metaPromptId: string;
+  readonly conditionType: string;
+
+  constructor(
+    message: string,
+    metaPromptId: string,
+    conditionType: string,
+    context: Record<string, unknown> = {}
+  ) {
+    super(message, 'META_PROMPT_ACTIVATION_ERROR', {
+      ...context,
+      metaPromptId,
+      conditionType,
+    });
+    this.name = 'MetaPromptActivationError';
+    this.metaPromptId = metaPromptId;
+    this.conditionType = conditionType;
+  }
+}
+
+/**
+ * Error for meta-prompt injection failures
+ */
+export class MetaPromptInjectionError extends PromptError {
+  readonly targetLayer: number;
+
+  constructor(
+    message: string,
+    targetLayer: number,
+    context: Record<string, unknown> = {}
+  ) {
+    super(message, 'META_PROMPT_INJECTION_ERROR', {
+      ...context,
+      targetLayer,
+    });
+    this.name = 'MetaPromptInjectionError';
+    this.targetLayer = targetLayer;
+  }
+}

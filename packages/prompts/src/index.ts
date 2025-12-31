@@ -60,6 +60,10 @@ export { PromptRegistry } from './prompt-registry.js';
 // Errors
 export {
   CompositionError,
+  MetaPromptActivationError,
+  MetaPromptContextError,
+  MetaPromptInjectionError,
+  MetaPromptRenderError,
   PromptError,
   PromptLayerError,
   PromptRegistryError,
@@ -67,3 +71,48 @@ export {
   VariableResolutionError,
   VariableValidationError,
 } from './errors.js';
+
+// Meta-prompts
+export {
+  // Types
+  type ActivationCondition,
+  type Decision,
+  type Lesson,
+  type MetaPromptAuditEntry,
+  type MetaPromptContext,
+  type MetaPromptDefinition,
+  type MetaPromptInjectionResult,
+  type PreviousOutput,
+  type ProjectContext,
+  type RenderedMetaPrompt,
+  // Schemas and constants
+  ActivationConditionType,
+  WorkflowState,
+  activationConditionSchema,
+  activationConditionTypeSchema,
+  decisionSchema,
+  lessonSchema,
+  metaPromptContextSchema,
+  metaPromptDefinitionSchema,
+  previousOutputSchema,
+  projectContextSchema,
+  workflowStateSchema,
+  // Library
+  CONSTITUTIONAL,
+  EXPERTISE_INJECTION,
+  HIGHER_ORDER_THINKING,
+  META_PROMPT_LIBRARY,
+  REFLECTION,
+  ROUTING_DECISION,
+  SELF_IMPROVING,
+  SYNTHESIS,
+  SYSTEM_IDENTITY,
+  getAlwaysActiveMetaPrompts,
+  getMetaPromptById,
+  getMetaPromptsByLayer,
+  getMetaPromptsByPriority,
+  getTotalMaxTokens,
+  // Injector
+  MetaPromptInjector,
+  createMetaPromptInjector,
+} from './meta/index.js';
