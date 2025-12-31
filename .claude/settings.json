@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write(src/**)",
+      "Write(.meta/**)",
+      "Write(docs/**)",
+      "Write(tests/**)",
+      "Edit",
+      "Bash(npm *)",
+      "Bash(pnpm *)",
+      "Bash(git *)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(echo *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Grep",
+      "Glob",
+      "Task"
+    ],
+    "deny": [
+      "Write(.env*)",
+      "Write(**/secrets/**)",
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ]
+  },
+  "model": "claude-sonnet-4-20250514",
+  "contextPaths": [
+    "CLAUDE.md",
+    ".meta/current-phase.md",
+    ".meta/lessons/index.md"
+  ]
+}

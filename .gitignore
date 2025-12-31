@@ -1,0 +1,33 @@
+# Claude local settings
+.claude/settings.local.json
+CLAUDE.local.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# Node (if applicable)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Test coverage
+coverage/
+.nyc_output/

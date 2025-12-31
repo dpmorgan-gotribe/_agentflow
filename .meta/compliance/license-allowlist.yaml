@@ -1,0 +1,197 @@
+# License Allowlist for Aigentflow
+#
+# This file defines which open-source licenses are approved for use.
+# All dependencies must use one of these licenses.
+#
+# Usage:
+#   pnpm license:check
+#   license-checker --onlyAllow "$(cat .meta/compliance/license-allowlist.yaml | yq '.approved | join(";")')"
+
+# =============================================================================
+# Approved Licenses
+# =============================================================================
+# These licenses are pre-approved for any dependency.
+approved:
+  # Permissive licenses - no restrictions
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+  - 0BSD
+  - Unlicense
+  - CC0-1.0
+  - WTFPL
+
+  # Public domain
+  - Public Domain
+
+  # Creative Commons (for documentation/data only)
+  - CC-BY-3.0
+  - CC-BY-4.0
+
+# =============================================================================
+# Restricted Licenses
+# =============================================================================
+# These licenses require legal review before use.
+# Submit request to: legal@aigentflow.io
+restricted:
+  - name: GPL-2.0
+    reason: "Copyleft - may require source disclosure"
+    review_required: true
+    notes: "OK for dev tools (not bundled), not for runtime dependencies"
+
+  - name: GPL-3.0
+    reason: "Copyleft - may require source disclosure"
+    review_required: true
+    notes: "OK for dev tools (not bundled), not for runtime dependencies"
+
+  - name: LGPL-2.1
+    reason: "Weak copyleft - dynamic linking may be OK"
+    review_required: true
+    notes: "Review dynamic vs static linking requirements"
+
+  - name: LGPL-3.0
+    reason: "Weak copyleft - dynamic linking may be OK"
+    review_required: true
+    notes: "Review dynamic vs static linking requirements"
+
+  - name: MPL-2.0
+    reason: "File-level copyleft"
+    review_required: true
+    notes: "Generally OK, but review file-level requirements"
+
+  - name: EPL-1.0
+    reason: "Weak copyleft"
+    review_required: true
+    notes: "Similar to LGPL, review requirements"
+
+  - name: EPL-2.0
+    reason: "Weak copyleft"
+    review_required: true
+    notes: "Similar to LGPL, review requirements"
+
+  - name: BSL-1.1
+    reason: "Time-delayed open source"
+    review_required: true
+    notes: "Check change date and use limitations"
+
+  - name: Elastic-2.0
+    reason: "Use limitations"
+    review_required: true
+    notes: "Check if our use case is permitted"
+
+# =============================================================================
+# Prohibited Licenses
+# =============================================================================
+# These licenses are NOT approved. Do not use packages with these licenses.
+prohibited:
+  - name: AGPL-3.0
+    reason: "Network copyleft - requires source disclosure for SaaS"
+    alternative: "Find MIT/Apache alternative or self-implement"
+
+  - name: SSPL
+    reason: "Network copyleft - very restrictive for cloud services"
+    alternative: "Find MIT/Apache alternative"
+
+  - name: CC-BY-NC-*
+    reason: "Non-commercial restriction"
+    alternative: "Find permissive alternative"
+
+  - name: CC-BY-ND-*
+    reason: "No derivatives restriction"
+    alternative: "Find permissive alternative"
+
+  - name: Proprietary
+    reason: "No open-source license"
+    alternative: "Requires commercial agreement"
+
+  - name: UNLICENSED
+    reason: "No license means no permission"
+    alternative: "Contact author for license or find alternative"
+
+# =============================================================================
+# Exceptions
+# =============================================================================
+# Specific packages approved despite license concerns.
+# Each exception must be documented and reviewed.
+exceptions:
+  # Example:
+  # - package: "some-package"
+  #   version: "1.2.3"
+  #   license: "GPL-2.0"
+  #   approved_by: "Legal Team"
+  #   approved_date: "2025-01-01"
+  #   reason: "Only used as dev dependency, not bundled"
+  #   review_date: "2026-01-01"  # Review annually
+
+# =============================================================================
+# Configuration
+# =============================================================================
+config:
+  # Fail CI if unknown license found
+  fail_on_unknown: true
+
+  # Fail CI if restricted license found (requires exception)
+  fail_on_restricted: true
+
+  # Package managers to check
+  package_managers:
+    - npm
+    - pnpm
+
+  # Paths to exclude from checking
+  exclude_paths:
+    - "**/node_modules/.cache/**"
+    - "**/test/**"
+    - "**/fixtures/**"
+
+  # Packages to skip (internal packages)
+  skip_packages:
+    - "@aigentflow/*"
+
+# =============================================================================
+# Automation
+# =============================================================================
+# Scripts and CI integration
+
+scripts:
+  # Check licenses locally
+  check: |
+    license-checker \
+      --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;Unlicense;CC0-1.0" \
+      --excludePackages "@aigentflow/*"
+
+  # Generate license report
+  report: |
+    license-checker \
+      --json \
+      --out licenses.json
+
+  # Check for new/changed licenses
+  audit: |
+    license-checker \
+      --json \
+      --out licenses-current.json && \
+    diff licenses-baseline.json licenses-current.json
+
+ci:
+  # GitHub Actions step
+  github_actions: |
+    - name: License Check
+      run: |
+        npx license-checker \
+          --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;Unlicense;CC0-1.0" \
+          --excludePackages "@aigentflow/*" \
+          --failOn "UNLICENSED"
+
+# =============================================================================
+# Review Schedule
+# =============================================================================
+review:
+  # Review allowlist quarterly
+  frequency: quarterly
+  next_review: "2026-03-31"
+  reviewers:
+    - legal@aigentflow.io
+    - security@aigentflow.io
