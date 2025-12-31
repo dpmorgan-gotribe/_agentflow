@@ -24,7 +24,8 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@aigentflow/core": "workspace:*"
+    "@aigentflow/core": "workspace:*",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
     "@aigentflow/config": "workspace:*",
