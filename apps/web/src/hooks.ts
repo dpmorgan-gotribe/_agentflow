@@ -54,7 +54,20 @@ export function useTaskStream(
 
     eventSource.onerror = (error) => {
       console.error('SSE connection error:', error);
-      // EventSource will automatically reconnect
+
+      // If the connection failed immediately (readyState 0 = CONNECTING or 2 = CLOSED),
+      // the task may not exist on the server (e.g., after server restart)
+      if (eventSource.readyState === EventSource.CLOSED) {
+        // Emit a synthetic error event to inform the UI
+        onEventRef.current({
+          agent: 'system',
+          status: 'failed',
+          message: 'Connection lost. Task may no longer exist on server. Try creating a new task.',
+          timestamp: new Date().toISOString(),
+        });
+        eventSource.close();
+      }
+      // Otherwise EventSource will automatically reconnect
     };
 
     return () => {
