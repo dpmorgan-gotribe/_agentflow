@@ -102,7 +102,7 @@ export class ClaudeCliProvider implements AIProvider {
     }
 
     const prompt = this.buildPrompt(request);
-    return this.executeCliCommand(['-p', prompt, '--no-markdown']);
+    return this.executeCliCommand(['-p', prompt]);
   }
 
   /**
@@ -136,7 +136,7 @@ export class ClaudeCliProvider implements AIProvider {
     // Validate task content (prevent injection)
     const sanitizedTask = this.sanitizeInput(task);
 
-    const args = ['-p', sanitizedTask, '--no-markdown'];
+    const args = ['-p', sanitizedTask];
 
     if (options?.allowedTools?.length) {
       // Validate tool names (alphanumeric, underscores, hyphens only)
@@ -186,7 +186,7 @@ export class ClaudeCliProvider implements AIProvider {
 
     const prompt = this.buildPrompt(request);
 
-    const claude = spawn(this.config.cliPath, ['-p', prompt, '--no-markdown'], {
+    const claude = spawn(this.config.cliPath, ['-p', prompt], {
       env: process.env,
       shell: true, // Required on Windows to find .cmd files
     });
