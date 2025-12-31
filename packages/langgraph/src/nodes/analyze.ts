@@ -4,8 +4,8 @@
  * Analyzes the user prompt to determine task type and required agents.
  */
 
-import { ChatAnthropic } from '@langchain/anthropic';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { getAIProvider, type AIProvider } from '@aigentflow/ai-provider';
+import { HumanMessage } from '@langchain/core/messages';
 
 import {
   type OrchestratorStateType,
@@ -34,29 +34,33 @@ Available agents:
 - tester: For writing and running tests
 - reviewer: For code review and quality checks
 
-Respond with valid JSON only.`;
+Respond with valid JSON only, no markdown code blocks.`;
+
+// Singleton AI provider instance
+let aiProvider: AIProvider | null = null;
+
+/**
+ * Get or create AI provider instance
+ */
+function getProvider(): AIProvider {
+  if (!aiProvider) {
+    aiProvider = getAIProvider();
+  }
+  return aiProvider;
+}
 
 /**
  * Analyze task node implementation
  *
- * Uses Claude to analyze the task prompt and determine the
- * appropriate workflow configuration.
+ * Uses AI provider (Claude CLI or Anthropic API) to analyze the task prompt
+ * and determine the appropriate workflow configuration.
  */
 export async function analyzeTaskNode(
   state: OrchestratorStateType
 ): Promise<Partial<OrchestratorStateType>> {
-  // Get model name from environment or use default
-  const modelName =
-    process.env['ANTHROPIC_MODEL'] ?? 'claude-sonnet-4-20250514';
+  const provider = getProvider();
 
-  const model = new ChatAnthropic({
-    modelName,
-    temperature: 0,
-  });
-
-  const response = await model.invoke([
-    new SystemMessage(ANALYSIS_SYSTEM_PROMPT),
-    new HumanMessage(`Analyze this task: "${state.prompt}"
+  const userMessage = `Analyze this task: "${state.prompt}"
 
 Project context:
 - Project ID: ${state.projectId}
@@ -71,11 +75,20 @@ Respond in JSON format:
   "requiresArchitecture": boolean,
   "requiresApproval": boolean,
   "suggestedAgents": ["agent_type", ...]
-}`),
-  ]);
+}`;
+
+  const response = await provider.complete({
+    system: ANALYSIS_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: userMessage }],
+    metadata: {
+      agent: 'orchestrator',
+      operation: 'analyze_task',
+      correlationId: state.taskId,
+    },
+  });
 
   // Parse the response
-  const content = response.content.toString();
+  const content = response.content;
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new AnalysisError('Failed to parse task analysis response', {
@@ -101,7 +114,7 @@ Respond in JSON format:
     analysis,
     agentQueue,
     status: 'orchestrating',
-    messages: [new HumanMessage(state.prompt), response],
+    messages: [new HumanMessage(state.prompt)],
   };
 }
 

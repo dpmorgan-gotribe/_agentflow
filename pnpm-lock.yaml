@@ -546,6 +546,9 @@ importers:
 
   packages/langgraph:
     dependencies:
+      '@aigentflow/ai-provider':
+        specifier: workspace:*
+        version: link:../ai-provider
       '@aigentflow/core':
         specifier: workspace:*
         version: link:../core
