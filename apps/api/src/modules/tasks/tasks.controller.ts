@@ -1,0 +1,158 @@
+/**
+ * Tasks Controller
+ *
+ * REST API endpoints for task management.
+ */
+
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  Sse,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Observable } from 'rxjs';
+
+import {
+  ApproveTaskDto,
+  CreateTaskDto,
+  TaskResponseDto,
+  TaskStatusResponseDto,
+} from './tasks.dto';
+import { TasksService } from './tasks.service';
+import { Tenant } from '../../common/decorators';
+import { AuthGuard, type TenantContext } from '../../common/guards';
+
+@ApiTags('tasks')
+@ApiBearerAuth()
+@UseGuards(AuthGuard)
+@Controller('tasks')
+export class TasksController {
+  constructor(private readonly tasksService: TasksService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Create and start a new task' })
+  @ApiResponse({
+    status: 201,
+    description: 'Task created successfully',
+    type: TaskResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  create(
+    @Tenant() tenant: TenantContext,
+    @Body() dto: CreateTaskDto
+  ): TaskResponseDto {
+    return this.tasksService.create(tenant, dto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'List tasks' })
+  @ApiQuery({
+    name: 'projectId',
+    required: false,
+    description: 'Filter by project ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of tasks',
+    type: [TaskResponseDto],
+  })
+  findAll(
+    @Tenant() tenant: TenantContext,
+    @Query('projectId') projectId?: string
+  ): TaskResponseDto[] {
+    return this.tasksService.findAll(tenant.tenantId, projectId);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get task by ID' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Task found',
+    type: TaskResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Task not found' })
+  findOne(
+    @Tenant() tenant: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string
+  ): TaskResponseDto {
+    return this.tasksService.findOne(tenant.tenantId, id);
+  }
+
+  @Get(':id/status')
+  @ApiOperation({ summary: 'Get task execution status with checkpoint info' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Task status',
+    type: TaskStatusResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Task not found' })
+  getStatus(
+    @Tenant() tenant: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string
+  ): TaskStatusResponseDto {
+    return this.tasksService.getStatus(tenant.tenantId, id);
+  }
+
+  @Sse(':id/stream')
+  @ApiOperation({ summary: 'Stream task execution events via SSE' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'SSE stream of task events',
+  })
+  stream(
+    @Tenant() tenant: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string
+  ): Observable<MessageEvent> {
+    return this.tasksService.streamEvents(tenant.tenantId, id);
+  }
+
+  @Post(':id/approve')
+  @ApiOperation({ summary: 'Approve or reject pending task checkpoint' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Approval processed',
+  })
+  @ApiResponse({ status: 400, description: 'Task not pending approval' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
+  approve(
+    @Tenant() tenant: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApproveTaskDto
+  ): { success: boolean } {
+    return this.tasksService.handleApproval(tenant.tenantId, id, dto);
+  }
+
+  @Post(':id/abort')
+  @ApiOperation({ summary: 'Abort a running task' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Task aborted',
+  })
+  @ApiResponse({ status: 400, description: 'Task cannot be aborted' })
+  @ApiResponse({ status: 404, description: 'Task not found' })
+  abort(
+    @Tenant() tenant: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string
+  ): { success: boolean } {
+    return this.tasksService.abort(tenant.tenantId, id);
+  }
+}
