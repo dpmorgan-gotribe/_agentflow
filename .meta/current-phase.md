@@ -27,6 +27,9 @@
 - [x] **04d-AUDIT-LOGGING** - Comprehensive audit logging (2024-12-31)
 - [x] **04e-COMPONENT-INTEGRATION** - Component integration layer (2024-12-31)
 - [x] **04f-AI-PROVIDER** - Claude CLI/API abstraction (2024-12-31)
+- [x] **05-CLI-FOUNDATION** - CLI interface for Aigentflow (2024-12-31)
+- [ ] **06-PERSISTENCE-LAYER** - PostgreSQL repositories with Drizzle ORM
+- [ ] **07-QDRANT-VECTORS** - Qdrant vector database for semantic search
 
 ## Constitution Rules (Must Follow)
 

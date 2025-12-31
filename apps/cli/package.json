@@ -2,28 +2,57 @@
   "name": "@aigentflow/cli",
   "version": "0.0.0",
   "private": true,
+  "description": "CLI interface for Aigentflow development orchestrator",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "aigentflow": "./dist/index.js"
+    "aigentflow": "./bin/aigentflow.js"
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@aigentflow/core": "workspace:*"
+    "commander": "^12.0.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.0",
+    "inquirer": "^9.2.0",
+    "conf": "^12.0.0",
+    "got": "^14.0.0",
+    "eventsource": "^2.0.0",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
-    "@aigentflow/config": "workspace:*",
-    "@aigentflow/tsconfig": "workspace:*",
+    "@types/eventsource": "^1.1.15",
+    "@types/inquirer": "^9.0.7",
     "@types/node": "^20.0.0",
-    "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
