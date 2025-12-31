@@ -123,10 +123,28 @@ class AgentWrapper implements LangGraphAgent {
 
       const executionId = crypto.randomUUID();
 
-      // Build context items from previous agent outputs
-      const contextItems: ContextItem[] = context.previousOutputs.flatMap(
-        (output) =>
-          output.artifacts.map((a) => ({
+      // Build context items - start with CURRENT_TASK (required by all agents)
+      const contextItems: ContextItem[] = [
+        {
+          type: ContextTypeEnum.CURRENT_TASK,
+          content: {
+            prompt: context.prompt,
+            analysis: context.analysis,
+            taskId: context.taskId,
+            projectId: context.projectId,
+          },
+          metadata: {
+            source: 'orchestrator',
+            timestamp: new Date(),
+            relevance: 1,
+          },
+        },
+      ];
+
+      // Add previous agent outputs as context items
+      for (const output of context.previousOutputs) {
+        for (const a of output.artifacts) {
+          contextItems.push({
             type: ContextTypeEnum.AGENT_OUTPUTS,
             content: {
               agentId: output.agentId,
@@ -140,8 +158,9 @@ class AgentWrapper implements LangGraphAgent {
               timestamp: new Date(output.timestamp),
               relevance: 1,
             },
-          }))
-      );
+          });
+        }
+      }
 
       // Build the full agent context
       const agentContext: AgentsAgentContext = {
