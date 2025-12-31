@@ -268,3 +268,50 @@ export {
 
 // Architect agent
 export { ArchitectAgent } from './agents/architect.js';
+
+// Analyst schemas
+export {
+  SourceTypeSchema,
+  CredibilitySchema,
+  SourceSchema,
+  PopularitySchema,
+  MaintenanceSchema,
+  LearningCurveSchema,
+  CommunitySizeSchema,
+  ComparisonOptionSchema,
+  ComparisonSchema,
+  BestPracticeSchema,
+  FindingSchema,
+  AlternativeSchema,
+  ImplementationSchema,
+  RecommendationSchema,
+  ReportTypeSchema,
+  AnalystRoutingHintsSchema,
+  AnalystOutputSchema,
+  createSource,
+  createRecommendation,
+  createComparisonOption,
+  createFinding,
+  calculateAverageConfidence,
+  countSourcesByCredibility,
+  type SourceType,
+  type Credibility,
+  type Source,
+  type Popularity,
+  type Maintenance,
+  type LearningCurve,
+  type CommunitySize,
+  type ComparisonOption,
+  type Comparison,
+  type BestPractice,
+  type Finding,
+  type Alternative,
+  type Implementation,
+  type Recommendation,
+  type ReportType,
+  type AnalystRoutingHints,
+  type AnalystOutput,
+} from './schemas/analyst-output.js';
+
+// Analyst agent
+export { AnalystAgent } from './agents/analyst.js';

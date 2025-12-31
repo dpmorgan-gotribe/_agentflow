@@ -31,7 +31,7 @@
   - Dependencies: 05
   - Acceptance: Makes architecture decisions, generates ADRs
 
-- [ ] **05d-ANALYST-AGENT** - Research and analysis agent
+- [x] **05d-ANALYST-AGENT** - Research and analysis agent ✓ 2024-12-31
   - Dependencies: 05
   - Acceptance: Researches best practices, provides recommendations
 
