@@ -67,7 +67,7 @@
   - Dependencies: 08
   - Acceptance: Activities stream to clients, history works
 
-- [ ] **08b-DESIGN-WORKFLOW** - Design-to-code workflow
+- [x] **08b-DESIGN-WORKFLOW** - Design-to-code workflow ✓ 2024-12-31
   - Dependencies: 08a
   - Acceptance: Mockups become components, design sync works
 

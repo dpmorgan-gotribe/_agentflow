@@ -1,0 +1,46 @@
+{
+  "name": "@aigentflow/design-workflow",
+  "version": "1.0.0",
+  "description": "Design-first workflow for generating UI designs from user prompts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@aigentflow/tsconfig": "workspace:*",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.8.2"
+  },
+  "peerDependencies": {
+    "@aigentflow/design-tokens": "workspace:*",
+    "@aigentflow/flows": "workspace:*",
+    "@aigentflow/activity": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@aigentflow/design-tokens": {
+      "optional": true
+    },
+    "@aigentflow/flows": {
+      "optional": true
+    },
+    "@aigentflow/activity": {
+      "optional": true
+    }
+  }
+}

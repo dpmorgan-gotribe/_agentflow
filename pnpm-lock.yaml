@@ -389,6 +389,34 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
+  packages/design-workflow:
+    dependencies:
+      '@aigentflow/activity':
+        specifier: workspace:*
+        version: link:../activity
+      '@aigentflow/design-tokens':
+        specifier: workspace:*
+        version: link:../design-tokens
+      '@aigentflow/flows':
+        specifier: workspace:*
+        version: link:../flows
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@aigentflow/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.27
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+
   packages/flows:
     dependencies:
       zod:
