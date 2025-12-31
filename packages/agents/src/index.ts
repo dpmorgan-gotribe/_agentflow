@@ -624,3 +624,76 @@ export {
 
 // UI Designer agent
 export { UIDesignerAgent } from './agents/ui-designer.js';
+
+// Skills framework
+export {
+  // Schemas
+  SkillCategorySchema,
+  SkillPrioritySchema,
+  SkillExampleSchema,
+  SkillConditionsSchema,
+  SkillDefinitionSchema,
+  SkillPackSchema,
+  SkillSourceSchema,
+  LoadedSkillSchema,
+  SkillSelectionCriteriaSchema,
+  // Types
+  type SkillCategory,
+  type SkillPriority,
+  type SkillExample,
+  type SkillConditions,
+  type SkillDefinition,
+  type SkillPack,
+  type SkillSource,
+  type LoadedSkill,
+  type SkillSelectionCriteria,
+  type ExcludedSkill,
+  type SelectedSkills,
+  type SkillInjection,
+  // Constants
+  SKILL_CATEGORIES,
+  PRIORITY_WEIGHTS,
+  // Helper functions
+  createSkillDefinition,
+  createSkillPack,
+  toLoadedSkill,
+  calculateTotalTokens,
+  filterByCategory as filterSkillsByCategory,
+  filterByTag as filterSkillsByTag,
+  sortByPriority as sortSkillsByPriority,
+  getUniqueTags,
+  validateSkillPack as validateSkillPackSchema,
+  safeParseSkillPack,
+  // Registry
+  SkillRegistry,
+  getSkillRegistry,
+  resetSkillRegistry,
+  type RegistryStats as SkillRegistryStats,
+  // Loader
+  loadSkillPack,
+  loadSkillPacks,
+  loadSkill,
+  loadBuiltInSkills,
+  getBuiltInSkillPack,
+  validatePack,
+  validateSkillDefinition,
+  mergeSkillPacks,
+  filterSkillPack,
+  getPackSummary,
+  BUILT_IN_SKILLS,
+  type LoadResult,
+  type LoadError,
+  type LoadOptions,
+  type ValidationResult as SkillValidationResult,
+  type ValidationError as SkillValidationError,
+  type ValidationWarning,
+  // Injector
+  injectSkills,
+  injectSkillsMinimal,
+  injectSkillsCompact,
+  injectSkillsXml,
+  formatSkillList,
+  getSkillsSummary,
+  type InjectionFormat,
+  type InjectionOptions,
+} from './skills/index.js';
