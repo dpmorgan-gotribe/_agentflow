@@ -23,8 +23,8 @@ export default function App() {
   const agentLogs: AgentLogEntry[] = events.slice(-20).map((e) => ({
     time: new Date(e.timestamp).toLocaleTimeString('en-US', { hour12: false }),
     action: e.status === 'failed' ? 'error' : 'spawned',
-    agent: e.agent,
-    message: e.message.split('\n')[0].slice(0, 50),
+    agent: e.agent || 'system',
+    message: (e.message || e.status || 'Event').split('\n')[0].slice(0, 50),
   }));
 
   const handleTaskCreated = useCallback((task: Task) => {
