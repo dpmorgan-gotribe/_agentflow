@@ -222,6 +222,14 @@ export interface WorkflowExecutionOptions {
 }
 
 /**
+ * Workflow execution callback for streaming events
+ */
+export interface WorkflowStreamCallback {
+  onNodeStart?: (nodeName: string, state: Partial<OrchestratorStateType>) => void | Promise<void>;
+  onNodeEnd?: (nodeName: string, state: Partial<OrchestratorStateType>) => void | Promise<void>;
+}
+
+/**
  * Execute a workflow with configuration
  *
  * @param graph - Compiled orchestrator graph
@@ -248,6 +256,66 @@ export async function executeWorkflow(
 
   const result = await graph.invoke(input, config);
   return result;
+}
+
+/**
+ * Execute a workflow with streaming - emits events as each node completes
+ *
+ * @param graph - Compiled orchestrator graph
+ * @param input - Initial state input
+ * @param options - Execution options
+ * @param callback - Optional callback for streaming events
+ * @returns Final workflow state
+ */
+export async function executeWorkflowStreaming(
+  graph: OrchestratorGraph,
+  input: {
+    tenantId: string;
+    projectId: string;
+    taskId: string;
+    prompt: string;
+  },
+  options: WorkflowExecutionOptions,
+  callback?: WorkflowStreamCallback
+): Promise<OrchestratorStateType> {
+  const config = {
+    configurable: {
+      thread_id: options.threadId,
+      checkpoint_id: options.checkpointId,
+    },
+    streamMode: 'updates' as const,
+  };
+
+  let finalState: OrchestratorStateType | null = null;
+
+  // Stream executes and yields updates after each node
+  const stream = await graph.stream(input, config);
+
+  for await (const chunk of stream) {
+    // chunk is { nodeName: stateUpdate }
+    for (const [nodeName, stateUpdate] of Object.entries(chunk)) {
+      // Emit node completion event
+      if (callback?.onNodeEnd) {
+        await callback.onNodeEnd(nodeName, stateUpdate as Partial<OrchestratorStateType>);
+      }
+
+      // Track the latest state update
+      finalState = stateUpdate as OrchestratorStateType;
+    }
+  }
+
+  // Return the final state (or fetch from checkpointer if needed)
+  if (!finalState) {
+    // Fallback to invoke if streaming didn't produce results
+    return await graph.invoke(input, {
+      configurable: {
+        thread_id: options.threadId,
+        checkpoint_id: options.checkpointId,
+      },
+    });
+  }
+
+  return finalState;
 }
 
 /**

@@ -11,7 +11,7 @@ import { Observable, Subject } from 'rxjs';
 
 import {
   createOrchestratorGraph,
-  executeWorkflow,
+  executeWorkflowStreaming,
   resumeWorkflow,
   setAgentRegistry,
   createStreamEvent,
@@ -19,6 +19,7 @@ import {
   type OrchestratorStateType,
   type StreamEvent,
   type ApprovalResponse,
+  type WorkflowStreamCallback,
 } from '@aigentflow/langgraph';
 
 import { getAgentAdapter } from './agent-adapter';
@@ -107,21 +108,71 @@ export class WorkflowService implements OnModuleInit {
         })
       );
 
-      // Execute the workflow
-      const result = await executeWorkflow(
+      // Create streaming callback to emit events as nodes complete
+      const streamCallback: WorkflowStreamCallback = {
+        onNodeEnd: (nodeName, stateUpdate) => {
+          this.logger.debug(`Node completed: ${nodeName}`);
+
+          // Emit appropriate event based on node name
+          switch (nodeName) {
+            case 'analyze':
+              eventSubject.next(
+                createStreamEvent('workflow.analyzing', {
+                  taskId,
+                  ...stateUpdate,
+                })
+              );
+              break;
+
+            case 'route_to_agent':
+              eventSubject.next(
+                createStreamEvent('workflow.routing', {
+                  taskId,
+                  agentQueue: stateUpdate.agentQueue,
+                  currentAgent: stateUpdate.currentAgent,
+                })
+              );
+              break;
+
+            case 'execute_agent':
+              // Emit agent completed event with details
+              const lastOutput = stateUpdate.agentOutputs?.[
+                (stateUpdate.agentOutputs?.length ?? 1) - 1
+              ];
+              if (lastOutput) {
+                eventSubject.next(
+                  createStreamEvent('workflow.agent_completed', {
+                    taskId,
+                    agentOutputs: [lastOutput],
+                    completedAgents: stateUpdate.completedAgents,
+                  })
+                );
+              }
+              break;
+
+            case 'awaiting_approval':
+              eventSubject.next(
+                createStreamEvent('workflow.approval_needed', {
+                  taskId,
+                  approvalRequest: stateUpdate.approvalRequest,
+                })
+              );
+              break;
+          }
+        },
+      };
+
+      // Execute the workflow with streaming
+      const result = await executeWorkflowStreaming(
         this.graph,
         { tenantId, projectId, taskId, prompt },
-        { threadId: taskId }
+        { threadId: taskId },
+        streamCallback
       );
 
-      // Emit completion or approval event
+      // Emit final completion or failure event
       if (result.status === 'awaiting_approval' && result.approvalRequest) {
-        eventSubject.next(
-          createStreamEvent('workflow.approval_needed', {
-            taskId,
-            approvalRequest: result.approvalRequest,
-          })
-        );
+        // Already emitted in callback
       } else if (result.status === 'completed') {
         eventSubject.next(
           createStreamEvent('workflow.completed', {

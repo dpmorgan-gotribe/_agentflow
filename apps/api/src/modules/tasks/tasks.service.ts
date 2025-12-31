@@ -424,6 +424,28 @@ export class TasksService implements OnModuleInit {
       this.updateTaskStatus(taskId, TaskStatus.ANALYZING);
       this.emitEvent(eventSubject, { type: 'workflow_started', taskId });
 
+      // Subscribe to WorkflowService events and forward to our SSE stream
+      const workflowStream = this.workflowService.getEventStream(taskId);
+      if (workflowStream) {
+        workflowStream.subscribe({
+          next: (streamEvent) => {
+            // Forward workflow events to SSE with more details
+            this.emitEvent(eventSubject, {
+              type: streamEvent.type,
+              taskId,
+              timestamp: streamEvent.timestamp,
+              ...this.extractEventData(streamEvent),
+            });
+          },
+          error: (err) => {
+            this.logger.error(`Workflow stream error: ${err}`);
+          },
+          complete: () => {
+            this.logger.debug(`Workflow stream completed for task ${taskId}`);
+          },
+        });
+      }
+
       // Execute the real LangGraph workflow
       const result = await this.workflowService.startWorkflow({
         tenantId,
@@ -481,6 +503,68 @@ export class TasksService implements OnModuleInit {
       eventSubject.error(error);
     } finally {
       this.eventStreams.delete(taskId);
+    }
+  }
+
+  /**
+   * Extract readable event data from workflow stream event
+   */
+  private extractEventData(streamEvent: { type: string; data: unknown }): Record<string, unknown> {
+    const data = streamEvent.data as Record<string, unknown>;
+
+    switch (streamEvent.type) {
+      case 'workflow.analyzing':
+        return { message: 'Analyzing task requirements...' };
+
+      case 'workflow.routing':
+        return {
+          message: `Routing to agents: ${(data.agentQueue as string[] || []).join(', ')}`,
+          agentQueue: data.agentQueue,
+          currentAgent: data.currentAgent,
+        };
+
+      case 'workflow.agent_started':
+        return {
+          message: `Starting agent: ${data.agentId}`,
+          agent: data.agentId,
+        };
+
+      case 'workflow.agent_completed':
+        return {
+          message: `Agent completed: ${data.agentId} (${data.success ? 'success' : 'failed'})`,
+          agent: data.agentId,
+          success: data.success,
+          artifactCount: data.artifactCount,
+        };
+
+      case 'workflow.approval_needed':
+        return {
+          message: 'Awaiting user approval',
+          approvalRequest: data.approvalRequest,
+        };
+
+      case 'workflow.completed':
+        return {
+          message: `Workflow completed. Agents: ${(data.completedAgents as string[] || []).join(', ')}`,
+          completedAgents: data.completedAgents,
+          totalArtifacts: data.totalArtifacts,
+        };
+
+      case 'workflow.failed':
+        return {
+          message: `Workflow failed: ${data.error}`,
+          error: data.error,
+          lastAgent: data.lastAgent,
+        };
+
+      case 'workflow.error':
+        return {
+          message: `Error: ${data.error}`,
+          error: data.error,
+        };
+
+      default:
+        return data;
     }
   }
 

@@ -38,10 +38,12 @@ export {
 export {
   createOrchestratorGraph,
   executeWorkflow,
+  executeWorkflowStreaming,
   resumeWorkflow,
   type OrchestratorGraph,
   type OrchestratorGraphConfig,
   type WorkflowExecutionOptions,
+  type WorkflowStreamCallback,
 } from './graphs/orchestrator.js';
 
 // Nodes
