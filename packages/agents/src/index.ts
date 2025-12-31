@@ -83,3 +83,52 @@ export {
   type ContextBudget,
   type CuratedContext,
 } from './context-manager.js';
+
+// Orchestrator schemas
+export {
+  TaskClassificationSchema,
+  RoutingDecisionSchema,
+  ReasoningResultSchema,
+  OrchestratorPhaseSchema,
+  OrchestratorStateSchema,
+  ConflictSchema,
+  KeyOutputSchema,
+  SynthesisResultSchema,
+  FailureAnalysisSchema,
+  DecisionContextSchema,
+  OrchestratorOutputSchema,
+  UserInputSchema,
+  OrchestrationConfigSchema,
+  DEFAULT_ORCHESTRATION_CONFIG,
+  type TaskClassification,
+  type RoutingDecision,
+  type ReasoningResult,
+  type OrchestratorPhase,
+  type OrchestratorState,
+  type Conflict,
+  type KeyOutput,
+  type SynthesisResult,
+  type FailureAnalysis,
+  type DecisionContext,
+  type OrchestratorOutput,
+  type OrchestrationConfig,
+} from './schemas/orchestrator-output.js';
+
+// Orchestration components
+export {
+  DecisionEngine,
+  type DecisionResult,
+} from './orchestration/decision-engine.js';
+
+export {
+  Router,
+  type RoutingResult,
+} from './orchestration/router.js';
+
+export {
+  Synthesizer,
+  type MergedArtifact,
+} from './orchestration/synthesizer.js';
+
+// Orchestrator agent
+export { OrchestratorAgent } from './agents/orchestrator.js';
