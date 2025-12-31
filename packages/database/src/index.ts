@@ -22,3 +22,9 @@ export {
 
 // Re-export all schemas for convenience
 export * from './schema/index.js';
+
+// Re-export all repositories
+export * from './repositories/index.js';
+
+// Re-export migration runner
+export { runMigrations, type MigrationOptions, type MigrationResult } from './migrations/runner.js';

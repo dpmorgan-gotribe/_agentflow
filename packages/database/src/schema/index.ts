@@ -71,3 +71,45 @@ export {
   type AuditDetails,
   type AuditRequestInfo,
 } from './audit.js';
+
+// User schema
+export {
+  users,
+  userRoleEnum,
+  userStatusEnum,
+  type User,
+  type NewUser,
+  type UserPreferences,
+} from './users.js';
+
+// Task Execution schema
+export {
+  taskExecutions,
+  executionStatusEnum,
+  type TaskExecution,
+  type NewTaskExecution,
+  type ExecutionInput,
+  type ExecutionOutput,
+  type ExecutionMetrics,
+} from './task-executions.js';
+
+// Artifact schema
+export {
+  artifacts,
+  artifactTypeEnum,
+  artifactStatusEnum,
+  type Artifact,
+  type NewArtifact,
+  type ArtifactMetadata,
+} from './artifacts.js';
+
+// Approval schema
+export {
+  approvals,
+  approvalTypeEnum,
+  approvalDecisionEnum,
+  type Approval,
+  type NewApproval,
+  type ApprovalRequest,
+  type ApprovalResponse,
+} from './approvals.js';

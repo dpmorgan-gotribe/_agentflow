@@ -17,7 +17,7 @@ const databaseUrlSchema = z
   .string()
   .min(1, 'DATABASE_URL is required')
   .refine(
-    (url) => {
+    (url: string) => {
       try {
         const parsed = new URL(url);
         return (
