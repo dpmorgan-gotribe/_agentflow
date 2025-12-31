@@ -697,3 +697,78 @@ export {
   type InjectionFormat,
   type InjectionOptions,
 } from './skills/index.js';
+
+// Self-Review framework
+export {
+  // Version
+  SELF_REVIEW_VERSION,
+  // Constants
+  MAX_DESCRIPTION_LENGTH as REVIEW_MAX_DESCRIPTION_LENGTH,
+  MAX_REASONING_LENGTH,
+  MAX_GAPS,
+  MAX_REQUIREMENTS,
+  // Gap schemas
+  GapSeveritySchema,
+  type GapSeverity,
+  GapCategorySchema,
+  type GapCategory,
+  EffortEstimateSchema,
+  type EffortEstimate,
+  GapSchema,
+  type Gap,
+  // Requirement coverage
+  RequirementSourceSchema,
+  type RequirementSource,
+  RequirementCoverageSchema,
+  type RequirementCoverage,
+  // Review decision
+  ReviewDecisionSchema,
+  type ReviewDecision,
+  // Review result
+  SelfReviewResultSchema,
+  type SelfReviewResult,
+  // Configuration
+  SelfReviewConfigSchema,
+  type SelfReviewConfig,
+  DEFAULT_SELF_REVIEW_CONFIG,
+  // Validation helpers
+  createGap,
+  createRequirementCoverage,
+  validateSelfReviewResult,
+  validateSelfReviewConfig,
+  // Self-review loop
+  type SelfReviewExecuteResult,
+  SelfReviewLoop,
+  createSelfReviewLoop,
+  // Gap addresser
+  type ImprovementData,
+  buildGapAddressingPrompt,
+  mergeImprovements,
+  getFixableGaps,
+  getGapsBySeverity,
+  getGapsByCategory,
+  prioritizeGaps,
+  estimateTotalEffort,
+  // Criteria
+  type CriterionResult,
+  type ReviewCriterion,
+  type ReviewContext,
+  type AgentReviewCriteria,
+  BaseAgentReviewCriteria,
+  criterionPassed,
+  criterionFailed,
+  criterionPartial,
+  UIDesignerReviewCriteria,
+  createUIDesignerCriteria,
+  ProjectManagerReviewCriteria,
+  createProjectManagerCriteria,
+  // Learning integration
+  type LessonInput,
+  type GapPattern,
+  type ReviewMetrics,
+  createLessonFromReview,
+  analyzeGapPatterns,
+  analyzeSuccessfulFixes,
+  findCommonMissedRequirements,
+  calculateReviewMetrics,
+} from './review/index.js';

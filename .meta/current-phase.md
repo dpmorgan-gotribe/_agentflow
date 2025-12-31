@@ -71,9 +71,17 @@
   - Dependencies: 08a
   - Acceptance: Mockups become components, design sync works
 
-- [ ] **12a-SELF-REVIEW-FRAMEWORK** - Agent self-review capability
+- [x] **12a-SELF-REVIEW-FRAMEWORK** - Agent self-review capability ✓ 2024-12-31
   - Dependencies: 05
   - Acceptance: Agents review own output, iterate on feedback
+
+- [ ] **13-ORCHESTRATOR-GRAPH** - LangGraph.js workflow engine
+  - Dependencies: 12a
+  - Acceptance: Graph compiles, checkpointing works, human-in-loop interrupts
+
+- [ ] **14-CONTEXT-MANAGER** - Qdrant context retrieval for agents
+  - Dependencies: 13
+  - Acceptance: Token-budget aware retrieval, relevance ranking works
 
 ## Constitution Rules (Must Follow)
 
@@ -128,4 +136,6 @@ No lessons captured from Phase 1 yet. Patterns established:
 │           └── 08a-ACTIVITY-SYSTEM
 │               └── 08b-DESIGN-WORKFLOW
 └── 12a-SELF-REVIEW-FRAMEWORK
+    └── 13-ORCHESTRATOR-GRAPH
+        └── 14-CONTEXT-MANAGER
 ```
