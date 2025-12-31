@@ -1,10 +1,8 @@
 # Step 37: Agent Pool Scaling
 
-> **Checkpoint:** CP5-MESSAGING
-> **Step:** 37 of 64
-> **Dependencies:** 34-NATS-JETSTREAM, 35-BULLMQ-JOBS, 36-WEBSOCKET-STREAMING
-> **Estimated Effort:** High
-> **Priority:** High
+> **Checkpoint:** CP5 - Messaging
+> **Previous Step:** 36-WEBSOCKET-STREAMING.md
+> **Next Step:** 17-MERGE-WORKFLOW.md (CP6)
 
 ---
 

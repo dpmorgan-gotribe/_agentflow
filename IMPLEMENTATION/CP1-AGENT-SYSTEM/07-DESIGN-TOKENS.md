@@ -1,6 +1,6 @@
 # Step 07: Design Tokens
 
-> **Checkpoint:** CP1 - Design System
+> **Checkpoint:** CP2 - Design System
 > **Previous Step:** 06-UI-DESIGNER-AGENT.md
 > **Next Step:** 08-USER-FLOWS.md
 

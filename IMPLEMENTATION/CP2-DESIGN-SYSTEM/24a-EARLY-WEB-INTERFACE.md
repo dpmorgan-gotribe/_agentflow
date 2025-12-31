@@ -1,8 +1,8 @@
 # Step 24a: Early Web Interface
 
 > **Checkpoint:** CP2 - Design System
-> **Previous Step:** 24-ACTIVITY-SYSTEM.md
-> **Next Step:** 25-GIT-AGENT.md (CP3)
+> **Previous Step:** 08b-DESIGN-WORKFLOW.md
+> **Next Step:** 09-GIT-AGENT.md (CP3)
 
 ---
 

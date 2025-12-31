@@ -2,7 +2,7 @@
 
 > **Checkpoint:** CP0 - Foundation
 > **Previous Step:** 04c-CHECKPOINT-RECOVERY.md
-> **Next Step:** 05-AGENT-FRAMEWORK.md
+> **Next Step:** 04e-COMPONENT-INTEGRATION.md
 
 ---
 

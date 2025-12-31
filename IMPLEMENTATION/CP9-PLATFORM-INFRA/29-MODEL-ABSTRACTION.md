@@ -1,7 +1,7 @@
 # Step 29: Model Abstraction Layer
 
-> **Checkpoint:** CP7 - Platform Infrastructure
-> **Previous Step:** 28-VENDOR-SECURITY.md
+> **Checkpoint:** CP9 - Platform Infrastructure
+> **Previous Step:** 28-VENDOR-SECURITY.md (CP8)
 > **Next Step:** 30-MULTI-TENANT.md
 
 ---

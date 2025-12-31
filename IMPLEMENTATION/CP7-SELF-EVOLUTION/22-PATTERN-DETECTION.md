@@ -1,5 +1,11 @@
 # Step 22: Pattern Detection
 
+> **Checkpoint:** CP7 - Self-Evolution
+> **Previous Step:** 21-EXECUTION-TRACING.md
+> **Next Step:** 23-AGENT-GENERATION.md
+
+---
+
 ## Overview
 
 This step implements pattern detection and gap analysis from execution traces. Identifies recurring patterns, failure modes, bottlenecks, and opportunities for new specialized agents.

@@ -1,10 +1,8 @@
 # Step 04f: AI Provider Abstraction (MVP)
 
 > **Checkpoint:** CP0 - Foundation
-> **Previous Step:** 04d-AUDIT-LOGGING.md
-> **Next Checkpoint:** CP1 - Design System
-> **Added:** 2025-12-30 (Post-implementation documentation)
-> **Updated:** 2025-12-31 (CLI-first approach)
+> **Previous Step:** 04e-COMPONENT-INTEGRATION.md
+> **Next Step:** 05-CLI-FOUNDATION.md
 
 ---
 

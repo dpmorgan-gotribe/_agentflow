@@ -1,6 +1,6 @@
 # Step 05b: Project Manager Agent
 
-> **Checkpoint:** CP1 - Design System
+> **Checkpoint:** CP1 - Agent System
 > **Previous Step:** 05a-ORCHESTRATOR-AGENT.md
 > **Next Step:** 05c-ARCHITECT-AGENT.md
 > **Self-Review:** Uses `ProjectManagerReviewCriteria` from 12a-SELF-REVIEW-FRAMEWORK.md

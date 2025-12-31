@@ -1,6 +1,6 @@
 # Step 18: Integration Branch
 
-> **Checkpoint:** CP4 - Integration
+> **Checkpoint:** CP6 - Integration
 > **Previous Step:** 17-MERGE-WORKFLOW.md
 > **Next Step:** 19-CI-CD-INTEGRATION.md
 

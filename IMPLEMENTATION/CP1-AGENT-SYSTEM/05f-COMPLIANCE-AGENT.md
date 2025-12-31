@@ -1,8 +1,8 @@
 # Step 05f: Compliance Agent
 
-> **Checkpoint:** CP1 - Design System
+> **Checkpoint:** CP1 - Agent System
 > **Previous Step:** 05e-PROJECT-ANALYZER-AGENT.md
-> **Next Step:** 06-UI-DESIGNER-AGENT.md
+> **Next Step:** 06a-SKILLS-FRAMEWORK.md
 
 ---
 

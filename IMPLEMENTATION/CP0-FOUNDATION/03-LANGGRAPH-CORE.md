@@ -2,7 +2,7 @@
 
 > **Checkpoint:** CP0 - Foundation
 > **Previous Step:** 02-POSTGRESQL-SETUP.md
-> **Next Step:** 04-NESTJS-API.md
+> **Next Step:** 03a-PROMPT-ARCHITECTURE.md
 
 ---
 

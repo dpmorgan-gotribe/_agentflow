@@ -1,6 +1,6 @@
 # Step 10: Worktree Isolation
 
-> **Checkpoint:** CP2 - Git Worktrees
+> **Checkpoint:** CP3 - Git Worktrees
 > **Previous Step:** 09-GIT-AGENT.md
 > **Next Step:** 11-CONFLICT-DETECTION.md
 

@@ -1,7 +1,7 @@
 # Step 12: Frontend Developer Agent
 
-> **Checkpoint:** CP3 - Build & Test
-> **Previous Step:** 11-CONFLICT-DETECTION.md (CP2)
+> **Checkpoint:** CP4 - Build & Test
+> **Previous Step:** 11-CONFLICT-DETECTION.md (CP3)
 > **Next Step:** 13-BACKEND-DEVELOPER.md
 
 ---

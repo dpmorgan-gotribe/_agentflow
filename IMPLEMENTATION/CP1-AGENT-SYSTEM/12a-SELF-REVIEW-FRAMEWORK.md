@@ -1,7 +1,7 @@
 # Step 12a: Self-Review Framework
 
 > **Checkpoint:** CP1 - Agent System
-> **Previous Step:** 12-AGENT-FRAMEWORK.md
+> **Previous Step:** 05-AGENT-FRAMEWORK.md
 > **Next Step:** 13-ORCHESTRATOR-GRAPH.md
 > **Architecture Reference:** `.meta/plans/SELF-REVIEW-ARCHITECTURE-PROPOSAL.md`
 

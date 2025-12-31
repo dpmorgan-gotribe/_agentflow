@@ -2,7 +2,7 @@
 
 > **Checkpoint:** CP0 - Foundation
 > **Previous Step:** 03a-PROMPT-ARCHITECTURE.md
-> **Next Step:** 04-PERSISTENCE-LAYER.md
+> **Next Step:** 04-NESTJS-API.md
 
 ---
 

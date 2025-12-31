@@ -1,11 +1,9 @@
 # Step 05: Agent Framework
 
-> **Checkpoint:** CP1 - Design System
-> **Previous Step:** 04-PERSISTENCE-LAYER.md
-> **Next Step:** 06-UI-DESIGNER-AGENT.md
+> **Checkpoint:** CP1 - Agent System
+> **Previous Step:** 07-QDRANT-VECTORS.md (CP0)
+> **Next Step:** 12a-SELF-REVIEW-FRAMEWORK.md
 > **Related:** 12a-SELF-REVIEW-FRAMEWORK.md (extends BaseAgent with review hooks)
-> **Depends On:** 04f-AI-PROVIDER.md (AIProvider abstraction)
-> **Updated:** 2025-12-31 (CLI-first approach via AIProvider)
 
 ---
 

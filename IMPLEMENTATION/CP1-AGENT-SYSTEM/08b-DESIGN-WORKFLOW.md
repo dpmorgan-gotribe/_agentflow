@@ -1,9 +1,8 @@
 # Step 08b: Design-First Workflow
 
-> **Checkpoint:** CP1 - Design System
-> **Previous Step:** 08-USER-FLOWS.md
-> **Next Checkpoint:** CP2 - Git Worktrees (09-GIT-AGENT.md)
-> **Added:** 2025-12-30 (Post-implementation documentation)
+> **Checkpoint:** CP2 - Design System
+> **Previous Step:** 08a-ACTIVITY-SYSTEM.md
+> **Next Step:** 24a-EARLY-WEB-INTERFACE.md
 
 ---
 

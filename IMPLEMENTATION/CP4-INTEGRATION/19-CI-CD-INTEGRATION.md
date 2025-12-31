@@ -1,6 +1,6 @@
 # Step 19: CI/CD Integration
 
-> **Checkpoint:** CP4 - Integration
+> **Checkpoint:** CP6 - Integration
 > **Previous Step:** 18-INTEGRATION-BRANCH.md
 > **Next Step:** 20-RELEASE-WORKFLOW.md
 

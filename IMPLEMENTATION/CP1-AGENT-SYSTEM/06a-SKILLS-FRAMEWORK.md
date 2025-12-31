@@ -1,6 +1,6 @@
 # Step 06a: Skills Framework
 
-> **Checkpoint:** CP1 - Design System
+> **Checkpoint:** CP1 - Agent System
 > **Previous Step:** 05f-COMPLIANCE-AGENT.md
 > **Next Step:** 06b-MCP-SERVER-CONFIG.md
 

@@ -1,6 +1,10 @@
-# 15. Bug Fixer Agent
+# Step 15: Bug Fixer Agent
 
-> Automated bug fixing agent that analyzes test failures and applies targeted fixes
+> **Checkpoint:** CP4 - Build & Test
+> **Previous Step:** 14-TESTER-AGENT.md
+> **Next Step:** 16-REVIEWER-AGENT.md
+
+---
 
 ## Overview
 

@@ -1,6 +1,10 @@
-# 16. Reviewer Agent
+# Step 16: Reviewer Agent
 
-> Automated code review agent that ensures quality, security, and adherence to project standards
+> **Checkpoint:** CP4 - Build & Test
+> **Previous Step:** 15-BUG-FIXER-AGENT.md
+> **Next Step:** 16a-LESSON-EXTRACTION.md
+
+---
 
 ## Overview
 

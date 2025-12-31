@@ -1,8 +1,8 @@
 # Step 16a: Lesson Extraction System
 
-> **Checkpoint:** CP3 - Build & Test
+> **Checkpoint:** CP4 - Build & Test
 > **Previous Step:** 16-REVIEWER-AGENT.md
-> **Next Step:** 17-MERGE-WORKFLOW.md (CP4)
+> **Next Step:** 34-NATS-JETSTREAM.md (CP5)
 
 ---
 

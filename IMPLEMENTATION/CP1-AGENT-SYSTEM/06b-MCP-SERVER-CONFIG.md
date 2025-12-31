@@ -1,8 +1,8 @@
 # Step 06b: MCP Server Configuration
 
-> **Checkpoint:** CP1 - Design System
+> **Checkpoint:** CP1 - Agent System
 > **Previous Step:** 06a-SKILLS-FRAMEWORK.md
-> **Next Step:** 07-CONTEXT-MANAGEMENT.md
+> **Next Step:** 06-UI-DESIGNER-AGENT.md
 
 ---
 

@@ -1,8 +1,8 @@
 # Step 03a: Prompt Architecture
 
 > **Checkpoint:** CP0 - Foundation
-> **Previous Step:** 03-STATE-MACHINE.md
-> **Next Step:** 04-PERSISTENCE-LAYER.md
+> **Previous Step:** 03-LANGGRAPH-CORE.md
+> **Next Step:** 03b-META-PROMPTS.md
 
 ---
 

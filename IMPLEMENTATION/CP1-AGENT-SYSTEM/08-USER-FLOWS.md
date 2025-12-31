@@ -1,8 +1,8 @@
 # Step 08: User Flows
 
-> **Checkpoint:** CP1 - Design System
+> **Checkpoint:** CP2 - Design System
 > **Previous Step:** 07-DESIGN-TOKENS.md
-> **Next Checkpoint:** CP2 - Git Worktrees (09-GIT-AGENT.md)
+> **Next Step:** 08a-ACTIVITY-SYSTEM.md
 
 ---
 

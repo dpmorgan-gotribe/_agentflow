@@ -1,5 +1,11 @@
 # Step 24: Tournament & Promotion
 
+> **Checkpoint:** CP7 - Self-Evolution
+> **Previous Step:** 23-AGENT-GENERATION.md
+> **Next Step:** 25-INCIDENT-RESPONSE.md (CP8)
+
+---
+
 ## Overview
 
 This step implements competitive evaluation of agents using TrueSkill-inspired rating systems, tournament-style matchups, and automated promotion of superior agents to production.

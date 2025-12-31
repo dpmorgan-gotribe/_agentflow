@@ -2,7 +2,7 @@
 
 > **Checkpoint:** CP0 - Foundation
 > **Previous Step:** 04a-HOOKS-GUARDRAILS.md
-> **Next Step:** 05-AGENT-FRAMEWORK.md (CP1)
+> **Next Step:** 04c-CHECKPOINT-RECOVERY.md
 
 ---
 

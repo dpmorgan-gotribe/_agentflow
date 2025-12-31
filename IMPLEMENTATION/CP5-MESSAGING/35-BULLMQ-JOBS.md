@@ -1,10 +1,8 @@
 # Step 35: BullMQ Background Jobs
 
-> **Checkpoint:** CP5-MESSAGING
-> **Step:** 35 of 64
-> **Dependencies:** 34-NATS-JETSTREAM, 04-NESTJS-API
-> **Estimated Effort:** Medium
-> **Priority:** High
+> **Checkpoint:** CP5 - Messaging
+> **Previous Step:** 34-NATS-JETSTREAM.md
+> **Next Step:** 36-WEBSOCKET-STREAMING.md
 
 ---
 

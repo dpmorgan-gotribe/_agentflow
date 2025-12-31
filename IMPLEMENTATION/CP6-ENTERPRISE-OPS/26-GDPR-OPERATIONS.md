@@ -1,6 +1,6 @@
 # Step 26: GDPR Operations
 
-> **Checkpoint:** CP6 - Enterprise Operations
+> **Checkpoint:** CP8 - Enterprise Operations
 > **Previous Step:** 25-INCIDENT-RESPONSE.md
 > **Next Step:** 27-COMPLIANCE-DASHBOARDS.md
 

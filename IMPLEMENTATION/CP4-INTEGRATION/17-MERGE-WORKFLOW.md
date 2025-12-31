@@ -1,7 +1,7 @@
 # Step 17: Merge Workflow
 
-> **Checkpoint:** CP4 - Integration
-> **Previous Step:** 16-REVIEWER-AGENT.md (CP3)
+> **Checkpoint:** CP6 - Integration
+> **Previous Step:** 37-AGENT-POOL-SCALING.md (CP5)
 > **Next Step:** 18-INTEGRATION-BRANCH.md
 
 ---

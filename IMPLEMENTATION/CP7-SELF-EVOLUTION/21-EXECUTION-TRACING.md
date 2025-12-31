@@ -1,5 +1,11 @@
 # Step 21: Execution Tracing
 
+> **Checkpoint:** CP7 - Self-Evolution
+> **Previous Step:** 20-RELEASE-WORKFLOW.md (CP6)
+> **Next Step:** 22-PATTERN-DETECTION.md
+
+---
+
 ## Overview
 
 This step implements comprehensive execution tracing to capture agent behavior, tool usage, decisions, and outcomes. This data forms the foundation for pattern detection and self-evolution.

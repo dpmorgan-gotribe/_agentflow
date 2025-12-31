@@ -1,5 +1,11 @@
 # Step 20: Release Workflow
 
+> **Checkpoint:** CP6 - Integration
+> **Previous Step:** 19-CI-CD-INTEGRATION.md
+> **Next Step:** 21-EXECUTION-TRACING.md (CP7)
+
+---
+
 ## Overview
 
 This step implements the release workflow for deploying features to production. Covers semantic versioning, changelog generation, release candidates, deployment gates, and rollback procedures.

@@ -1,6 +1,6 @@
 # Step 27: Compliance Dashboards
 
-> **Checkpoint:** CP6 - Enterprise Operations
+> **Checkpoint:** CP8 - Enterprise Operations
 > **Previous Step:** 26-GDPR-OPERATIONS.md
 > **Next Step:** 28-VENDOR-SECURITY.md
 

@@ -1,8 +1,8 @@
 # Step 32: GenUI Output Style
 
-> **Checkpoint:** CP7 - Platform Infrastructure
+> **Checkpoint:** CP9 - Platform Infrastructure
 > **Previous Step:** 31-FEATURE-FLAGS.md
-> **Next Step:** Complete
+> **Next Step:** 54-REACT-SETUP.md (CP10)
 
 ---
 

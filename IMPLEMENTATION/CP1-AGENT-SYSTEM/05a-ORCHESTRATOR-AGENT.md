@@ -1,7 +1,7 @@
 # Step 05a: Orchestrator Agent
 
-> **Checkpoint:** CP1 - Design System
-> **Previous Step:** 05-AGENT-FRAMEWORK.md
+> **Checkpoint:** CP1 - Agent System
+> **Previous Step:** 14-CONTEXT-MANAGER.md
 > **Next Step:** 05b-PROJECT-MANAGER-AGENT.md
 
 ---

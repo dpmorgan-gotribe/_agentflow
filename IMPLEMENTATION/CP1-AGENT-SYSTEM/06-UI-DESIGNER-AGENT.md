@@ -1,7 +1,7 @@
 # Step 06: UI Designer Agent
 
-> **Checkpoint:** CP1 - Design System
-> **Previous Step:** 05-AGENT-FRAMEWORK.md
+> **Checkpoint:** CP2 - Design System
+> **Previous Step:** 06b-MCP-SERVER-CONFIG.md (CP1)
 > **Next Step:** 07-DESIGN-TOKENS.md
 > **Self-Review:** Uses `UIDesignerReviewCriteria` from 12a-SELF-REVIEW-FRAMEWORK.md
 

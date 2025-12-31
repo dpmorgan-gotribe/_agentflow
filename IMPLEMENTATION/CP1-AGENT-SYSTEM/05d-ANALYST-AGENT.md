@@ -1,6 +1,6 @@
 # Step 05d: Analyst Agent
 
-> **Checkpoint:** CP1 - Design System
+> **Checkpoint:** CP1 - Agent System
 > **Previous Step:** 05c-ARCHITECT-AGENT.md
 > **Next Step:** 05e-PROJECT-ANALYZER-AGENT.md
 > **Self-Review:** Uses `AnalystReviewCriteria` from 12a-SELF-REVIEW-FRAMEWORK.md

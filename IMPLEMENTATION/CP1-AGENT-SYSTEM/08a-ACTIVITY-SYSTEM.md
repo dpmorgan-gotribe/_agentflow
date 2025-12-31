@@ -1,8 +1,8 @@
 # Step 08a: Real-Time Activity System
 
-> **Checkpoint:** CP1 - Design System
+> **Checkpoint:** CP2 - Design System
 > **Previous Step:** 08-USER-FLOWS.md
-> **Next Step:** 09-GIT-AGENT.md (CP2)
+> **Next Step:** 08b-DESIGN-WORKFLOW.md
 
 ---
 

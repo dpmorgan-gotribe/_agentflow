@@ -1,8 +1,8 @@
 # Step 04: NestJS API
 
 > **Checkpoint:** CP0 - Foundation
-> **Previous Step:** 03-LANGGRAPH-CORE.md
-> **Next Step:** 05-CLI-FOUNDATION.md
+> **Previous Step:** 03b-META-PROMPTS.md
+> **Next Step:** 04a-HOOKS-GUARDRAILS.md
 
 ---
 

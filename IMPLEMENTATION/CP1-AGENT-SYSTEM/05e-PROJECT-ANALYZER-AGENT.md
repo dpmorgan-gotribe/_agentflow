@@ -1,6 +1,6 @@
 # Step 05e: Project Analyzer Agent
 
-> **Checkpoint:** CP1 - Design System
+> **Checkpoint:** CP1 - Agent System
 > **Previous Step:** 05d-ANALYST-AGENT.md
 > **Next Step:** 05f-COMPLIANCE-AGENT.md
 

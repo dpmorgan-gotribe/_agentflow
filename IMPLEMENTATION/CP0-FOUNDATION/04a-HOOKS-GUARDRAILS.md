@@ -1,7 +1,7 @@
 # Step 04a: Hooks & Guardrails System
 
 > **Checkpoint:** CP0 - Foundation
-> **Previous Step:** 04-PERSISTENCE-LAYER.md
+> **Previous Step:** 04-NESTJS-API.md
 > **Next Step:** 04b-CLAUDE-MD-GENERATOR.md
 
 ---

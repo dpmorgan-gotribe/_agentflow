@@ -1,7 +1,7 @@
 # Step 09: Git Agent
 
-> **Checkpoint:** CP2 - Git Worktrees
-> **Previous Step:** 08-USER-FLOWS.md (CP1)
+> **Checkpoint:** CP3 - Git Worktrees
+> **Previous Step:** 24a-EARLY-WEB-INTERFACE.md (CP2)
 > **Next Step:** 10-WORKTREE-ISOLATION.md
 
 ---

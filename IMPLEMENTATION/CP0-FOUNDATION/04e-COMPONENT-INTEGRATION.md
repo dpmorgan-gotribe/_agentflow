@@ -2,7 +2,7 @@
 
 > **Checkpoint:** CP0 - Foundation
 > **Previous Step:** 04d-AUDIT-LOGGING.md
-> **Next Step:** CP1 - Design System (05-AGENT-FRAMEWORK.md)
+> **Next Step:** 04f-AI-PROVIDER.md
 
 ---
 

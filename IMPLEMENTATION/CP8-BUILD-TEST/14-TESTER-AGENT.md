@@ -1,6 +1,6 @@
 # Step 14: Tester Agent
 
-> **Checkpoint:** CP3 - Build & Test
+> **Checkpoint:** CP4 - Build & Test
 > **Previous Step:** 13-BACKEND-DEVELOPER.md
 > **Next Step:** 15-BUG-FIXER-AGENT.md
 

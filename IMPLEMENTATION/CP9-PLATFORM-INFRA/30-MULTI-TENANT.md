@@ -1,6 +1,6 @@
 # Step 30: Multi-Tenant Security
 
-> **Checkpoint:** CP7 - Platform Infrastructure
+> **Checkpoint:** CP9 - Platform Infrastructure
 > **Previous Step:** 29-MODEL-ABSTRACTION.md
 > **Next Step:** 31-FEATURE-FLAGS.md
 

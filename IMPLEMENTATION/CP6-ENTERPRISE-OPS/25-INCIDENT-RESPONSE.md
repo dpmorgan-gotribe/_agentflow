@@ -1,7 +1,7 @@
 # Step 25: Incident Response System
 
-> **Checkpoint:** CP6 - Enterprise Operations
-> **Previous Step:** 24-TOURNAMENT-PROMOTION.md
+> **Checkpoint:** CP8 - Enterprise Operations
+> **Previous Step:** 24-TOURNAMENT-PROMOTION.md (CP7)
 > **Next Step:** 26-GDPR-OPERATIONS.md
 
 ---

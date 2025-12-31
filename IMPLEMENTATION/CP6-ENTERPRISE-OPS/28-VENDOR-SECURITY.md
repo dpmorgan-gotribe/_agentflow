@@ -1,8 +1,8 @@
 # Step 28: Vendor & Third-Party Security
 
-> **Checkpoint:** CP6 - Enterprise Operations
+> **Checkpoint:** CP8 - Enterprise Operations
 > **Previous Step:** 27-COMPLIANCE-DASHBOARDS.md
-> **Next Step:** 29-MODEL-ABSTRACTION.md
+> **Next Step:** 29-MODEL-ABSTRACTION.md (CP9)
 
 ---
 

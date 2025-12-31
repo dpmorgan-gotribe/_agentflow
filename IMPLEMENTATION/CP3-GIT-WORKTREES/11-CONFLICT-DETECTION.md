@@ -1,8 +1,8 @@
 # Step 11: Conflict Detection
 
-> **Checkpoint:** CP2 - Git Worktrees
+> **Checkpoint:** CP3 - Git Worktrees
 > **Previous Step:** 10-WORKTREE-ISOLATION.md
-> **Next Checkpoint:** CP3 - Build & Test (12-FRONTEND-DEVELOPER.md)
+> **Next Step:** 12-FRONTEND-DEVELOPER.md (CP4)
 
 ---
 

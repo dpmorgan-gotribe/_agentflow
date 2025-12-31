@@ -1,10 +1,8 @@
 # Step 34: NATS JetStream Integration
 
-> **Checkpoint:** CP5-MESSAGING
-> **Step:** 34 of 64
-> **Dependencies:** 04-NESTJS-API, 04f-AI-PROVIDER
-> **Estimated Effort:** Medium
-> **Priority:** High
+> **Checkpoint:** CP5 - Messaging
+> **Previous Step:** 16a-LESSON-EXTRACTION.md (CP4)
+> **Next Step:** 35-BULLMQ-JOBS.md
 
 ---
 

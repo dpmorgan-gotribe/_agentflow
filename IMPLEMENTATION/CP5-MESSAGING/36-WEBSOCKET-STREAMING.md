@@ -1,10 +1,8 @@
 # Step 36: WebSocket Streaming
 
-> **Checkpoint:** CP5-MESSAGING
-> **Step:** 36 of 64
-> **Dependencies:** 34-NATS-JETSTREAM, 35-BULLMQ-JOBS, 04-NESTJS-API
-> **Estimated Effort:** Medium
-> **Priority:** High
+> **Checkpoint:** CP5 - Messaging
+> **Previous Step:** 35-BULLMQ-JOBS.md
+> **Next Step:** 37-AGENT-POOL-SCALING.md
 
 ---
 

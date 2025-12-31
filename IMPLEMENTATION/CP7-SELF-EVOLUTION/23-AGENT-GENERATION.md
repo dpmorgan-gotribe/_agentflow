@@ -1,5 +1,11 @@
 # Step 23: Agent Generation
 
+> **Checkpoint:** CP7 - Self-Evolution
+> **Previous Step:** 22-PATTERN-DETECTION.md
+> **Next Step:** 24-TOURNAMENT-PROMOTION.md
+
+---
+
 ## Overview
 
 This step implements automatic agent generation from detected patterns and gaps. Uses DSPy-inspired techniques to generate optimized prompts, tool configurations, and agent specifications.

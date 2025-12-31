@@ -1,6 +1,6 @@
 # Step 31: Feature Flags
 
-> **Checkpoint:** CP7 - Platform Infrastructure
+> **Checkpoint:** CP9 - Platform Infrastructure
 > **Previous Step:** 30-MULTI-TENANT.md
 > **Next Step:** 32-GENUI-OUTPUT.md
 
