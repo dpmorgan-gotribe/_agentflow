@@ -1,0 +1,34 @@
+{
+  "name": "@aigentflow/prompts",
+  "version": "0.0.0",
+  "description": "18-layer prompt architecture for Aigentflow agents",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@aigentflow/config": "workspace:*",
+    "@aigentflow/tsconfig": "workspace:*",
+    "@types/node": "^20.0.0",
+    "eslint": "^8.57.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  }
+}
