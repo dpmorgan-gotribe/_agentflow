@@ -75,11 +75,11 @@
   - Dependencies: 05
   - Acceptance: Agents review own output, iterate on feedback
 
-- [ ] **13-ORCHESTRATOR-GRAPH** - LangGraph.js workflow engine
+- [x] **13-ORCHESTRATOR-GRAPH** - LangGraph.js workflow engine ✓ 2024-12-31
   - Dependencies: 12a
   - Acceptance: Graph compiles, checkpointing works, human-in-loop interrupts
 
-- [ ] **14-CONTEXT-MANAGER** - Qdrant context retrieval for agents
+- [x] **14-CONTEXT-MANAGER** - Qdrant context retrieval for agents ✓ 2024-12-31
   - Dependencies: 13
   - Acceptance: Token-budget aware retrieval, relevance ranking works
 

@@ -54,7 +54,7 @@ export {
   type ChunkOptions,
 } from './repositories/index.js';
 
-// Context Manager
+// Context Manager (Basic)
 export {
   ContextManager,
   type ContextItem,
@@ -62,3 +62,49 @@ export {
   type RetrievedContext,
   type ContextRetrievalOptions,
 } from './context-manager.js';
+
+// Enhanced Context Manager
+export {
+  EnhancedContextManager,
+  createEnhancedContextManager,
+  ContextRequestSchema,
+  type ContextRequest,
+  type EnhancedRetrievedContext,
+  type AgentContextConfig,
+} from './enhanced-context-manager.js';
+
+// Retrievers
+export {
+  HistoryRetriever,
+  createHistoryRetriever,
+  HistoryRetrieveOptionsSchema,
+  type HistoryItem,
+  type HistoryRetrieveOptions,
+  type TaskProvider,
+} from './retrievers/index.js';
+
+// Rankers
+export {
+  RelevanceRanker,
+  createRelevanceRanker,
+  RankerConfigSchema,
+  type RankedContextItem,
+  type RankerConfig,
+} from './rankers/index.js';
+
+// Cache
+export {
+  ContextCache,
+  createContextCache,
+  CacheConfigSchema,
+  type CacheConfig,
+  type CacheStats,
+} from './cache.js';
+
+// Formatters
+export {
+  ContextFormatter,
+  createContextFormatter,
+  type FormatOptions,
+  type StructuredContext,
+} from './formatters/index.js';
