@@ -3,7 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "type": "module",
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
@@ -16,11 +15,14 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@aigentflow/agents": "workspace:*",
     "@aigentflow/core": "workspace:*",
     "@aigentflow/database": "workspace:*",
     "@aigentflow/langgraph": "workspace:*",
+    "@langchain/langgraph": "^0.2.36",
     "@fastify/helmet": "^11.0.0",
     "@fastify/rate-limit": "^9.0.0",
+    "@fastify/static": "^7.0.4",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",
     "@nestjs/core": "^10.0.0",
@@ -30,6 +32,7 @@
     "@nestjs/throttler": "^5.0.0",
     "class-transformer": "^0.5.0",
     "class-validator": "^0.14.0",
+    "dotenv": "^17.2.3",
     "fastify": "^4.0.0",
     "jsonwebtoken": "^9.0.0",
     "rxjs": "^7.0.0",

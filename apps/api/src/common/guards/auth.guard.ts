@@ -56,6 +56,19 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedError('No authentication token provided');
     }
 
+    // Dev mode bypass for testing - only in development
+    if (this.configService.isDevelopment && token === 'dev-token-12345') {
+      const devContext: TenantContext = {
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        userId: '00000000-0000-0000-0000-000000000001',
+        email: 'dev@localhost',
+        roles: ['admin'],
+      };
+      (request as unknown as Record<string, unknown>).tenantContext = devContext;
+      this.logger.debug('Using dev token bypass');
+      return true;
+    }
+
     try {
       const payload = await this.verifyToken(token);
       const tenantContext: TenantContext = {
@@ -81,27 +94,26 @@ export class AuthGuard implements CanActivate {
   }
 
   /**
-   * Extract Bearer token from Authorization header
+   * Extract Bearer token from Authorization header or query param (for SSE)
    */
   private extractToken(request: FastifyRequest): string | null {
+    // First check Authorization header
     const authHeader = request.headers.authorization;
 
-    if (!authHeader) {
-      return null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      if (token.length > 0) {
+        return token;
+      }
     }
 
-    // Must be Bearer token
-    if (!authHeader.startsWith('Bearer ')) {
-      return null;
+    // Fallback to query param (for SSE connections that can't set headers)
+    const queryToken = (request.query as Record<string, unknown>)?.token;
+    if (typeof queryToken === 'string' && queryToken.length > 0) {
+      return queryToken;
     }
 
-    const token = authHeader.slice(7).trim();
-
-    if (!token || token.length === 0) {
-      return null;
-    }
-
-    return token;
+    return null;
   }
 
   /**

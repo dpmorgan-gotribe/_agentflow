@@ -8,13 +8,21 @@
 import { z } from 'zod';
 
 /**
- * Database URL validation - ensures valid PostgreSQL connection string
+ * Database URL validation
+ * - Development: allows SQLite (file:) or PostgreSQL
+ * - Production: requires PostgreSQL
  */
 const databaseUrlSchema = z
   .string()
   .min(1, 'DATABASE_URL is required')
   .refine(
     (url) => {
+      const nodeEnv = process.env.NODE_ENV || 'development';
+      // Allow SQLite in development/test
+      if (nodeEnv !== 'production' && url.startsWith('file:')) {
+        return true;
+      }
+      // Require PostgreSQL in production
       try {
         const parsed = new URL(url);
         return (
@@ -24,7 +32,7 @@ const databaseUrlSchema = z
         return false;
       }
     },
-    { message: 'DATABASE_URL must be a valid PostgreSQL connection string' }
+    { message: 'DATABASE_URL must be a valid database connection string' }
   );
 
 /**

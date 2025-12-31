@@ -7,33 +7,39 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./schema": {
       "types": "./dist/schema/index.d.ts",
-      "import": "./dist/schema/index.js"
+      "import": "./dist/schema/index.js",
+      "require": "./dist/schema/index.cjs"
     },
     "./repositories": {
       "types": "./dist/repositories/index.d.ts",
-      "import": "./dist/repositories/index.js"
+      "import": "./dist/repositories/index.js",
+      "require": "./dist/repositories/index.cjs"
     },
     "./migrations": {
       "types": "./dist/migrations/runner.d.ts",
-      "import": "./dist/migrations/runner.js"
+      "import": "./dist/migrations/runner.js",
+      "require": "./dist/migrations/runner.cjs"
     },
     "./qdrant": {
       "types": "./dist/qdrant/index.d.ts",
-      "import": "./dist/qdrant/index.js"
+      "import": "./dist/qdrant/index.js",
+      "require": "./dist/qdrant/index.cjs"
     }
   },
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/schema/index.ts src/repositories/index.ts src/migrations/runner.ts src/qdrant/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts src/schema/index.ts src/repositories/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts src/schema/index.ts src/repositories/index.ts src/migrations/runner.ts src/qdrant/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts src/schema/index.ts src/repositories/index.ts --format esm,cjs --dts --watch",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

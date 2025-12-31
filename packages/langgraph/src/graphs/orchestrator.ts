@@ -18,9 +18,9 @@ import { OrchestratorState, type OrchestratorStateType } from '../state.js';
  */
 function routeAfterAnalysis(
   state: OrchestratorStateType
-): 'route_to_agent' | 'error' {
+): 'route_to_agent' | 'fail' {
   if (!state.analysis) {
-    return 'error';
+    return 'fail';
   }
   return 'route_to_agent';
 }
@@ -55,13 +55,13 @@ function routeAfterRouting(
  */
 function routeAfterExecution(
   state: OrchestratorStateType
-): 'route_to_agent' | 'awaiting_approval' | 'error' {
+): 'route_to_agent' | 'awaiting_approval' | 'fail' {
   const lastOutput = state.agentOutputs[state.agentOutputs.length - 1];
 
   // Check for errors
   if (!lastOutput?.success) {
     if (state.retryCount >= state.maxRetries) {
-      return 'error';
+      return 'fail';
     }
     // Will retry in route_to_agent
   }
@@ -80,7 +80,7 @@ function routeAfterExecution(
  */
 function routeAfterApproval(
   state: OrchestratorStateType
-): 'route_to_agent' | 'error' {
+): 'route_to_agent' | 'fail' {
   if (!state.approvalResponse?.approved) {
     // Rejection - may need to redo work
     return 'route_to_agent';
@@ -101,9 +101,9 @@ function completeNode(
 }
 
 /**
- * Error node - marks workflow as failed
+ * Fail node - marks workflow as failed
  */
-function errorNode(
+function failNode(
   _state: OrchestratorStateType
 ): Partial<OrchestratorStateType> {
   return {
@@ -142,13 +142,13 @@ export function createOrchestratorGraph(config?: OrchestratorGraphConfig) {
     .addNode('execute_agent', executeAgentNode)
     .addNode('awaiting_approval', handleApprovalNode)
     .addNode('complete', completeNode)
-    .addNode('error', errorNode)
+    .addNode('fail', failNode)
 
     // Add edges
     .addEdge(START, 'analyze')
     .addConditionalEdges('analyze', routeAfterAnalysis, {
       route_to_agent: 'route_to_agent',
-      error: 'error',
+      fail: 'fail',
     })
     .addConditionalEdges('route_to_agent', routeAfterRouting, {
       execute_agent: 'execute_agent',
@@ -158,14 +158,14 @@ export function createOrchestratorGraph(config?: OrchestratorGraphConfig) {
     .addConditionalEdges('execute_agent', routeAfterExecution, {
       route_to_agent: 'route_to_agent',
       awaiting_approval: 'awaiting_approval',
-      error: 'error',
+      fail: 'fail',
     })
     .addConditionalEdges('awaiting_approval', routeAfterApproval, {
       route_to_agent: 'route_to_agent',
-      error: 'error',
+      fail: 'fail',
     })
     .addEdge('complete', END)
-    .addEdge('error', END);
+    .addEdge('fail', END);
 
   // Node names type for interrupt configuration
   type NodeName =
@@ -174,7 +174,7 @@ export function createOrchestratorGraph(config?: OrchestratorGraphConfig) {
     | 'execute_agent'
     | 'awaiting_approval'
     | 'complete'
-    | 'error';
+    | 'fail';
 
   // Get the actual checkpointer - PostgresCheckpointer wraps MemorySaver
   let checkpointer: MemorySaver | undefined;

@@ -152,3 +152,55 @@ export class TaskStatusResponseDto extends TaskResponseDto {
   })
   checkpoint?: Record<string, unknown>;
 }
+
+export class ArtifactResponseDto {
+  @ApiProperty({
+    description: 'Artifact ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  id!: string;
+
+  @ApiProperty({
+    description: 'Task ID this artifact belongs to',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  taskId!: string;
+
+  @ApiProperty({
+    description: 'Artifact type',
+    enum: [
+      'mockup',
+      'stylesheet',
+      'flow',
+      'source_file',
+      'test_file',
+      'config',
+      'documentation',
+    ],
+    example: 'mockup',
+  })
+  type!: string;
+
+  @ApiProperty({
+    description: 'Artifact name',
+    example: 'homepage-mockup.html',
+  })
+  name!: string;
+
+  @ApiProperty({
+    description: 'Artifact path',
+    example: 'designs/mockups/homepage-mockup.html',
+  })
+  path!: string;
+
+  @ApiPropertyOptional({
+    description: 'Artifact content (for small artifacts)',
+  })
+  content?: string;
+
+  @ApiProperty({
+    description: 'Creation timestamp',
+    example: '2024-01-01T00:00:00.000Z',
+  })
+  createdAt!: string;
+}

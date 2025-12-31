@@ -1,87 +1,33 @@
 # Current Phase
 
-**Phase**: 2 (Agent System - CP1)
+**Phase**: 3 (Design System - CP2)
 **Started**: 2024-12-31
-**Status**: approved
-**Gate**: human_approval
+**Status**: in_progress
+**Gate**: automatic
 
 ## Focus Areas
 
-- Base agent architecture and lifecycle management
-- Specialized agent implementations (Orchestrator, PM, Architect, etc.)
-- Agent skills framework and MCP integration
-- Design workflow and activity tracking
-- Agent self-review capability
+- Early web interface for testing and visualization
+- React + Vite + Tailwind setup
+- Real-time agent activity streaming (SSE)
+- Design artifact preview (mockups, styles, flows)
+- Approval/rejection interface
 
 ## Tasks
 
-- [x] **05-AGENT-FRAMEWORK** - Base agent architecture ✓ 2024-12-31
-  - Dependencies: CP0 complete
-  - Acceptance: BaseAgent class works, agent lifecycle managed
+- [x] **24a-EARLY-WEB-INTERFACE** - Minimal React web dashboard ✓ 2024-12-31
+  - Dependencies: CP1 complete
+  - Acceptance: Can view projects, tasks, agent activity; approve/reject designs
+  - Status: COMPLETE (typecheck + build pass)
 
-- [x] **05a-ORCHESTRATOR-AGENT** - Central orchestration agent ✓ 2024-12-31
-  - Dependencies: 05
-  - Acceptance: Routes tasks to correct agents, handles failures
+## Deliverables
 
-- [x] **05b-PROJECT-MANAGER-AGENT** - Work breakdown agent ✓ 2024-12-31
-  - Dependencies: 05
-  - Acceptance: Generates epics, features, tasks from requirements
-
-- [x] **05c-ARCHITECT-AGENT** - Technical decision agent ✓ 2024-12-31
-  - Dependencies: 05
-  - Acceptance: Makes architecture decisions, generates ADRs
-
-- [x] **05d-ANALYST-AGENT** - Research and analysis agent ✓ 2024-12-31
-  - Dependencies: 05
-  - Acceptance: Researches best practices, provides recommendations
-
-- [x] **05e-PROJECT-ANALYZER-AGENT** - Codebase analysis agent ✓ 2024-12-31
-  - Dependencies: 05
-  - Acceptance: Analyzes project structure, identifies patterns
-
-- [x] **05f-COMPLIANCE-AGENT** - Security and compliance agent ✓ 2024-12-31
-  - Dependencies: 05
-  - Acceptance: Validates OWASP, GDPR compliance
-
-- [x] **06-UI-DESIGNER-AGENT** - UI/UX design agent ✓ 2024-12-31
-  - Dependencies: 05
-  - Acceptance: Generates mockups, design tokens
-
-- [x] **06a-SKILLS-FRAMEWORK** - Agent skills system ✓ 2024-12-31
-  - Dependencies: 06
-  - Acceptance: Skills load dynamically, extend agents
-
-- [x] **06b-MCP-SERVER-CONFIG** - MCP server integration ✓ 2024-12-31
-  - Dependencies: 06a
-  - Acceptance: MCP servers connect, tools available
-
-- [x] **07-DESIGN-TOKENS** - Design token system ✓ 2024-12-31
-  - Dependencies: 06
-  - Acceptance: Tokens generate CSS, theme switching works
-
-- [x] **08-USER-FLOWS** - User flow definitions ✓ 2024-12-31
-  - Dependencies: 07
-  - Acceptance: Flows validate, generate test cases
-
-- [x] **08a-ACTIVITY-SYSTEM** - Real-time activity tracking ✓ 2024-12-31
-  - Dependencies: 08
-  - Acceptance: Activities stream to clients, history works
-
-- [x] **08b-DESIGN-WORKFLOW** - Design-to-code workflow ✓ 2024-12-31
-  - Dependencies: 08a
-  - Acceptance: Mockups become components, design sync works
-
-- [x] **12a-SELF-REVIEW-FRAMEWORK** - Agent self-review capability ✓ 2024-12-31
-  - Dependencies: 05
-  - Acceptance: Agents review own output, iterate on feedback
-
-- [x] **13-ORCHESTRATOR-GRAPH** - LangGraph.js workflow engine ✓ 2024-12-31
-  - Dependencies: 12a
-  - Acceptance: Graph compiles, checkpointing works, human-in-loop interrupts
-
-- [x] **14-CONTEXT-MANAGER** - Qdrant context retrieval for agents ✓ 2024-12-31
-  - Dependencies: 13
-  - Acceptance: Token-budget aware retrieval, relevance ranking works
+1. React application in `apps/web/`
+2. Prompt input component
+3. Real-time agent activity feed (SSE)
+4. Design artifact preview (mockups, styles, flows)
+5. Approval/rejection interface
+6. Artifacts API endpoint in NestJS
 
 ## Constitution Rules (Must Follow)
 
@@ -96,47 +42,57 @@
 
 ## Lessons to Remember
 
-No lessons captured from Phase 1 yet. Patterns established:
+From Phase 2:
 - Use Zod for all configuration validation
 - Tenant isolation via filter conditions (vectors) or RLS (PostgreSQL)
 - `as unknown as` pattern for type coercion where needed
-- File chunking with overlap for code indexing
 - Token budget management for RAG context
+- ESLint config resolution in pnpm workspaces requires root package dependency
 
 ## Session Notes
 
-- Phase 2 started: 2024-12-31
-- Gate type: human_approval (required before Phase 3)
-- Focus: Agent coordination and handoffs
-- Key risk: Token usage explosion - implement budgets early
-- **Phase 2 APPROVED: 2024-12-31** - All 17 tasks complete, ready for Phase 3
+- Phase 3 started: 2024-12-31
+- Gate type: automatic (no human approval needed)
+- Focus: Creating visual interface for user testing
+- Key benefit: Immediate feedback loop for orchestrator and design workflow
+- Previous: Phase 2 approved 2024-12-31
+
+### Implementation Progress (2024-12-31)
+
+- Created `apps/web/` React + Vite + Tailwind application
+- Implemented full layout structure based on design mockups:
+  - Header with nav tabs, status, branch indicator
+  - Left sidebar (Git branches, Worktrees, Files)
+  - Right sidebar (Orchestrator status, Git status, Agent logs)
+  - Bottom bar (Command input, Pause/Stop/Execute)
+  - Main content area with Activity/Kanban/Viewer tabs
+- Implemented functional components:
+  - AgentFeed with SSE streaming via useTaskStream hook
+  - AgentMessage with self-review badges
+  - DesignPreview with tabbed artifact viewer
+  - ArtifactViewer (mockup iframe, code, markdown)
+  - ApprovalDialog with approve/reject workflow
+- API client with dev token support
+- TypeScript strict mode: PASS
+- Build: PASS (dist/ 172.87 kB JS, 17.42 kB CSS)
 
 ## Known Risks
 
 | Risk                            | Mitigation                               |
 | ------------------------------- | ---------------------------------------- |
-| Agent coordination complexity   | Start with simple workflows              |
-| Token usage explosion           | Implement token budgets early            |
-| LangGraph state management      | Use PostgreSQL checkpointer from CP0     |
+| API endpoint compatibility      | Start with existing task endpoints       |
+| SSE connection reliability      | Implement reconnection logic             |
+| Iframe sandbox security         | Use sandbox attributes                   |
 
 ## Dependency Graph
 
 ```
-05-AGENT-FRAMEWORK (base)
-├── 05a-ORCHESTRATOR-AGENT
-├── 05b-PROJECT-MANAGER-AGENT
-├── 05c-ARCHITECT-AGENT
-├── 05d-ANALYST-AGENT
-├── 05e-PROJECT-ANALYZER-AGENT
-├── 05f-COMPLIANCE-AGENT
-├── 06-UI-DESIGNER-AGENT
-│   ├── 06a-SKILLS-FRAMEWORK
-│   │   └── 06b-MCP-SERVER-CONFIG
-│   └── 07-DESIGN-TOKENS
-│       └── 08-USER-FLOWS
-│           └── 08a-ACTIVITY-SYSTEM
-│               └── 08b-DESIGN-WORKFLOW
-└── 12a-SELF-REVIEW-FRAMEWORK
-    └── 13-ORCHESTRATOR-GRAPH
-        └── 14-CONTEXT-MANAGER
+CP1 Complete (Phase 2)
+└── 24a-EARLY-WEB-INTERFACE
+    ├── apps/web/ (React + Vite)
+    ├── apps/api/ (NestJS endpoints)
+    └── Connects to:
+        ├── @aigentflow/activity (SSE streaming)
+        ├── @aigentflow/design-tokens (theming)
+        └── @aigentflow/flows (diagram rendering)
 ```

@@ -7,21 +7,24 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./graphs": {
       "types": "./dist/graphs/index.d.ts",
-      "import": "./dist/graphs/index.js"
+      "import": "./dist/graphs/index.js",
+      "require": "./dist/graphs/index.cjs"
     }
   },
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/graphs/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts src/graphs/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts src/graphs/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts src/graphs/index.ts --format esm,cjs --dts --watch",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

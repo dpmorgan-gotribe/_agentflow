@@ -95,3 +95,41 @@ export const taskResponseSchema = z.object({
 });
 
 export type TaskResponse = z.infer<typeof taskResponseSchema>;
+
+/**
+ * Artifact type enum
+ */
+export const ArtifactType = {
+  MOCKUP: 'mockup',
+  STYLESHEET: 'stylesheet',
+  FLOW: 'flow',
+  SOURCE_FILE: 'source_file',
+  TEST_FILE: 'test_file',
+  CONFIG: 'config',
+  DOCUMENTATION: 'documentation',
+} as const;
+
+export type ArtifactType = (typeof ArtifactType)[keyof typeof ArtifactType];
+
+/**
+ * Artifact response schema
+ */
+export const artifactResponseSchema = z.object({
+  id: z.string().uuid(),
+  taskId: z.string().uuid(),
+  type: z.enum([
+    'mockup',
+    'stylesheet',
+    'flow',
+    'source_file',
+    'test_file',
+    'config',
+    'documentation',
+  ]),
+  name: z.string(),
+  path: z.string(),
+  content: z.string().optional(),
+  createdAt: z.string(),
+});
+
+export type ArtifactResponse = z.infer<typeof artifactResponseSchema>;

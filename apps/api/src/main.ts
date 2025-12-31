@@ -4,6 +4,15 @@
  * Initializes NestJS with Fastify adapter and security hardening.
  */
 
+// Load environment variables FIRST, before any other imports
+import { config as loadEnv } from 'dotenv';
+import { resolve } from 'path';
+
+// Load from apps/api/.env (relative to dist directory)
+loadEnv({ path: resolve(__dirname, '..', '.env') });
+// Fallback to monorepo root .env
+loadEnv({ path: resolve(__dirname, '..', '..', '..', '.env') });
+
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import {

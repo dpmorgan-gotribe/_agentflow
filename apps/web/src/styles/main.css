@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   Base Styles
+   ============================================ */
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply font-sans text-[13px] text-text-primary bg-bg-primary leading-normal;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* ============================================
+   Custom Scrollbars
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-bg-primary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border-secondary rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-text-muted;
+}
+
+/* ============================================
+   Layout Variables
+   ============================================ */
+:root {
+  --header-height: 40px;
+  --left-sidebar-width: 220px;
+  --right-sidebar-width: 280px;
+  --bottom-bar-height: 60px;
+}
+
+/* ============================================
+   Status Dot Animation
+   ============================================ */
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-dot-pulse {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ============================================
+   Agent Log Action Colors
+   ============================================ */
+.log-action-reading { @apply text-cyan-400; }
+.log-action-writing { @apply text-amber-400; }
+.log-action-commit { @apply text-status-success; }
+.log-action-error { @apply text-status-error; }
+.log-action-spawned { @apply text-accent-primary; }
+
+/* ============================================
+   Kanban Card Agent Icons
+   ============================================ */
+.agent-icon-pm { @apply bg-kanban-planning text-white; }
+.agent-icon-ui { @apply bg-kanban-designing text-white; }
+.agent-icon-fe { @apply bg-kanban-building text-white; }
+.agent-icon-be { @apply bg-kanban-building text-white; }
+.agent-icon-qa { @apply bg-kanban-testing text-white; }
+.agent-icon-review { @apply bg-kanban-review text-white; }
+
+/* ============================================
+   Focus Styles
+   ============================================ */
+.focus-ring:focus {
+  @apply outline-none ring-2 ring-accent-primary ring-opacity-50;
+}
+
+/* ============================================
+   Prose Styles for Markdown
+   ============================================ */
+.prose {
+  @apply text-text-secondary;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  @apply text-text-primary;
+}
+
+.prose code {
+  @apply bg-bg-tertiary px-1.5 py-0.5 rounded text-sm;
+}
+
+.prose pre {
+  @apply bg-bg-secondary;
+}
+
+/* ============================================
+   Iframe Sandbox Styles
+   ============================================ */
+.artifact-iframe {
+  @apply w-full h-full border-0 bg-white;
+}

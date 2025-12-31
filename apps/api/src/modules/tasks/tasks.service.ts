@@ -5,20 +5,24 @@
  * Integrates with LangGraph for workflow execution.
  */
 
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { Observable, Subject } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import {
   approveTaskSchema,
   createTaskSchema,
   TaskStatus,
+  ArtifactType,
   type ApproveTaskInput,
   type CreateTaskInput,
   type TaskResponse,
+  type ArtifactResponse,
 } from './tasks.schema';
 import type { TenantContext } from '../../common/guards';
 import { ConfigService } from '../../config';
 import { NotFoundError, TaskStateError, ValidationError } from '../../errors';
+import { WorkflowService } from '../workflow';
 
 /**
  * In-memory task storage (will be replaced with database in production)
@@ -39,16 +43,37 @@ interface StoredTask {
   updatedAt: Date;
 }
 
+/**
+ * In-memory artifact storage
+ */
+interface StoredArtifact {
+  id: string;
+  taskId: string;
+  type: ArtifactType;
+  name: string;
+  path: string;
+  content?: string;
+  createdAt: Date;
+}
+
 @Injectable()
 export class TasksService implements OnModuleInit {
   private readonly logger = new Logger(TasksService.name);
   private readonly tasks = new Map<string, StoredTask>();
+  private readonly artifacts = new Map<string, StoredArtifact[]>();
   private readonly eventStreams = new Map<string, Subject<MessageEvent>>();
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject(forwardRef(() => WorkflowService))
+    private readonly workflowService: WorkflowService
+  ) {}
 
   onModuleInit(): void {
     this.logger.log('TasksService initialized');
+    if (this.workflowService.isReady()) {
+      this.logger.log('WorkflowService is ready');
+    }
   }
 
   /**
@@ -191,7 +216,12 @@ export class TasksService implements OnModuleInit {
     if (validated.approved) {
       this.logger.log(`Task ${taskId} approved, resuming workflow`);
       this.updateTaskStatus(taskId, TaskStatus.EXECUTING);
-      // In production, this would resume the LangGraph workflow
+      // Resume the LangGraph workflow
+      this.resumeWorkflowAfterApproval(taskId, true, validated.feedback).catch(
+        (error) => {
+          this.logger.error(`Failed to resume workflow: ${error.message}`);
+        }
+      );
     } else {
       this.logger.log(`Task ${taskId} rejected`);
       this.updateTaskStatus(taskId, TaskStatus.ABORTED, {
@@ -262,7 +292,87 @@ export class TasksService implements OnModuleInit {
   }
 
   /**
-   * Execute workflow in background
+   * Get artifacts for a task
+   */
+  getArtifacts(tenantId: string, taskId: string): ArtifactResponse[] {
+    // First verify task belongs to tenant
+    const task = this.tasks.get(taskId);
+    if (!task || task.tenantId !== tenantId) {
+      throw new NotFoundError(`Task not found: ${taskId}`);
+    }
+
+    const artifacts = this.artifacts.get(taskId) || [];
+    return artifacts.map((a) => ({
+      id: a.id,
+      taskId: a.taskId,
+      type: a.type,
+      name: a.name,
+      path: a.path,
+      content: a.content,
+      createdAt: a.createdAt.toISOString(),
+    }));
+  }
+
+  /**
+   * Add an artifact to a task (called by workflow)
+   */
+  addArtifact(
+    taskId: string,
+    artifact: {
+      type: ArtifactType;
+      name: string;
+      path: string;
+      content?: string;
+    }
+  ): ArtifactResponse {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      throw new NotFoundError(`Task not found: ${taskId}`);
+    }
+
+    const stored: StoredArtifact = {
+      id: crypto.randomUUID(),
+      taskId,
+      type: artifact.type,
+      name: artifact.name,
+      path: artifact.path,
+      content: artifact.content,
+      createdAt: new Date(),
+    };
+
+    const existing = this.artifacts.get(taskId) || [];
+    existing.push(stored);
+    this.artifacts.set(taskId, existing);
+
+    this.logger.log(`Artifact added: ${stored.id} (${artifact.type}) to task ${taskId}`);
+
+    // Emit event for artifact
+    const eventSubject = this.eventStreams.get(taskId);
+    if (eventSubject) {
+      this.emitEvent(eventSubject, {
+        type: 'artifact_created',
+        taskId,
+        artifact: {
+          id: stored.id,
+          type: stored.type,
+          name: stored.name,
+        },
+      });
+    }
+
+    return {
+      id: stored.id,
+      taskId: stored.taskId,
+      type: stored.type,
+      name: stored.name,
+      path: stored.path,
+      content: stored.content,
+      createdAt: stored.createdAt.toISOString(),
+    };
+  }
+
+  /**
+   * Execute workflow using LangGraph orchestrator
    */
   private async executeWorkflow(
     tenantId: string,
@@ -271,41 +381,71 @@ export class TasksService implements OnModuleInit {
     const eventSubject = new Subject<MessageEvent>();
     this.eventStreams.set(taskId, eventSubject);
 
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      this.logger.error(`Task not found for workflow: ${taskId}`);
+      return;
+    }
+
     try {
-      // Simulate workflow execution
+      // Update status to analyzing
       this.updateTaskStatus(taskId, TaskStatus.ANALYZING);
       this.emitEvent(eventSubject, { type: 'workflow_started', taskId });
 
-      // Simulate analysis phase
-      await this.sleep(1000);
-      const task = this.tasks.get(taskId);
-      if (!task || task.status === TaskStatus.ABORTED) {
-        return;
-      }
-
-      this.updateTaskStatus(taskId, TaskStatus.EXECUTING, {
-        analysis: { type: 'feature', complexity: 'medium' },
-        currentAgent: 'architect',
+      // Execute the real LangGraph workflow
+      const result = await this.workflowService.startWorkflow({
+        tenantId,
+        projectId: task.projectId,
+        taskId,
+        prompt: task.prompt,
       });
-      this.emitEvent(eventSubject, { type: 'analysis_complete', taskId });
 
-      // Simulate agent execution
-      await this.sleep(2000);
-      // Re-fetch task to check current status (may have changed during sleep)
+      // Check if aborted during execution
       const currentTask = this.tasks.get(taskId);
       if (!currentTask || currentTask.status === TaskStatus.ABORTED) {
         return;
       }
 
-      this.updateTaskStatus(taskId, TaskStatus.COMPLETED, {
-        currentAgent: undefined,
-        completedAgents: ['architect', 'backend', 'frontend'],
-      });
-      this.emitEvent(eventSubject, { type: 'workflow_completed', taskId });
+      // Update task based on workflow result
+      if (result.status === 'awaiting_approval' && result.pendingApproval) {
+        this.updateTaskStatus(taskId, TaskStatus.AWAITING_APPROVAL, {
+          currentAgent: result.completedAgents[result.completedAgents.length - 1],
+          completedAgents: result.completedAgents,
+        });
+        this.emitEvent(eventSubject, {
+          type: 'approval_required',
+          taskId,
+          request: result.pendingApproval,
+        });
+        // Don't complete the stream - wait for approval
+        return;
+      }
+
+      if (result.status === 'completed') {
+        this.updateTaskStatus(taskId, TaskStatus.COMPLETED, {
+          currentAgent: undefined,
+          completedAgents: result.completedAgents,
+        });
+        this.emitEvent(eventSubject, { type: 'workflow_completed', taskId });
+      } else if (result.status === 'failed') {
+        this.updateTaskStatus(taskId, TaskStatus.FAILED, {
+          error: result.error,
+          currentAgent: undefined,
+        });
+        this.emitEvent(eventSubject, { type: 'workflow_failed', taskId, error: result.error });
+      }
 
       eventSubject.complete();
     } catch (error) {
       this.logger.error(`Workflow error for task ${taskId}:`, error);
+      this.updateTaskStatus(taskId, TaskStatus.FAILED, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      this.emitEvent(eventSubject, {
+        type: 'workflow_failed',
+        taskId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       eventSubject.error(error);
     } finally {
       this.eventStreams.delete(taskId);
@@ -360,9 +500,66 @@ export class TasksService implements OnModuleInit {
   }
 
   /**
-   * Sleep helper for simulation
+   * Resume workflow after approval decision
    */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  private async resumeWorkflowAfterApproval(
+    taskId: string,
+    approved: boolean,
+    feedback?: string
+  ): Promise<void> {
+    const eventSubject = this.eventStreams.get(taskId) || new Subject<MessageEvent>();
+    if (!this.eventStreams.has(taskId)) {
+      this.eventStreams.set(taskId, eventSubject);
+    }
+
+    try {
+      const result = await this.workflowService.resumeWithApproval(
+        taskId,
+        approved,
+        feedback
+      );
+
+      // Check if aborted
+      const currentTask = this.tasks.get(taskId);
+      if (!currentTask || currentTask.status === TaskStatus.ABORTED) {
+        return;
+      }
+
+      // Update task based on result
+      if (result.status === 'awaiting_approval' && result.pendingApproval) {
+        this.updateTaskStatus(taskId, TaskStatus.AWAITING_APPROVAL, {
+          currentAgent: result.completedAgents[result.completedAgents.length - 1],
+          completedAgents: result.completedAgents,
+        });
+        this.emitEvent(eventSubject, {
+          type: 'approval_required',
+          taskId,
+          request: result.pendingApproval,
+        });
+      } else if (result.status === 'completed') {
+        this.updateTaskStatus(taskId, TaskStatus.COMPLETED, {
+          currentAgent: undefined,
+          completedAgents: result.completedAgents,
+        });
+        this.emitEvent(eventSubject, { type: 'workflow_completed', taskId });
+        eventSubject.complete();
+        this.eventStreams.delete(taskId);
+      } else if (result.status === 'failed') {
+        this.updateTaskStatus(taskId, TaskStatus.FAILED, {
+          error: result.error,
+          currentAgent: undefined,
+        });
+        this.emitEvent(eventSubject, { type: 'workflow_failed', taskId, error: result.error });
+        eventSubject.complete();
+        this.eventStreams.delete(taskId);
+      }
+    } catch (error) {
+      this.logger.error(`Resume workflow failed for task ${taskId}:`, error);
+      this.updateTaskStatus(taskId, TaskStatus.FAILED, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      eventSubject.complete();
+      this.eventStreams.delete(taskId);
+    }
   }
 }
