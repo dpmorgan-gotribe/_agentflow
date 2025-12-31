@@ -160,7 +160,7 @@ export class WorkflowService implements OnModuleInit {
                     agentId: lastOutput.agentId,
                     success: lastOutput.success,
                     artifactCount: lastOutput.artifacts?.length || 0,
-                    reasoning: lastOutput.reasoning ||
+                    reasoning:
                       `Agent ${lastOutput.agentId} ${lastOutput.success ? 'completed successfully' : 'failed'}\n` +
                       `Artifacts generated: ${lastOutput.artifacts?.length || 0}`,
                     completedAgents: stateUpdate.completedAgents,
@@ -217,15 +217,27 @@ export class WorkflowService implements OnModuleInit {
 
       return this.mapStateToResult(taskId, result);
     } catch (error) {
+      // Log detailed error info for CLI errors
+      const errorDetails = error as { stderr?: string; exitCode?: number };
       this.logger.error(
         `Workflow failed for task ${taskId}:`,
         error instanceof Error ? error.stack : String(error)
       );
+      if (errorDetails.stderr) {
+        this.logger.error(`CLI stderr: ${errorDetails.stderr}`);
+      }
+      if (errorDetails.exitCode !== undefined) {
+        this.logger.error(`CLI exit code: ${errorDetails.exitCode}`);
+      }
+
+      const errorMessage = errorDetails.stderr
+        ? `${error instanceof Error ? error.message : String(error)}: ${errorDetails.stderr}`
+        : error instanceof Error ? error.message : String(error);
 
       eventSubject.next(
         createStreamEvent('workflow.error', {
           taskId,
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
         })
       );
       eventSubject.complete();
@@ -358,13 +370,15 @@ export class WorkflowService implements OnModuleInit {
     taskId: string,
     state: OrchestratorStateType
   ): WorkflowResult {
-    // Collect all artifacts from agent outputs
-    const allArtifacts = state.agentOutputs.flatMap((output) => output.artifacts);
+    // Collect all artifacts from agent outputs (handle undefined)
+    const allArtifacts = (state.agentOutputs ?? []).flatMap(
+      (output) => output.artifacts ?? []
+    );
 
     return {
       taskId,
       status: state.status,
-      completedAgents: state.completedAgents,
+      completedAgents: state.completedAgents ?? [],
       artifacts: allArtifacts,
       error: state.error ?? undefined,
       pendingApproval: state.approvalRequest ?? undefined,

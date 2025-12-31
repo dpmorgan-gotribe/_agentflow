@@ -14,6 +14,8 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import crypto from 'node:crypto';
 import type {
   AIProvider,
   AIProviderRequest,
@@ -102,7 +104,17 @@ export class ClaudeCliProvider implements AIProvider {
     }
 
     const prompt = this.buildPrompt(request);
-    return this.executeCliCommand(['-p', prompt]);
+    // Use a temporary file to pass the prompt to avoid Windows shell issues
+    // with special characters like < > | & in the prompt content
+    const tempFile = path.join(os.tmpdir(), `claude-prompt-${crypto.randomUUID()}.txt`);
+    try {
+      await fs.writeFile(tempFile, prompt, 'utf8');
+      const result = await this.executeCliCommandWithFile(tempFile);
+      return result;
+    } finally {
+      // Clean up temp file
+      await fs.unlink(tempFile).catch(() => {});
+    }
   }
 
   /**
@@ -205,16 +217,127 @@ export class ClaudeCliProvider implements AIProvider {
   }
 
   /**
-   * Execute CLI command with timeout and buffer limits
+   * Execute CLI command reading prompt from a file
+   *
+   * Uses bash to pipe file content to claude -p.
+   * The bash environment properly supports subscription mode.
    */
-  private executeCliCommand(
-    args: string[],
+  private executeCliCommandWithFile(
+    promptFilePath: string,
     options?: { env?: NodeJS.ProcessEnv; timeout?: number }
   ): Promise<AIProviderResponse> {
     const timeout = options?.timeout ?? this.config.timeoutMs;
     const env = options?.env ?? process.env;
 
     return new Promise((resolve, reject) => {
+      // Spawn bash directly and run cat | claude -p
+      // Using bash as shell (not cmd) to preserve subscription mode
+      const safePath = promptFilePath.replace(/\\/g, '/');
+      // Simple command - matches working test-claude.js pattern
+      const bashCommand = `cat '${safePath}' | claude -p`;
+      console.log(`[ClaudeCliProvider] Executing via bash: ${bashCommand}`);
+
+      // Remove ANTHROPIC_API_KEY from env to force subscription mode
+      // If the env var exists with an invalid placeholder value (like sk-ant-...)
+      // Claude CLI will try API mode and fail instead of using subscription mode
+      const cleanEnv = { ...env };
+      if (cleanEnv['ANTHROPIC_API_KEY'] && cleanEnv['ANTHROPIC_API_KEY'].includes('...')) {
+        console.log('[ClaudeCliProvider] Removing invalid placeholder ANTHROPIC_API_KEY to use subscription mode');
+        delete cleanEnv['ANTHROPIC_API_KEY'];
+      }
+
+      const claude = spawn('bash', ['-c', bashCommand], {
+        env: cleanEnv,
+        stdio: ['ignore', 'pipe', 'pipe'], // stdin ignored - prompt comes from file
+        shell: false, // Don't wrap in another shell
+      });
+
+      let output = '';
+      let error = '';
+      let outputSize = 0;
+
+      const timer = setTimeout(() => {
+        claude.kill('SIGTERM');
+        setTimeout(() => {
+          claude.kill('SIGKILL');
+        }, 1000);
+        reject(new CLITimeoutError(timeout));
+      }, timeout);
+
+      claude.stdout?.on('data', (data: Buffer) => {
+        const chunk = data.toString();
+        outputSize += data.length;
+
+        if (outputSize > this.config.maxBuffer) {
+          claude.kill('SIGTERM');
+          clearTimeout(timer);
+          reject(
+            new CLIExecutionError(
+              `Output exceeded maximum buffer size: ${this.config.maxBuffer}`,
+              null
+            )
+          );
+          return;
+        }
+
+        output += chunk;
+      });
+
+      claude.stderr?.on('data', (data: Buffer) => {
+        error += data.toString();
+      });
+
+      claude.on('error', (err) => {
+        clearTimeout(timer);
+        reject(new CLIExecutionError(err.message, null));
+      });
+
+      claude.on('close', (code) => {
+        clearTimeout(timer);
+        console.log(`[ClaudeCliProvider] Process exited with code: ${code}`);
+        console.log(`[ClaudeCliProvider] stdout length: ${output.length}`);
+        if (output.length > 0 && output.length < 500) {
+          console.log(`[ClaudeCliProvider] stdout: ${output}`);
+        } else if (output.length > 0) {
+          console.log(`[ClaudeCliProvider] stdout preview: ${output.slice(0, 500)}`);
+        }
+        if (error) {
+          console.log(`[ClaudeCliProvider] stderr: ${error}`);
+        }
+        if (code !== 0) {
+          reject(new CLIExecutionError(
+            `Claude CLI exited with code ${code}`,
+            code,
+            this.sanitizeStderr(error)
+          ));
+        } else {
+          resolve({ content: output.trim() });
+        }
+      });
+    });
+  }
+
+  /**
+   * Execute CLI command with timeout and buffer limits
+   *
+   * Uses stdin to pass prompt to avoid:
+   * - Windows command line length limits (8191 chars)
+   * - Shell metacharacter interpretation issues
+   */
+  private executeCliCommand(
+    args: string[],
+    options?: { env?: NodeJS.ProcessEnv; timeout?: number; stdin?: string }
+  ): Promise<AIProviderResponse> {
+    const timeout = options?.timeout ?? this.config.timeoutMs;
+    const env = options?.env ?? process.env;
+
+    return new Promise((resolve, reject) => {
+      // Debug logging
+      console.log(`[ClaudeCliProvider] Executing: ${this.config.cliPath} ${args.join(' ')}`);
+      if (options?.stdin) {
+        console.log(`[ClaudeCliProvider] stdin length: ${options.stdin.length} chars`);
+      }
+
       const claude = spawn(this.config.cliPath, args, {
         env,
         // Security: Limit child process resources
@@ -266,6 +389,14 @@ export class ClaudeCliProvider implements AIProvider {
 
       claude.on('close', (code) => {
         clearTimeout(timer);
+        console.log(`[ClaudeCliProvider] Process exited with code: ${code}`);
+        console.log(`[ClaudeCliProvider] stdout length: ${output.length}`);
+        if (output.length > 0) {
+          console.log(`[ClaudeCliProvider] stdout preview: ${output.slice(0, 500)}`);
+        }
+        if (error) {
+          console.log(`[ClaudeCliProvider] stderr: ${error}`);
+        }
         if (code !== 0) {
           reject(new CLIExecutionError(
             `Claude CLI exited with code ${code}`,
@@ -276,6 +407,19 @@ export class ClaudeCliProvider implements AIProvider {
           resolve({ content: output.trim() });
         }
       });
+
+      // Write stdin if provided, then close
+      if (options?.stdin && claude.stdin) {
+        claude.stdin.on('error', (err) => {
+          console.log(`[ClaudeCliProvider] stdin error: ${err.message}`);
+        });
+        claude.stdin.write(options.stdin, 'utf8', (err) => {
+          if (err) {
+            console.log(`[ClaudeCliProvider] stdin write error: ${err.message}`);
+          }
+          claude.stdin?.end();
+        });
+      }
     });
   }
 
