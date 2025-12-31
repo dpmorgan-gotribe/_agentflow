@@ -56,12 +56,24 @@ interface StoredArtifact {
   createdAt: Date;
 }
 
+/**
+ * Event history entry for replay
+ */
+interface EventHistoryEntry {
+  event: MessageEvent;
+  timestamp: number;
+}
+
 @Injectable()
 export class TasksService implements OnModuleInit {
   private readonly logger = new Logger(TasksService.name);
   private readonly tasks = new Map<string, StoredTask>();
   private readonly artifacts = new Map<string, StoredArtifact[]>();
   private readonly eventStreams = new Map<string, Subject<MessageEvent>>();
+  private readonly eventHistory = new Map<string, EventHistoryEntry[]>();
+
+  // Keep event history for 5 minutes for replay
+  private readonly EVENT_HISTORY_TTL_MS = 5 * 60 * 1000;
 
   constructor(
     private readonly configService: ConfigService,
@@ -170,13 +182,33 @@ export class TasksService implements OnModuleInit {
       return new Observable((subscriber) => subscriber.complete());
     }
 
-    const subject = this.eventStreams.get(taskId);
-    if (!subject) {
-      // Task not currently streaming, return completed observable
-      return new Observable((subscriber) => subscriber.complete());
-    }
+    return new Observable((subscriber) => {
+      // Replay historical events first
+      const history = this.eventHistory.get(taskId) || [];
+      const now = Date.now();
+      for (const entry of history) {
+        // Only replay events within TTL
+        if (now - entry.timestamp < this.EVENT_HISTORY_TTL_MS) {
+          subscriber.next(entry.event);
+        }
+      }
 
-    return subject.asObservable();
+      // Subscribe to live events if stream is still active
+      const subject = this.eventStreams.get(taskId);
+      if (subject) {
+        const subscription = subject.subscribe({
+          next: (event) => subscriber.next(event),
+          error: (err) => subscriber.error(err),
+          complete: () => subscriber.complete(),
+        });
+
+        return () => subscription.unsubscribe();
+      } else {
+        // No active stream, complete after replaying history
+        subscriber.complete();
+        return () => {};
+      }
+    });
   }
 
   /**
@@ -475,9 +507,20 @@ export class TasksService implements OnModuleInit {
     subject: Subject<MessageEvent>,
     data: Record<string, unknown>
   ): void {
-    subject.next({
+    const event = {
       data: JSON.stringify(data),
-    } as MessageEvent);
+    } as MessageEvent;
+
+    // Emit to live subscribers
+    subject.next(event);
+
+    // Store in history for replay
+    const taskId = data.taskId as string;
+    if (taskId) {
+      const history = this.eventHistory.get(taskId) || [];
+      history.push({ event, timestamp: Date.now() });
+      this.eventHistory.set(taskId, history);
+    }
   }
 
   /**
