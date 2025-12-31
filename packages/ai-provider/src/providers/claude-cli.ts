@@ -188,6 +188,7 @@ export class ClaudeCliProvider implements AIProvider {
 
     const claude = spawn(this.config.cliPath, ['-p', prompt, '--no-markdown'], {
       env: process.env,
+      shell: true, // Required on Windows to find .cmd files
     });
 
     // Handle errors
@@ -218,6 +219,7 @@ export class ClaudeCliProvider implements AIProvider {
         env,
         // Security: Limit child process resources
         stdio: ['pipe', 'pipe', 'pipe'],
+        shell: true, // Required on Windows to find .cmd files
       });
 
       let output = '';
