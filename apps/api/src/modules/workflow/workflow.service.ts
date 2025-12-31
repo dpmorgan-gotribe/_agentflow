@@ -116,10 +116,22 @@ export class WorkflowService implements OnModuleInit {
           // Emit appropriate event based on node name
           switch (nodeName) {
             case 'analyze':
+              // Include analysis details with reasoning
+              const analysis = stateUpdate.analysis;
               eventSubject.next(
                 createStreamEvent('workflow.analyzing', {
                   taskId,
-                  ...stateUpdate,
+                  analysis,
+                  agentQueue: stateUpdate.agentQueue,
+                  reasoning: analysis
+                    ? `Task Analysis Complete:\n` +
+                      `• Type: ${analysis.taskType}\n` +
+                      `• Complexity: ${analysis.complexity}\n` +
+                      `• Requires UI: ${analysis.requiresUI ? 'Yes' : 'No'}\n` +
+                      `• Requires Backend: ${analysis.requiresBackend ? 'Yes' : 'No'}\n` +
+                      `• Requires Architecture: ${analysis.requiresArchitecture ? 'Yes' : 'No'}\n` +
+                      `• Agents: ${(stateUpdate.agentQueue || []).join(' → ')}`
+                    : 'Analyzing task requirements...',
                 })
               );
               break;
@@ -130,6 +142,8 @@ export class WorkflowService implements OnModuleInit {
                   taskId,
                   agentQueue: stateUpdate.agentQueue,
                   currentAgent: stateUpdate.currentAgent,
+                  reasoning: `Routing to: ${stateUpdate.currentAgent || 'next agent'}\n` +
+                    `Remaining queue: ${(stateUpdate.agentQueue || []).join(' → ') || 'empty'}`,
                 })
               );
               break;
@@ -143,7 +157,12 @@ export class WorkflowService implements OnModuleInit {
                 eventSubject.next(
                   createStreamEvent('workflow.agent_completed', {
                     taskId,
-                    agentOutputs: [lastOutput],
+                    agentId: lastOutput.agentId,
+                    success: lastOutput.success,
+                    artifactCount: lastOutput.artifacts?.length || 0,
+                    reasoning: lastOutput.reasoning ||
+                      `Agent ${lastOutput.agentId} ${lastOutput.success ? 'completed successfully' : 'failed'}\n` +
+                      `Artifacts generated: ${lastOutput.artifacts?.length || 0}`,
                     completedAgents: stateUpdate.completedAgents,
                   })
                 );
@@ -155,6 +174,7 @@ export class WorkflowService implements OnModuleInit {
                 createStreamEvent('workflow.approval_needed', {
                   taskId,
                   approvalRequest: stateUpdate.approvalRequest,
+                  reasoning: 'Human approval required to proceed',
                 })
               );
               break;

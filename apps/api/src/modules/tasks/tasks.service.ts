@@ -512,26 +512,33 @@ export class TasksService implements OnModuleInit {
   private extractEventData(streamEvent: { type: string; data: unknown }): Record<string, unknown> {
     const data = streamEvent.data as Record<string, unknown>;
 
+    // Use reasoning field if available for detailed messages
+    const reasoning = data.reasoning as string | undefined;
+
     switch (streamEvent.type) {
       case 'workflow.analyzing':
-        return { message: 'Analyzing task requirements...' };
+        return {
+          message: reasoning || 'Analyzing task requirements...',
+          analysis: data.analysis,
+          agentQueue: data.agentQueue,
+        };
 
       case 'workflow.routing':
         return {
-          message: `Routing to agents: ${(data.agentQueue as string[] || []).join(', ')}`,
+          message: reasoning || `Routing to agents: ${(data.agentQueue as string[] || []).join(', ')}`,
           agentQueue: data.agentQueue,
           currentAgent: data.currentAgent,
         };
 
       case 'workflow.agent_started':
         return {
-          message: `Starting agent: ${data.agentId}`,
+          message: reasoning || `Starting agent: ${data.agentId}`,
           agent: data.agentId,
         };
 
       case 'workflow.agent_completed':
         return {
-          message: `Agent completed: ${data.agentId} (${data.success ? 'success' : 'failed'})`,
+          message: reasoning || `Agent completed: ${data.agentId} (${data.success ? 'success' : 'failed'})`,
           agent: data.agentId,
           success: data.success,
           artifactCount: data.artifactCount,
@@ -539,32 +546,32 @@ export class TasksService implements OnModuleInit {
 
       case 'workflow.approval_needed':
         return {
-          message: 'Awaiting user approval',
+          message: reasoning || 'Awaiting user approval',
           approvalRequest: data.approvalRequest,
         };
 
       case 'workflow.completed':
         return {
-          message: `Workflow completed. Agents: ${(data.completedAgents as string[] || []).join(', ')}`,
+          message: reasoning || `Workflow completed. Agents: ${(data.completedAgents as string[] || []).join(', ')}`,
           completedAgents: data.completedAgents,
           totalArtifacts: data.totalArtifacts,
         };
 
       case 'workflow.failed':
         return {
-          message: `Workflow failed: ${data.error}`,
+          message: reasoning || `Workflow failed: ${data.error}`,
           error: data.error,
           lastAgent: data.lastAgent,
         };
 
       case 'workflow.error':
         return {
-          message: `Error: ${data.error}`,
+          message: reasoning || `Error: ${data.error}`,
           error: data.error,
         };
 
       default:
-        return data;
+        return { ...data, message: reasoning || JSON.stringify(data).slice(0, 200) };
     }
   }
 
