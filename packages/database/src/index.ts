@@ -28,3 +28,6 @@ export * from './repositories/index.js';
 
 // Re-export migration runner
 export { runMigrations, type MigrationOptions, type MigrationResult } from './migrations/runner.js';
+
+// Re-export Qdrant vector database
+export * from './qdrant/index.js';

@@ -20,6 +20,10 @@
     "./migrations": {
       "types": "./dist/migrations/runner.d.ts",
       "import": "./dist/migrations/runner.js"
+    },
+    "./qdrant": {
+      "types": "./dist/qdrant/index.d.ts",
+      "import": "./dist/qdrant/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -28,7 +32,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/schema/index.ts src/repositories/index.ts src/migrations/runner.ts --format esm --dts",
+    "build": "tsup src/index.ts src/schema/index.ts src/repositories/index.ts src/migrations/runner.ts src/qdrant/index.ts --format esm --dts",
     "dev": "tsup src/index.ts src/schema/index.ts src/repositories/index.ts --format esm --dts --watch",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
@@ -42,14 +46,17 @@
   },
   "dependencies": {
     "@aigentflow/core": "workspace:*",
+    "@qdrant/js-client-rest": "^1.12.0",
     "drizzle-orm": "^0.36.0",
     "postgres": "^3.4.0",
+    "uuid": "^9.0.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {
     "@aigentflow/config": "workspace:*",
     "@aigentflow/tsconfig": "workspace:*",
     "@types/node": "^20.0.0",
+    "@types/uuid": "^9.0.0",
     "drizzle-kit": "^0.24.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
