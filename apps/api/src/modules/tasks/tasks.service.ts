@@ -7,7 +7,6 @@
 
 import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { Observable, Subject } from 'rxjs';
-import { map } from 'rxjs/operators';
 
 import {
   approveTaskSchema,
@@ -23,6 +22,15 @@ import type { TenantContext } from '../../common/guards';
 import { ConfigService } from '../../config';
 import { NotFoundError, TaskStateError, ValidationError } from '../../errors';
 import { WorkflowService } from '../workflow';
+import {
+  initStorage,
+  loadTasks,
+  loadAllArtifacts,
+  saveTasks,
+  saveArtifacts,
+  type PersistedTask,
+  type PersistedArtifact,
+} from './file-storage';
 
 /**
  * In-memory task storage (will be replaced with database in production)
@@ -81,11 +89,110 @@ export class TasksService implements OnModuleInit {
     private readonly workflowService: WorkflowService
   ) {}
 
-  onModuleInit(): void {
-    this.logger.log('TasksService initialized');
+  async onModuleInit(): Promise<void> {
+    this.logger.log('TasksService initializing...');
+
+    // Initialize file storage and load persisted data
+    await initStorage();
+    await this.loadPersistedData();
+
     if (this.workflowService.isReady()) {
       this.logger.log('WorkflowService is ready');
     }
+
+    this.logger.log('TasksService initialized');
+  }
+
+  /**
+   * Load persisted tasks and artifacts from disk
+   */
+  private async loadPersistedData(): Promise<void> {
+    try {
+      // Load tasks
+      const persistedTasks = await loadTasks();
+      for (const [id, persisted] of persistedTasks) {
+        this.tasks.set(id, {
+          id: persisted.id,
+          projectId: persisted.projectId,
+          tenantId: persisted.tenantId,
+          prompt: persisted.prompt,
+          status: persisted.status as TaskStatus,
+          priority: persisted.priority,
+          analysis: persisted.analysis,
+          currentAgent: persisted.currentAgent,
+          completedAgents: persisted.completedAgents,
+          error: persisted.error,
+          metadata: persisted.metadata,
+          createdAt: new Date(persisted.createdAt),
+          updatedAt: new Date(persisted.updatedAt),
+        });
+      }
+
+      // Load artifacts
+      const persistedArtifacts = await loadAllArtifacts();
+      for (const [taskId, artifacts] of persistedArtifacts) {
+        this.artifacts.set(
+          taskId,
+          artifacts.map((a) => ({
+            id: a.id,
+            taskId: a.taskId,
+            type: a.type as ArtifactType,
+            name: a.name,
+            path: a.path,
+            content: a.content,
+            createdAt: new Date(a.createdAt),
+          }))
+        );
+      }
+
+      this.logger.log(
+        `Loaded ${this.tasks.size} tasks and ${this.artifacts.size} artifact groups from disk`
+      );
+    } catch (error) {
+      this.logger.error('Failed to load persisted data:', error);
+    }
+  }
+
+  /**
+   * Persist all tasks to disk
+   */
+  private async persistTasks(): Promise<void> {
+    const persisted = new Map<string, PersistedTask>();
+    for (const [id, task] of this.tasks) {
+      persisted.set(id, {
+        id: task.id,
+        projectId: task.projectId,
+        tenantId: task.tenantId,
+        prompt: task.prompt,
+        status: task.status,
+        priority: task.priority,
+        analysis: task.analysis,
+        currentAgent: task.currentAgent,
+        completedAgents: task.completedAgents,
+        error: task.error,
+        metadata: task.metadata,
+        createdAt: task.createdAt.toISOString(),
+        updatedAt: task.updatedAt.toISOString(),
+      });
+    }
+    await saveTasks(persisted);
+  }
+
+  /**
+   * Persist artifacts for a task to disk
+   */
+  private async persistArtifacts(taskId: string): Promise<void> {
+    const artifacts = this.artifacts.get(taskId) || [];
+    const persisted: PersistedArtifact[] = artifacts.map((a) => ({
+      id: a.id,
+      taskId: a.taskId,
+      type: a.type,
+      name: a.name,
+      path: a.path,
+      content: a.content,
+      createdAt: a.createdAt.toISOString(),
+    }));
+    await saveArtifacts(taskId, persisted);
   }
 
   /**
@@ -120,6 +227,11 @@ export class TasksService implements OnModuleInit {
 
     // Store task
     this.tasks.set(taskId, task);
+
+    // Persist to disk
+    this.persistTasks().catch((err) => {
+      this.logger.error(`Failed to persist task ${taskId}:`, err);
+    });
 
     this.logger.log(`Task created: ${taskId} for tenant: ${tenant.tenantId}`);
 
@@ -376,6 +488,11 @@ export class TasksService implements OnModuleInit {
     existing.push(stored);
     this.artifacts.set(taskId, existing);
 
+    // Persist artifacts to disk
+    this.persistArtifacts(taskId).catch((err) => {
+      this.logger.error(`Failed to persist artifacts for task ${taskId}:`, err);
+    });
+
     this.logger.log(`Artifact added: ${stored.id} (${artifact.type}) to task ${taskId}`);
 
     // Emit event for artifact
@@ -589,6 +706,11 @@ export class TasksService implements OnModuleInit {
     task.status = status;
     task.updatedAt = new Date();
     Object.assign(task, updates);
+
+    // Persist to disk
+    this.persistTasks().catch((err) => {
+      this.logger.error(`Failed to persist task status update for ${taskId}:`, err);
+    });
   }
 
   /**
