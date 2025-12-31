@@ -93,7 +93,7 @@ packages/langgraph/
   "dependencies": {
     "@langchain/anthropic": "^0.2.0",
     "@langchain/core": "^0.2.0",
-    "@langchain/langgraph": "^0.0.30",
+    "@langchain/langgraph": "^0.2.0",
     "@aigentflow/core": "workspace:*",
     "@aigentflow/database": "workspace:*",
     "zod": "^3.22.0"

@@ -96,16 +96,16 @@ packages/database/
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "drizzle-orm": "^0.30.0",
-    "postgres": "^3.4.0",
+    "drizzle-orm": "^0.32.0",
+    "postgres": "^3.5.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {
     "@aigentflow/tsconfig": "workspace:*",
     "@types/node": "^20.0.0",
-    "drizzle-kit": "^0.21.0",
+    "drizzle-kit": "^0.24.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.4.0",
+    "typescript": "^5.6.0",
     "vitest": "^1.0.0"
   }
 }

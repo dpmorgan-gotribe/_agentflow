@@ -1592,7 +1592,7 @@ import {
   E2ETestSuite,
   E2ETestCase,
 } from '../schemas/e2e-output';
-import { UserFlow } from '../../CP1-DESIGN-SYSTEM/08-USER-FLOWS';
+import { UserFlow } from '@aigentflow/langgraph'; // Defined in CP1-AGENT-SYSTEM/08-USER-FLOWS
 
 // ============================================================================
 // Input Schema

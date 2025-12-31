@@ -90,12 +90,12 @@ apps/api/
     "@aigentflow/core": "workspace:*",
     "@aigentflow/database": "workspace:*",
     "@aigentflow/langgraph": "workspace:*",
-    "@nestjs/common": "^10.0.0",
-    "@nestjs/config": "^3.0.0",
-    "@nestjs/core": "^10.0.0",
-    "@nestjs/platform-fastify": "^10.0.0",
-    "@nestjs/swagger": "^7.0.0",
-    "@nestjs/terminus": "^10.0.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-fastify": "^11.0.0",
+    "@nestjs/swagger": "^8.0.0",
+    "@nestjs/terminus": "^11.0.0",
     "@trpc/server": "^10.0.0",
     "class-transformer": "^0.5.0",
     "class-validator": "^0.14.0",
@@ -104,10 +104,10 @@ apps/api/
   },
   "devDependencies": {
     "@aigentflow/tsconfig": "workspace:*",
-    "@nestjs/cli": "^10.0.0",
-    "@nestjs/testing": "^10.0.0",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.4.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
     "vitest": "^1.0.0"
   }
 }

@@ -787,7 +787,9 @@ export class ReviewOrchestrator {
 // StateGraph Integration
 // ============================================================================
 
-import { StateGraph, StateContext } from '../CP0-FOUNDATION/03-STATE-MACHINE';
+import { StateGraph } from '@langchain/langgraph';
+import { OrchestratorState } from '@aigentflow/langgraph'; // StateContext from CP0-FOUNDATION/03-LANGGRAPH-CORE
+type StateContext = typeof OrchestratorState.State;
 
 interface ReviewNode {
   id: 'reviewer';
