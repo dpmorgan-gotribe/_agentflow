@@ -132,3 +132,62 @@ export {
 
 // Orchestrator agent
 export { OrchestratorAgent } from './agents/orchestrator.js';
+
+// Project Manager schemas
+export {
+  TaskTypeSchema,
+  ComplexitySchema,
+  PrioritySchema,
+  RiskSeveritySchema,
+  RiskSchema,
+  TaskSchema,
+  FeatureSchema,
+  EpicSchema,
+  BlockerSchema,
+  WorkBreakdownSummarySchema,
+  PMRoutingHintsSchema,
+  ProjectManagerOutputSchema,
+  WorkBreakdownValidationSchema,
+  DEFAULT_COMPLEXITY_DISTRIBUTION,
+  DEFAULT_TASK_TYPE_DISTRIBUTION,
+  COMPLEXITY_EFFORT_HOURS,
+  type TaskType,
+  type Complexity,
+  type Priority,
+  type RiskSeverity,
+  type Risk,
+  type Task,
+  type Feature,
+  type Epic,
+  type Blocker,
+  type WorkBreakdownSummary,
+  type PMRoutingHints,
+  type ProjectManagerOutput,
+  type WorkBreakdownValidation,
+} from './schemas/project-manager-output.js';
+
+// Planning utilities
+export {
+  generateId,
+  createEpic,
+  createFeature,
+  createTask,
+  flattenTasks,
+  flattenFeatures,
+  getTaskById,
+  getFeatureById,
+  getEpicById,
+  calculateSummary,
+  validateWorkBreakdown,
+  getTasksByType,
+  getTasksByComplexity,
+  getComplianceTasks,
+  getRootTasks,
+  countTasksByAgent,
+  mergeWorkBreakdowns,
+  DependencyGraph,
+  type CycleInfo,
+} from './planning/index.js';
+
+// Project Manager agent
+export { ProjectManagerAgent } from './agents/project-manager.js';

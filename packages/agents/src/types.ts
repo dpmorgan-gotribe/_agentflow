@@ -12,6 +12,7 @@ import { z } from 'zod';
  */
 export const AgentTypeEnum = {
   ORCHESTRATOR: 'orchestrator',
+  PROJECT_MANAGER: 'project_manager',
   ANALYZER: 'analyzer',
   PLANNER: 'planner',
   ARCHITECT: 'architect',
@@ -23,6 +24,7 @@ export const AgentTypeEnum = {
   REVIEWER: 'reviewer',
   GIT_AGENT: 'git_agent',
   COMPLIANCE: 'compliance',
+  COMPLIANCE_AGENT: 'compliance_agent',
   PATTERN_MINER: 'pattern_miner',
   AGENT_GENERATOR: 'agent_generator',
   TOURNAMENT_MANAGER: 'tournament_manager',
@@ -32,6 +34,7 @@ export type AgentType = (typeof AgentTypeEnum)[keyof typeof AgentTypeEnum];
 
 export const AgentTypeSchema = z.enum([
   'orchestrator',
+  'project_manager',
   'analyzer',
   'planner',
   'architect',
@@ -43,6 +46,7 @@ export const AgentTypeSchema = z.enum([
   'reviewer',
   'git_agent',
   'compliance',
+  'compliance_agent',
   'pattern_miner',
   'agent_generator',
   'tournament_manager',
