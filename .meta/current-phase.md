@@ -27,7 +27,7 @@
   - Dependencies: 05
   - Acceptance: Generates epics, features, tasks from requirements
 
-- [ ] **05c-ARCHITECT-AGENT** - Technical decision agent
+- [x] **05c-ARCHITECT-AGENT** - Technical decision agent ✓ 2024-12-31
   - Dependencies: 05
   - Acceptance: Makes architecture decisions, generates ADRs
 
