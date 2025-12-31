@@ -11,6 +11,7 @@ export {
   type StreamEventType,
   type StreamEventData,
   type StreamEventHandler,
+  type ExtraEventData,
   type WorkflowStartedData,
   type WorkflowAnalyzingData,
   type WorkflowRoutingData,

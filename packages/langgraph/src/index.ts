@@ -80,6 +80,7 @@ export {
   type StreamEventType,
   type StreamEventData,
   type StreamEventHandler,
+  type ExtraEventData,
 } from './utils/index.js';
 
 // Re-exports from LangGraph for convenience
