@@ -31,6 +31,7 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@aigentflow/config": "workspace:*",
     "@aigentflow/tsconfig": "workspace:*",
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0"
