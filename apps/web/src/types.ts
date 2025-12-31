@@ -31,6 +31,7 @@ export interface TaskAnalysis {
 }
 
 export type AgentType =
+  | 'system'
   | 'orchestrator'
   | 'project_manager'
   | 'architect'

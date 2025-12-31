@@ -5,6 +5,7 @@ interface AgentMessageProps {
 }
 
 const AGENT_ICONS: Record<AgentType, string> = {
+  system: '⚡',
   orchestrator: '🤖',
   project_manager: '📋',
   architect: '🏗️',
@@ -21,6 +22,7 @@ const AGENT_ICONS: Record<AgentType, string> = {
 };
 
 const AGENT_NAMES: Record<AgentType, string> = {
+  system: 'System',
   orchestrator: 'Orchestrator',
   project_manager: 'Project Manager',
   architect: 'Architect',

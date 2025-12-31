@@ -13,6 +13,7 @@ import { AuditInterceptor } from './common/interceptors';
 import { ConfigModule, ConfigService } from './config';
 import { HealthModule } from './modules/health';
 import { TasksModule } from './modules/tasks';
+import { ProjectsModule } from './modules/projects';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TasksModule } from './modules/tasks';
     // Feature modules
     HealthModule,
     TasksModule,
+    ProjectsModule,
   ],
   providers: [
     // Global exception filter

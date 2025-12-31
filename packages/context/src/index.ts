@@ -100,3 +100,12 @@ export {
   type TraversalOptions,
   type TraversalState,
 } from './utils/index.js';
+
+// Adapters
+export {
+  adaptArchitectOutput,
+  generateADRFiles,
+  generateConventionsFile,
+  type ArchitectOutputInput,
+  type AdapterOptions,
+} from './adapters/index.js';

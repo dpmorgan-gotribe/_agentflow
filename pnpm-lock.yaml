@@ -38,6 +38,9 @@ importers:
       '@aigentflow/agents':
         specifier: workspace:*
         version: link:../../packages/agents
+      '@aigentflow/context':
+        specifier: workspace:*
+        version: link:../../packages/context
       '@aigentflow/core':
         specifier: workspace:*
         version: link:../../packages/core

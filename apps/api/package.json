@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@aigentflow/agents": "workspace:*",
+    "@aigentflow/context": "workspace:*",
     "@aigentflow/core": "workspace:*",
     "@aigentflow/database": "workspace:*",
     "@aigentflow/langgraph": "workspace:*",

@@ -23,6 +23,10 @@ import {
 } from '@aigentflow/langgraph';
 
 import { getAgentAdapter } from './agent-adapter';
+import {
+  ProjectDirectoryService,
+  ProjectArtifactWriterService,
+} from '../projects';
 
 /**
  * Workflow input for starting a new task
@@ -52,6 +56,11 @@ export class WorkflowService implements OnModuleInit {
   private graph: OrchestratorGraph | null = null;
   private checkpointer: MemorySaver | null = null;
   private readonly eventStreams = new Map<string, Subject<StreamEvent>>();
+
+  constructor(
+    private readonly projectDir: ProjectDirectoryService,
+    private readonly artifactWriter: ProjectArtifactWriterService
+  ) {}
 
   onModuleInit(): void {
     this.initialize();
@@ -98,6 +107,12 @@ export class WorkflowService implements OnModuleInit {
     this.eventStreams.set(taskId, eventSubject);
 
     try {
+      // Create project directory at workflow start
+      const project = await this.projectDir.getOrCreateProject(projectId, prompt);
+      this.logger.log(
+        `Project directory: ${project.slug} (${project.isNew ? 'created' : 'existing'})`
+      );
+
       // Emit workflow started event using partial state
       eventSubject.next(
         createStreamEvent('workflow.started', {
@@ -107,6 +122,9 @@ export class WorkflowService implements OnModuleInit {
           prompt,
         })
       );
+
+      // Log project info separately
+      this.logger.log(`Project: ${project.slug} at ${project.path}`);
 
       // Create streaming callback to emit events as nodes complete
       const streamCallback: WorkflowStreamCallback = {
@@ -166,6 +184,24 @@ export class WorkflowService implements OnModuleInit {
                     completedAgents: stateUpdate.completedAgents,
                   })
                 );
+
+                // Write artifacts to project directory based on agent type
+                this.writeAgentArtifacts(
+                  projectId,
+                  prompt,
+                  lastOutput.agentId,
+                  lastOutput.result,
+                  (lastOutput.artifacts ?? []).map((a) => ({
+                    type: a.type,
+                    name: a.id, // Use id as name since Artifact doesn't have name
+                    path: a.path,
+                    content: a.content,
+                  }))
+                ).catch((err) => {
+                  this.logger.warn(
+                    `Failed to write artifacts for ${lastOutput.agentId}: ${err}`
+                  );
+                });
               }
               break;
 
@@ -390,5 +426,75 @@ export class WorkflowService implements OnModuleInit {
    */
   isReady(): boolean {
     return this.graph !== null;
+  }
+
+  /**
+   * Write agent artifacts to project directory
+   */
+  private async writeAgentArtifacts(
+    projectId: string,
+    prompt: string,
+    agentId: string,
+    output: unknown,
+    artifacts: Array<{ type: string; name: string; path: string; content?: string }>
+  ): Promise<void> {
+    const normalizedAgentId = agentId.toLowerCase();
+
+    try {
+      // Handle architect agent output
+      if (normalizedAgentId.includes('architect')) {
+        if (output && typeof output === 'object') {
+          await this.artifactWriter.writeArchitectOutput(
+            projectId,
+            prompt,
+            output as Parameters<typeof this.artifactWriter.writeArchitectOutput>[2]
+          );
+          this.logger.log('Architect artifacts written to project directory');
+        }
+        return;
+      }
+
+      // Handle UI designer agent output
+      if (normalizedAgentId.includes('ui') || normalizedAgentId.includes('designer')) {
+        if (output && typeof output === 'object') {
+          await this.artifactWriter.writeUIDesignerOutput(
+            projectId,
+            output as Parameters<typeof this.artifactWriter.writeUIDesignerOutput>[1],
+            artifacts.map((a) => ({
+              type: a.type,
+              name: a.name,
+              path: a.path,
+              content: a.content ?? '',
+            }))
+          );
+          this.logger.log('UI Designer artifacts written to project directory');
+        }
+        return;
+      }
+
+      // For other agents, write generic artifacts
+      if (artifacts.length > 0) {
+        const agentArtifacts = artifacts.map((a) => ({
+          type: a.type,
+          name: a.name,
+          path: a.path,
+          content: a.content ?? '',
+        }));
+
+        await this.artifactWriter.writeArtifacts(
+          projectId,
+          agentArtifacts,
+          `feat: artifacts from ${agentId}`
+        );
+        this.logger.log(
+          `${artifacts.length} artifacts from ${agentId} written to project directory`
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to write artifacts for agent ${agentId}: ${error}`
+      );
+      throw error;
+    }
   }
 }

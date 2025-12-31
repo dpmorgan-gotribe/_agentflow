@@ -7,6 +7,7 @@ interface RightSidebarProps {
 }
 
 const AGENT_NAMES: Record<AgentType, string> = {
+  system: 'System',
   orchestrator: 'Orchestrator',
   project_manager: 'Project Manager',
   architect: 'Architect',
