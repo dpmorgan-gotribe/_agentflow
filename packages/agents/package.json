@@ -24,12 +24,16 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@aigentflow/core": "workspace:*"
+    "@aigentflow/ai-provider": "workspace:*",
+    "@aigentflow/core": "workspace:*",
+    "uuid": "^9.0.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@aigentflow/config": "workspace:*",
     "@aigentflow/tsconfig": "workspace:*",
     "@types/node": "^20.0.0",
+    "@types/uuid": "^9.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.0.0"

@@ -1,35 +1,79 @@
 # Current Phase
 
-**Phase**: 1 (Foundation - CP0)
+**Phase**: 2 (Agent System - CP1)
 **Started**: 2024-12-31
-**Status**: complete ✓
+**Status**: in_progress
+**Gate**: human_approval
 
 ## Focus Areas
 
-- Monorepo infrastructure (Turborepo + pnpm)
-- Database setup (PostgreSQL + RLS + Drizzle ORM)
-- LangGraph.js workflow engine
-- NestJS + Fastify API server
-- Security foundations (hooks, guardrails, audit logging)
-- AI provider abstraction (Claude CLI/API)
+- Base agent architecture and lifecycle management
+- Specialized agent implementations (Orchestrator, PM, Architect, etc.)
+- Agent skills framework and MCP integration
+- Design workflow and activity tracking
+- Agent self-review capability
 
 ## Tasks
 
-- [x] **01-MONOREPO-SETUP** - pnpm + Turborepo monorepo structure (2024-12-31)
-- [x] **02-POSTGRESQL-SETUP** - Database with RLS and Drizzle ORM (2024-12-31)
-- [x] **03-LANGGRAPH-CORE** - LangGraph.js workflow engine (2024-12-31)
-- [x] **03a-PROMPT-ARCHITECTURE** - Structured prompt system (2024-12-31)
-- [x] **03b-META-PROMPTS** - Meta-prompt generation system (2024-12-31)
-- [x] **04-NESTJS-API** - NestJS + Fastify API server (2024-12-31)
-- [x] **04a-HOOKS-GUARDRAILS** - Security hooks and guardrails (2024-12-31)
-- [x] **04b-CLAUDE-MD-GENERATOR** - CLAUDE.md file generation (2024-12-31)
-- [x] **04c-CHECKPOINT-RECOVERY** - Workflow checkpoint system (2024-12-31)
-- [x] **04d-AUDIT-LOGGING** - Comprehensive audit logging (2024-12-31)
-- [x] **04e-COMPONENT-INTEGRATION** - Component integration layer (2024-12-31)
-- [x] **04f-AI-PROVIDER** - Claude CLI/API abstraction (2024-12-31)
-- [x] **05-CLI-FOUNDATION** - CLI interface for Aigentflow (2024-12-31)
-- [x] **06-PERSISTENCE-LAYER** - PostgreSQL repositories with Drizzle ORM (2024-12-31)
-- [x] **07-QDRANT-VECTORS** - Qdrant vector database for semantic search (2024-12-31)
+- [x] **05-AGENT-FRAMEWORK** - Base agent architecture ✓ 2024-12-31
+  - Dependencies: CP0 complete
+  - Acceptance: BaseAgent class works, agent lifecycle managed
+
+- [ ] **05a-ORCHESTRATOR-AGENT** - Central orchestration agent
+  - Dependencies: 05
+  - Acceptance: Routes tasks to correct agents, handles failures
+
+- [ ] **05b-PROJECT-MANAGER-AGENT** - Work breakdown agent
+  - Dependencies: 05
+  - Acceptance: Generates epics, features, tasks from requirements
+
+- [ ] **05c-ARCHITECT-AGENT** - Technical decision agent
+  - Dependencies: 05
+  - Acceptance: Makes architecture decisions, generates ADRs
+
+- [ ] **05d-ANALYST-AGENT** - Research and analysis agent
+  - Dependencies: 05
+  - Acceptance: Researches best practices, provides recommendations
+
+- [ ] **05e-PROJECT-ANALYZER-AGENT** - Codebase analysis agent
+  - Dependencies: 05
+  - Acceptance: Analyzes project structure, identifies patterns
+
+- [ ] **05f-COMPLIANCE-AGENT** - Security and compliance agent
+  - Dependencies: 05
+  - Acceptance: Validates OWASP, GDPR compliance
+
+- [ ] **06-UI-DESIGNER-AGENT** - UI/UX design agent
+  - Dependencies: 05
+  - Acceptance: Generates mockups, design tokens
+
+- [ ] **06a-SKILLS-FRAMEWORK** - Agent skills system
+  - Dependencies: 06
+  - Acceptance: Skills load dynamically, extend agents
+
+- [ ] **06b-MCP-SERVER-CONFIG** - MCP server integration
+  - Dependencies: 06a
+  - Acceptance: MCP servers connect, tools available
+
+- [ ] **07-DESIGN-TOKENS** - Design token system
+  - Dependencies: 06
+  - Acceptance: Tokens generate CSS, theme switching works
+
+- [ ] **08-USER-FLOWS** - User flow definitions
+  - Dependencies: 07
+  - Acceptance: Flows validate, generate test cases
+
+- [ ] **08a-ACTIVITY-SYSTEM** - Real-time activity tracking
+  - Dependencies: 08
+  - Acceptance: Activities stream to clients, history works
+
+- [ ] **08b-DESIGN-WORKFLOW** - Design-to-code workflow
+  - Dependencies: 08a
+  - Acceptance: Mockups become components, design sync works
+
+- [ ] **12a-SELF-REVIEW-FRAMEWORK** - Agent self-review capability
+  - Dependencies: 05
+  - Acceptance: Agents review own output, iterate on feedback
 
 ## Constitution Rules (Must Follow)
 
@@ -44,17 +88,44 @@
 
 ## Lessons to Remember
 
-No lessons captured yet. First phase - establish patterns.
+No lessons captured from Phase 1 yet. Patterns established:
+- Use Zod for all configuration validation
+- Tenant isolation via filter conditions (vectors) or RLS (PostgreSQL)
+- `as unknown as` pattern for type coercion where needed
+- File chunking with overlap for code indexing
+- Token budget management for RAG context
 
 ## Session Notes
 
-- Phase 1 started: 2024-12-31
-- Gate type: automatic (proceed when checkpoint criteria met)
-- Focus: CLI-first development with `CLAUDE_CLI=true`
+- Phase 2 started: 2024-12-31
+- Gate type: human_approval (required before Phase 3)
+- Focus: Agent coordination and handoffs
+- Key risk: Token usage explosion - implement budgets early
 
 ## Known Risks
 
 | Risk                            | Mitigation                               |
 | ------------------------------- | ---------------------------------------- |
-| LangGraph version compatibility | Pinned to ^0.2.0                         |
-| RLS complexity                  | Start with simple policies, expand later |
+| Agent coordination complexity   | Start with simple workflows              |
+| Token usage explosion           | Implement token budgets early            |
+| LangGraph state management      | Use PostgreSQL checkpointer from CP0     |
+
+## Dependency Graph
+
+```
+05-AGENT-FRAMEWORK (base)
+├── 05a-ORCHESTRATOR-AGENT
+├── 05b-PROJECT-MANAGER-AGENT
+├── 05c-ARCHITECT-AGENT
+├── 05d-ANALYST-AGENT
+├── 05e-PROJECT-ANALYZER-AGENT
+├── 05f-COMPLIANCE-AGENT
+├── 06-UI-DESIGNER-AGENT
+│   ├── 06a-SKILLS-FRAMEWORK
+│   │   └── 06b-MCP-SERVER-CONFIG
+│   └── 07-DESIGN-TOKENS
+│       └── 08-USER-FLOWS
+│           └── 08a-ACTIVITY-SYSTEM
+│               └── 08b-DESIGN-WORKFLOW
+└── 12a-SELF-REVIEW-FRAMEWORK
+```
