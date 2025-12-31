@@ -17,7 +17,7 @@ import {
   DEFAULT_RETRY_POLICY,
 } from './types.js';
 import { EventBus } from './event-bus.js';
-import { IntegrationError, isIntegrationError, isRecoverableError } from './errors.js';
+import { isIntegrationError, isRecoverableError } from './errors.js';
 
 /**
  * Audit logger interface (from @aigentflow/audit)
@@ -200,7 +200,7 @@ export class GlobalErrorHandler {
    * Log error to audit trail
    */
   private async logToAudit(
-    error: Error,
+    _error: Error,
     context: ErrorContext,
     code: string,
     message: string,

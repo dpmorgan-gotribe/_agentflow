@@ -9,7 +9,6 @@ import type {
   Component,
   BootstrapState,
   BootstrapConfig,
-  BootstrapPhaseStatus,
 } from './types.js';
 import {
   BootstrapPhases,

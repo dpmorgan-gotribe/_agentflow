@@ -7,7 +7,6 @@
 
 import type {
   Component,
-  ComponentMetadata,
   ComponentState,
   ComponentStatus,
   HealthCheckResult,
@@ -18,11 +17,8 @@ import {
   ComponentInitializationError,
   ComponentShutdownError,
   ComponentDependencyError,
-  ComponentNotFoundError,
   CircularDependencyError,
-  UnresolvedDependencyError,
   RegistrySealedError,
-  HealthCheckError,
 } from './errors.js';
 
 /**
