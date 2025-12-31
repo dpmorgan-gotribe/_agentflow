@@ -1,0 +1,44 @@
+{
+  "name": "@aigentflow/flows",
+  "version": "1.0.0",
+  "description": "User flow definitions, diagram rendering, and approval gates",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@aigentflow/tsconfig": "workspace:*",
+    "tsup": "^8.0.0",
+    "typescript": "^5.8.2"
+  },
+  "peerDependencies": {
+    "zod": "^3.24.2"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "aigentflow",
+    "user-flows",
+    "workflow",
+    "approval",
+    "mermaid",
+    "diagram"
+  ],
+  "license": "MIT"
+}
