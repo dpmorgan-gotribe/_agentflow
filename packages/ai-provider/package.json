@@ -1,0 +1,38 @@
+{
+  "name": "@aigentflow/ai-provider",
+  "version": "0.0.0",
+  "description": "AI provider abstraction layer for Aigentflow - Claude CLI and Anthropic API",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers/index.d.ts",
+      "import": "./dist/providers/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.33.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@aigentflow/tsconfig": "workspace:*",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
