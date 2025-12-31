@@ -1,0 +1,27 @@
+{
+  "name": "@aigentflow/design-tokens",
+  "version": "1.0.0",
+  "description": "Design token system for Aigentflow with CSS generation and theme management",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@aigentflow/tsconfig": "workspace:*",
+    "tsup": "^8.0.0",
+    "typescript": "^5.8.2"
+  }
+}
