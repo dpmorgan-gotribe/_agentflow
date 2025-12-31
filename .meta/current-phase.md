@@ -63,7 +63,7 @@
   - Dependencies: 07
   - Acceptance: Flows validate, generate test cases
 
-- [ ] **08a-ACTIVITY-SYSTEM** - Real-time activity tracking
+- [x] **08a-ACTIVITY-SYSTEM** - Real-time activity tracking ✓ 2024-12-31
   - Dependencies: 08
   - Acceptance: Activities stream to clients, history works
 
