@@ -218,12 +218,12 @@ Include API endpoints and data models if the project requires them.`;
       id: this.generateArtifactId(),
       type: ArtifactTypeEnum.CONFIG_FILE,
       path: 'architecture/tech-stack.json',
-      content: JSON.stringify(parsed.techStack, null, 2),
+      content: JSON.stringify(parsed.techStack ?? {}, null, 2),
       metadata: {
         type: 'tech-stack',
-        hasFrontend: !!parsed.techStack.frontend,
-        hasBackend: !!parsed.techStack.backend,
-        hasDatabase: !!parsed.techStack.database,
+        hasFrontend: !!parsed.techStack?.frontend,
+        hasBackend: !!parsed.techStack?.backend,
+        hasDatabase: !!parsed.techStack?.database,
       },
     });
 
@@ -244,22 +244,26 @@ Include API endpoints and data models if the project requires them.`;
     }
 
     // Create directory structure artifact
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.DOCUMENTATION,
-      path: 'architecture/directory-structure.md',
-      content: this.renderDirectoryStructureDoc(parsed.directoryStructure),
-      metadata: { type: 'directory-structure' },
-    });
+    if (parsed.directoryStructure) {
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: ArtifactTypeEnum.DOCUMENTATION,
+        path: 'architecture/directory-structure.md',
+        content: this.renderDirectoryStructureDoc(parsed.directoryStructure),
+        metadata: { type: 'directory-structure' },
+      });
+    }
 
     // Create coding conventions artifact
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.DOCUMENTATION,
-      path: 'docs/CONVENTIONS.md',
-      content: renderCodingConventions(parsed.codingConventions),
-      metadata: { type: 'conventions' },
-    });
+    if (parsed.codingConventions) {
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: ArtifactTypeEnum.DOCUMENTATION,
+        path: 'docs/CONVENTIONS.md',
+        content: renderCodingConventions(parsed.codingConventions),
+        metadata: { type: 'conventions' },
+      });
+    }
 
     // Create components artifact
     if (parsed.components.length > 0) {
@@ -341,7 +345,7 @@ Include API endpoints and data models if the project requires them.`;
 
     // If there are frontend components, suggest UI designer
     const hasFrontend =
-      output.techStack.frontend ||
+      output.techStack?.frontend ||
       output.components.some(
         (c) => c.type === 'component' || c.location.includes('frontend')
       );
@@ -356,7 +360,7 @@ Include API endpoints and data models if the project requires them.`;
 
     // If there are backend components, suggest backend dev
     const hasBackend =
-      output.techStack.backend ||
+      output.techStack?.backend ||
       output.components.some(
         (c) => c.type === 'service' || c.location.includes('backend')
       );

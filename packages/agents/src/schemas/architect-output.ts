@@ -360,11 +360,11 @@ export type CodingConventions = z.infer<typeof CodingConventionsSchema>;
  * Architect routing hints
  */
 export const ArchitectRoutingHintsSchema = z.object({
-  suggestNext: z.array(AgentTypeSchema),
-  skipAgents: z.array(AgentTypeSchema),
-  needsApproval: z.boolean(),
-  hasFailures: z.boolean(),
-  isComplete: z.boolean(),
+  suggestNext: z.array(AgentTypeSchema).default([]),
+  skipAgents: z.array(AgentTypeSchema).default([]),
+  needsApproval: z.boolean().default(false),
+  hasFailures: z.boolean().default(false),
+  isComplete: z.boolean().default(true),
   notes: z.string().max(1000).optional(),
 });
 
@@ -374,16 +374,16 @@ export type ArchitectRoutingHints = z.infer<typeof ArchitectRoutingHintsSchema>;
  * Complete Architect output
  */
 export const ArchitectOutputSchema = z.object({
-  techStack: TechStackSchema,
-  adrs: z.array(ADRSchema),
-  components: z.array(ComponentSchema),
-  directoryStructure: DirectoryStructureSchema,
-  apiEndpoints: z.array(APIEndpointSchema).optional(),
-  dataModels: z.array(DataModelSchema).optional(),
-  codingConventions: CodingConventionsSchema,
-  securityConsiderations: z.array(z.string().min(1).max(500)),
-  scalabilityNotes: z.array(z.string().min(1).max(500)),
-  routingHints: ArchitectRoutingHintsSchema,
+  techStack: TechStackSchema.optional(),
+  adrs: z.array(ADRSchema).default([]),
+  components: z.array(ComponentSchema).default([]),
+  directoryStructure: DirectoryStructureSchema.optional(),
+  apiEndpoints: z.array(APIEndpointSchema).default([]),
+  dataModels: z.array(DataModelSchema).default([]),
+  codingConventions: CodingConventionsSchema.optional(),
+  securityConsiderations: z.array(z.string().min(1).max(500)).default([]),
+  scalabilityNotes: z.array(z.string().min(1).max(500)).default([]),
+  routingHints: ArchitectRoutingHintsSchema.default({}),
 });
 
 export type ArchitectOutput = z.infer<typeof ArchitectOutputSchema>;

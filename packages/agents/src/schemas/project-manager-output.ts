@@ -155,14 +155,14 @@ export type Blocker = z.infer<typeof BlockerSchema>;
  * Work breakdown summary statistics
  */
 export const WorkBreakdownSummarySchema = z.object({
-  totalEpics: z.number().int().min(0),
-  totalFeatures: z.number().int().min(0),
-  totalTasks: z.number().int().min(0),
-  complexityDistribution: z.record(ComplexitySchema, z.number().int().min(0)),
-  taskTypeDistribution: z.record(TaskTypeSchema, z.number().int().min(0)),
-  estimatedTotalEffort: z.string().min(1).max(100),
-  criticalPath: z.array(z.string().min(1).max(100)), // Task IDs in critical path
-  complianceTaskCount: z.number().int().min(0),
+  totalEpics: z.number().int().min(0).default(0),
+  totalFeatures: z.number().int().min(0).default(0),
+  totalTasks: z.number().int().min(0).default(0),
+  complexityDistribution: z.record(ComplexitySchema, z.number().int().min(0)).default({}),
+  taskTypeDistribution: z.record(TaskTypeSchema, z.number().int().min(0)).default({}),
+  estimatedTotalEffort: z.string().max(100).default('Unknown'),
+  criticalPath: z.array(z.string().min(1).max(100)).default([]), // Task IDs in critical path
+  complianceTaskCount: z.number().int().min(0).default(0),
 });
 
 export type WorkBreakdownSummary = z.infer<typeof WorkBreakdownSummarySchema>;
@@ -171,11 +171,11 @@ export type WorkBreakdownSummary = z.infer<typeof WorkBreakdownSummarySchema>;
  * Project Manager routing hints
  */
 export const PMRoutingHintsSchema = z.object({
-  suggestNext: z.array(AgentTypeSchema),
-  skipAgents: z.array(AgentTypeSchema),
-  needsApproval: z.boolean(),
-  hasFailures: z.boolean(),
-  isComplete: z.boolean(),
+  suggestNext: z.array(AgentTypeSchema).default([]),
+  skipAgents: z.array(AgentTypeSchema).default([]),
+  needsApproval: z.boolean().default(false),
+  hasFailures: z.boolean().default(false),
+  isComplete: z.boolean().default(true),
   notes: z.string().max(1000).optional(),
 });
 
@@ -187,12 +187,12 @@ export type PMRoutingHints = z.infer<typeof PMRoutingHintsSchema>;
  * The full work breakdown structure produced by the PM agent.
  */
 export const ProjectManagerOutputSchema = z.object({
-  epics: z.array(EpicSchema),
-  summary: WorkBreakdownSummarySchema,
-  suggestedOrder: z.array(z.string().min(1).max(100)), // Task IDs in suggested execution order
-  parallelizable: z.array(z.array(z.string().min(1).max(100))), // Groups of task IDs that can run in parallel
-  blockers: z.array(BlockerSchema),
-  routingHints: PMRoutingHintsSchema,
+  epics: z.array(EpicSchema).default([]),
+  summary: WorkBreakdownSummarySchema.default({}),
+  suggestedOrder: z.array(z.string().min(1).max(100)).default([]), // Task IDs in suggested execution order
+  parallelizable: z.array(z.array(z.string().min(1).max(100))).default([]), // Groups of task IDs that can run in parallel
+  blockers: z.array(BlockerSchema).default([]),
+  routingHints: PMRoutingHintsSchema.default({}),
 });
 
 export type ProjectManagerOutput = z.infer<typeof ProjectManagerOutputSchema>;
