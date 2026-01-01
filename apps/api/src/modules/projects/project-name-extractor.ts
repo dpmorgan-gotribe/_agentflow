@@ -8,13 +8,22 @@
 
 /**
  * Patterns to detect explicit project names in prompts
+ * These patterns look for phrases like "call it X", "named X", "project name: X"
+ * and capture X as the project name.
+ *
+ * IMPORTANT: These patterns should NOT match common phrases like "name and email"
  */
 const EXPLICIT_NAME_PATTERNS = [
-  /call\s+it\s+["']?([a-zA-Z][a-zA-Z0-9-_]+)["']?/i,
-  /named?\s+["']?([a-zA-Z][a-zA-Z0-9-_]+)["']?/i,
-  /called?\s+["']?([a-zA-Z][a-zA-Z0-9-_]+)["']?/i,
-  /project\s+name[:\s]+["']?([a-zA-Z][a-zA-Z0-9-_]+)["']?/i,
-  /app\s+name[:\s]+["']?([a-zA-Z][a-zA-Z0-9-_]+)["']?/i,
+  // "call it my-app" or "call it 'my-app'"
+  /\bcall\s+it\s+["']?([a-zA-Z][a-zA-Z0-9-_]{2,})["']?(?:\s|$|,|\.)/i,
+  // "named my-app" (must be 3+ chars to avoid matching "named and")
+  /\bnamed\s+["']?([a-zA-Z][a-zA-Z0-9-_]{2,})["']?(?:\s|$|,|\.)/i,
+  // "called my-app"
+  /\bcalled\s+["']?([a-zA-Z][a-zA-Z0-9-_]{2,})["']?(?:\s|$|,|\.)/i,
+  // "project name: my-app" or "project name my-app"
+  /\bproject\s+name[:\s]+["']?([a-zA-Z][a-zA-Z0-9-_]{2,})["']?(?:\s|$|,|\.)/i,
+  // "app name: my-app" or "app name my-app"
+  /\bapp\s+name[:\s]+["']?([a-zA-Z][a-zA-Z0-9-_]{2,})["']?(?:\s|$|,|\.)/i,
 ];
 
 /**

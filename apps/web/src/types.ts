@@ -125,3 +125,29 @@ export interface AgentLogEntry {
   agent?: AgentType;
   message: string;
 }
+
+/** Project metadata */
+export interface Project {
+  id: string;
+  name: string;
+  slug: string;
+  prompt: string;
+  createdAt: string;
+  updatedAt: string;
+  status: 'initializing' | 'active' | 'archived';
+  techStack?: Record<string, unknown>;
+}
+
+/** File tree node */
+export interface FileNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: FileNode[];
+}
+
+/** Project with files */
+export interface ProjectWithFiles extends Project {
+  path: string;
+  files: FileNode[];
+}

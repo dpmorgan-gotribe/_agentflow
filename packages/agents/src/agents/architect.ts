@@ -105,8 +105,9 @@ For each significant decision, create an ADR with:
 ADR IDs must be in format ADR-0001, ADR-0002, etc.
 Component paths must be valid directory paths.
 API paths must start with /.
+${this.getStructuredOutputInstruction()}
 
-Output must be valid JSON matching this structure:
+REQUIRED OUTPUT SCHEMA:
 {
   "techStack": {
     "frontend": { "framework": {...}, "language": {...}, "styling": {...} },

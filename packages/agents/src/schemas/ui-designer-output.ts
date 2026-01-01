@@ -216,6 +216,8 @@ export const UIComponentSchema: z.ZodType<UIComponent> = z.lazy(() =>
 
 /**
  * Layout types for page structure
+ * Includes common layout patterns + 'custom' as a catch-all
+ * Uses .catch() to handle unknown values gracefully
  */
 export const LayoutTypeSchema = z.enum([
   'single-column',
@@ -226,8 +228,10 @@ export const LayoutTypeSchema = z.enum([
   'form',
   'auth',
   'sidebar',
+  'centered',
+  'fullwidth',
   'custom',
-]);
+]).catch('custom'); // Fall back to 'custom' for unknown layout types
 
 export type LayoutType = z.infer<typeof LayoutTypeSchema>;
 

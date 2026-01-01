@@ -79,3 +79,25 @@ export async function submitApproval(
 export function getTaskStreamUrl(taskId: string): string {
   return `${API_BASE}/tasks/${taskId}/stream?token=${DEV_TOKEN}`;
 }
+
+/**
+ * API client with typed methods
+ */
+export const apiClient = {
+  /**
+   * Generic GET request
+   */
+  async get<T>(endpoint: string): Promise<T> {
+    return fetchApi<T>(endpoint);
+  },
+
+  /**
+   * Generic POST request
+   */
+  async post<T>(endpoint: string, body: unknown): Promise<T> {
+    return fetchApi<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+};

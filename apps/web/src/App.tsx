@@ -10,6 +10,9 @@ import type { Task, AgentEvent, ApprovalRequest, AgentLogEntry } from './types';
 type ViewTab = 'activity' | 'kanban' | 'viewer';
 
 export default function App() {
+  // Project state
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+
   // Task state
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [events, setEvents] = useState<AgentEvent[]>([]);
@@ -29,10 +32,20 @@ export default function App() {
 
   const handleTaskCreated = useCallback((task: Task) => {
     setCurrentTask(task);
+    setCurrentProjectId(task.projectId); // Set the project from the task
     setEvents([]);
     setApprovalRequest(null);
     setIsExecuting(true);
     setActiveTab('activity');
+  }, []);
+
+  const handleProjectChange = useCallback((projectId: string) => {
+    setCurrentProjectId(projectId);
+    // Clear current task when switching projects
+    setCurrentTask(null);
+    setEvents([]);
+    setApprovalRequest(null);
+    setIsExecuting(false);
   }, []);
 
   const handleEvent = useCallback((event: AgentEvent) => {
@@ -80,7 +93,13 @@ export default function App() {
       {/* Main Body */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar */}
-        <LeftSidebar currentTask={currentTask} />
+        <LeftSidebar
+          currentProjectId={currentProjectId}
+          onProjectChange={handleProjectChange}
+          activeWorktreeCount={currentTask ? 1 : 0}
+          currentTaskId={currentTask?.id}
+          currentAgent={events[events.length - 1]?.agent}
+        />
 
         {/* Main Content */}
         <MainContent

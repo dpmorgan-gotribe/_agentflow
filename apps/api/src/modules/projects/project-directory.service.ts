@@ -17,9 +17,13 @@ import {
 } from './project-name-extractor.js';
 
 /**
- * Base directory for all projects
+ * Base directory for all projects (at repository root, not in apps/api)
+ * This keeps user-generated projects separate from the aigentflow codebase
  */
-const PROJECTS_BASE_DIR = '.aigentflow/projects';
+const PROJECTS_BASE_DIR = path.resolve(
+  process.cwd(),
+  '../../.aigentflow/projects'
+);
 
 /**
  * Project metadata stored in .aigentflow.json

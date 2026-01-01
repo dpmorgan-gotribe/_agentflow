@@ -2,6 +2,9 @@
 .claude/settings.local.json
 CLAUDE.local.md
 
+# Aigentflow user projects (generated, not part of codebase)
+.aigentflow/
+
 # Dependencies
 node_modules/
 .pnpm-store/

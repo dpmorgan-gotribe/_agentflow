@@ -23,6 +23,7 @@ import type {
   AIProviderResponse,
 } from '@aigentflow/ai-provider';
 import { getAIProvider } from '@aigentflow/ai-provider';
+import { extractJSON, STRUCTURED_OUTPUT_INSTRUCTION } from './utils/structured-output.js';
 import type {
   AgentMetadata,
   AgentContext,
@@ -526,22 +527,41 @@ export abstract class BaseAgent {
   }
 
   /**
-   * Parse JSON from LLM response, handling markdown code blocks
+   * Parse JSON from LLM response, handling various formats
+   *
+   * Uses extractJSON to handle:
+   * - Clean JSON
+   * - Markdown code blocks
+   * - Prose mixed with JSON
    */
   protected parseJSON<T>(text: string): T {
-    // Try to extract JSON from markdown code block
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const jsonStr = jsonMatch?.[1]?.trim() ?? text.trim();
+    // Use robust extraction
+    const jsonStr = extractJSON(text);
 
     try {
       return JSON.parse(jsonStr) as T;
     } catch (error) {
+      // Log the extraction attempt for debugging
+      this.log('debug', 'JSON parse failed', {
+        rawLength: text.length,
+        extractedLength: jsonStr.length,
+        rawPreview: text.substring(0, 200),
+        extractedPreview: jsonStr.substring(0, 200),
+      });
+
       throw new AgentExecutionError(
         `Failed to parse JSON response: ${error}`,
         'JSON_PARSE_ERROR',
-        false
+        true // Make recoverable so retry can attempt with clearer prompting
       );
     }
+  }
+
+  /**
+   * Get structured output instruction to append to system prompts
+   */
+  protected getStructuredOutputInstruction(): string {
+    return STRUCTURED_OUTPUT_INSTRUCTION;
   }
 
   /**

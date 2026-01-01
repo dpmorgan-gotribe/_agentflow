@@ -698,6 +698,18 @@ export {
   type InjectionOptions,
 } from './skills/index.js';
 
+// Structured output utilities
+export {
+  STRUCTURED_OUTPUT_INSTRUCTION,
+  buildStructuredOutputPrompt,
+  extractJSON,
+  parseWithSchema,
+  generateRetryPrompt,
+  SCHEMA_DESCRIPTIONS,
+  wrapSystemPrompt,
+  type ParseResult,
+} from './utils/index.js';
+
 // Self-Review framework
 export {
   // Version

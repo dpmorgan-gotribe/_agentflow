@@ -8,15 +8,24 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./analyzers": {
       "types": "./dist/analyzers/index.d.ts",
-      "import": "./dist/analyzers/index.js"
+      "import": "./dist/analyzers/index.js",
+      "require": "./dist/analyzers/index.js"
     },
     "./generators": {
       "types": "./dist/generators/index.d.ts",
-      "import": "./dist/generators/index.js"
+      "import": "./dist/generators/index.js",
+      "require": "./dist/generators/index.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js",
+      "require": "./dist/adapters/index.js"
     }
   },
   "main": "./dist/index.js",

@@ -115,8 +115,9 @@ Available agent types for assignedAgents:
 - tester: Testing
 - reviewer: Code review
 - compliance_agent: Security and compliance checks
+${this.getStructuredOutputInstruction()}
 
-Output must be valid JSON matching the ProjectManagerOutput schema:
+REQUIRED OUTPUT SCHEMA (ProjectManagerOutput):
 {
   "epics": [
     {
