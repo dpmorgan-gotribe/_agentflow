@@ -320,13 +320,17 @@ export function generateCSSVariables(design: UIDesignerOutput): string {
   lines.push(...generateColorVariables(design.colorPalette));
   lines.push('');
 
-  // Typography
-  lines.push(...generateTypographyVariables(design.typography));
-  lines.push('');
+  // Typography (optional)
+  if (design.typography) {
+    lines.push(...generateTypographyVariables(design.typography));
+    lines.push('');
+  }
 
-  // Spacing
-  lines.push(...generateSpacingVariables(design.spacing));
-  lines.push('');
+  // Spacing (optional)
+  if (design.spacing) {
+    lines.push(...generateSpacingVariables(design.spacing));
+    lines.push('');
+  }
 
   // Border radius
   if (design.borderRadius) {

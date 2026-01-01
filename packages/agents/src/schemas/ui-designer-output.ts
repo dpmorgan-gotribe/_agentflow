@@ -246,8 +246,8 @@ export type LayoutRegion = z.infer<typeof LayoutRegionSchema>;
  * Page layout definition
  */
 export const PageLayoutSchema = z.object({
-  type: LayoutTypeSchema,
-  regions: z.array(LayoutRegionSchema),
+  type: LayoutTypeSchema.default('single-column'),
+  regions: z.array(LayoutRegionSchema).default([]),
   gridTemplate: z.string().max(500).optional(), // CSS grid-template
   gap: z.string().max(50).optional(),
 });
@@ -282,21 +282,23 @@ export type PageMeta = z.infer<typeof PageMetaSchema>;
 
 /**
  * Complete page mockup definition
+ * Uses defaults for lenient parsing of Claude responses
  */
 export const MockupPageSchema = z.object({
   id: z.string().min(1).max(100),
   name: z.string().min(1).max(100),
   title: z.string().min(1).max(200),
-  description: z.string().max(1000),
+  description: z.string().max(1000).default(''),
   path: z
     .string()
     .min(1)
     .max(200)
     .refine((p) => p.startsWith('/'), {
       message: 'Path must start with /',
-    }),
-  layout: PageLayoutSchema,
-  components: z.array(UIComponentSchema),
+    })
+    .default('/'),
+  layout: PageLayoutSchema.default({}), // Will apply nested defaults
+  components: z.array(UIComponentSchema).default([]),
   meta: PageMetaSchema.optional(),
 });
 
@@ -308,19 +310,20 @@ export type MockupPage = z.infer<typeof MockupPageSchema>;
 
 /**
  * Color palette definition
+ * Most fields are optional with sensible defaults for lenient parsing
  */
 export const ColorPaletteSchema = z.object({
-  primary: z.string().max(50),
-  secondary: z.string().max(50),
-  accent: z.string().max(50),
-  background: z.string().max(50),
-  surface: z.string().max(50),
-  text: z.string().max(50),
-  textSecondary: z.string().max(50),
-  error: z.string().max(50),
-  warning: z.string().max(50),
-  success: z.string().max(50),
-  info: z.string().max(50),
+  primary: z.string().max(50).default('#3B82F6'),
+  secondary: z.string().max(50).default('#6366F1'),
+  accent: z.string().max(50).default('#8B5CF6'),
+  background: z.string().max(50).default('#FFFFFF'),
+  surface: z.string().max(50).default('#F9FAFB'),
+  text: z.string().max(50).default('#111827'),
+  textSecondary: z.string().max(50).default('#6B7280'),
+  error: z.string().max(50).default('#EF4444'),
+  warning: z.string().max(50).default('#F59E0B'),
+  success: z.string().max(50).default('#10B981'),
+  info: z.string().max(50).default('#3B82F6'),
   border: z.string().max(50).optional(),
   muted: z.string().max(50).optional(),
 });
@@ -394,13 +397,14 @@ export type Shadows = z.infer<typeof ShadowsSchema>;
 
 /**
  * UI Designer routing hints
+ * All fields have defaults for lenient parsing of Claude responses
  */
 export const UIDesignerRoutingHintsSchema = z.object({
-  suggestNext: z.array(AgentTypeSchema),
-  skipAgents: z.array(AgentTypeSchema),
-  needsApproval: z.boolean(),
-  hasFailures: z.boolean(),
-  isComplete: z.boolean(),
+  suggestNext: z.array(AgentTypeSchema).default([]),
+  skipAgents: z.array(AgentTypeSchema).default([]),
+  needsApproval: z.boolean().default(true), // Default to needing approval for UI designs
+  hasFailures: z.boolean().default(false),
+  isComplete: z.boolean().default(true),
   pageCount: z.number().int().min(0).optional(),
   componentCount: z.number().int().min(0).optional(),
   notes: z.string().max(1000).optional(),
@@ -414,27 +418,28 @@ export type UIDesignerRoutingHints = z.infer<typeof UIDesignerRoutingHintsSchema
 
 /**
  * Complete UI Designer output
+ * Uses defaults for lenient parsing of Claude responses
  */
 export const UIDesignerOutputSchema = z.object({
-  projectName: z.string().min(1).max(100),
-  version: z.string().max(20),
-  generatedAt: z.string().max(50),
+  projectName: z.string().min(1).max(100).default('Untitled Project'),
+  version: z.string().max(20).default('1.0.0'),
+  generatedAt: z.string().max(50).default(() => new Date().toISOString()),
 
   // Pages
-  pages: z.array(MockupPageSchema),
+  pages: z.array(MockupPageSchema).default([]),
 
   // Shared components (reusable across pages)
-  sharedComponents: z.array(UIComponentSchema),
+  sharedComponents: z.array(UIComponentSchema).default([]),
 
-  // Design tokens
-  colorPalette: ColorPaletteSchema,
-  typography: TypographySchema,
-  spacing: SpacingSchema,
+  // Design tokens - use default() to apply all nested defaults
+  colorPalette: ColorPaletteSchema.default({}),
+  typography: TypographySchema.optional(),
+  spacing: SpacingSchema.optional(),
   borderRadius: BorderRadiusSchema.optional(),
   shadows: ShadowsSchema.optional(),
 
-  // Routing hints
-  routingHints: UIDesignerRoutingHintsSchema,
+  // Routing hints - use default() to apply all nested defaults
+  routingHints: UIDesignerRoutingHintsSchema.default({}),
 
   // Notes for developers/reviewers
   notes: z.array(z.string().max(500)).optional(),
