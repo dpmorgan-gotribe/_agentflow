@@ -1,10 +1,20 @@
-import type { AgentType, AgentLogEntry } from '../../types';
+import type { AgentType, OrchestratorLogEntry } from '../../types';
 
 interface RightSidebarProps {
   isExecuting: boolean;
   currentAgent?: AgentType;
-  agentLogs: AgentLogEntry[];
+  orchestratorLogs: OrchestratorLogEntry[];
 }
+
+/** Phase colors and icons */
+const PHASE_STYLES: Record<OrchestratorLogEntry['phase'], { color: string; icon: string }> = {
+  analyzing: { color: 'text-blue-400', icon: '🔍' },
+  routing: { color: 'text-purple-400', icon: '🔀' },
+  executing: { color: 'text-yellow-400', icon: '⚡' },
+  completed: { color: 'text-green-400', icon: '✓' },
+  failed: { color: 'text-red-400', icon: '✗' },
+  waiting: { color: 'text-orange-400', icon: '⏳' },
+};
 
 const AGENT_NAMES: Record<AgentType, string> = {
   system: 'System',
@@ -23,7 +33,7 @@ const AGENT_NAMES: Record<AgentType, string> = {
   git_agent: 'Git Agent',
 };
 
-export function RightSidebar({ isExecuting, currentAgent, agentLogs }: RightSidebarProps) {
+export function RightSidebar({ isExecuting, currentAgent, orchestratorLogs }: RightSidebarProps) {
   return (
     <aside className="w-right-sidebar bg-bg-secondary border-l border-border-primary flex flex-col overflow-hidden shrink-0">
       {/* Orchestrator Panel */}
@@ -72,44 +82,45 @@ export function RightSidebar({ isExecuting, currentAgent, agentLogs }: RightSide
         </div>
       </div>
 
-      {/* Agent Logs Panel */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="p-3 border-b border-border-primary">
+      {/* Orchestrator Activity Panel */}
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <div className="p-3 border-b border-border-primary shrink-0">
           <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
-            Agent Logs
+            Orchestrator Activity
           </span>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
-          {agentLogs.length === 0 ? (
-            <div className="text-xs text-text-muted italic text-center py-8">
-              No activity yet
+        <div className="flex-1 overflow-y-auto p-2 min-h-0">
+          {orchestratorLogs.length === 0 ? (
+            <div className="text-xs text-text-muted italic text-center py-4">
+              No orchestrator activity yet
             </div>
           ) : (
-            <div className="space-y-0.5">
-              {agentLogs.map((log, index) => (
-                <div
-                  key={index}
-                  className="flex gap-2 px-2 py-1 text-2xs font-mono rounded hover:bg-bg-tertiary"
-                >
-                  <span className="text-text-muted shrink-0">{log.time}</span>
-                  <span
-                    className={`font-medium shrink-0 ${
-                      log.action === 'reading'
-                        ? 'log-action-reading'
-                        : log.action === 'writing'
-                          ? 'log-action-writing'
-                          : log.action === 'commit'
-                            ? 'log-action-commit'
-                            : log.action === 'error'
-                              ? 'log-action-error'
-                              : 'log-action-spawned'
-                    }`}
+            <div className="space-y-1">
+              {orchestratorLogs.map((log, index) => {
+                const style = PHASE_STYLES[log.phase];
+                return (
+                  <div
+                    key={index}
+                    className="px-2 py-1.5 text-2xs rounded hover:bg-bg-tertiary"
                   >
-                    {log.agent ? AGENT_NAMES[log.agent] : log.action}
-                  </span>
-                  <span className="text-text-secondary truncate">{log.message}</span>
-                </div>
-              ))}
+                    <div className="flex items-center gap-2">
+                      <span className="text-text-muted font-mono shrink-0">{log.time}</span>
+                      <span className={`${style.color} shrink-0`}>{style.icon}</span>
+                      <span className={`font-medium uppercase text-3xs ${style.color}`}>
+                        {log.phase}
+                      </span>
+                    </div>
+                    <div className="text-text-secondary mt-0.5 pl-14 truncate">
+                      {log.message}
+                    </div>
+                    {log.details && (
+                      <div className="text-text-muted mt-0.5 pl-14 text-3xs truncate">
+                        {log.details}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

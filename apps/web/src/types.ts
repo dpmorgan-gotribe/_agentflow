@@ -46,6 +46,34 @@ export type AgentType =
   | 'reviewer'
   | 'git_agent';
 
+/** Tool usage by sub-agent */
+export interface ToolUsage {
+  name: string;
+  input?: string;
+  output?: string;
+  duration?: number;
+}
+
+/** Hook execution info */
+export interface HookExecution {
+  name: string;
+  type: 'pre' | 'post';
+  status: 'success' | 'failed' | 'skipped';
+  message?: string;
+}
+
+/** Sub-agent activity details */
+export interface SubAgentActivity {
+  thinking?: string;
+  tools?: ToolUsage[];
+  hooks?: HookExecution[];
+  response?: string;
+  tokenUsage?: {
+    input: number;
+    output: number;
+  };
+}
+
 /** Real-time event from SSE stream */
 export interface AgentEvent {
   agent: AgentType;
@@ -55,6 +83,7 @@ export interface AgentEvent {
   artifacts?: ArtifactRef[];
   approvalRequest?: ApprovalRequest;
   selfReview?: SelfReviewSummary;
+  activity?: SubAgentActivity;
 }
 
 /** Reference to an artifact (summary) */
@@ -126,6 +155,14 @@ export interface AgentLogEntry {
   message: string;
 }
 
+/** Orchestrator activity log entry */
+export interface OrchestratorLogEntry {
+  time: string;
+  phase: 'analyzing' | 'routing' | 'executing' | 'completed' | 'failed' | 'waiting';
+  message: string;
+  details?: string;
+}
+
 /** Project metadata */
 export interface Project {
   id: string;
@@ -150,4 +187,17 @@ export interface FileNode {
 export interface ProjectWithFiles extends Project {
   path: string;
   files: FileNode[];
+}
+
+/** Agent status for active agents panel */
+export type AgentStatus = 'idle' | 'working' | 'completed' | 'failed';
+
+/** Active agent info for real-time display */
+export interface ActiveAgent {
+  type: AgentType;
+  status: AgentStatus;
+  startedAt?: string;
+  completedAt?: string;
+  message?: string;
+  artifactCount?: number;
 }

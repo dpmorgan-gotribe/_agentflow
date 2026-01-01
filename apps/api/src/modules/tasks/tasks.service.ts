@@ -659,6 +659,8 @@ export class TasksService implements OnModuleInit {
           agent: data.agentId,
           success: data.success,
           artifactCount: data.artifactCount,
+          // Include sub-agent activity details for the UI
+          activity: data.activity,
         };
 
       case 'workflow.approval_needed':

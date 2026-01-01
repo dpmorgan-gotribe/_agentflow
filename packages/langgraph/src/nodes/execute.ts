@@ -4,7 +4,7 @@
  * Executes the current agent and captures its output.
  */
 
-import type { OrchestratorStateType, AgentOutput } from '../state.js';
+import type { OrchestratorStateType, AgentOutput, AgentActivity } from '../state.js';
 
 /**
  * Agent execution context passed to each agent
@@ -27,6 +27,7 @@ export interface AgentResult {
   artifacts: AgentOutput['artifacts'];
   routingHints: AgentOutput['routingHints'];
   error?: string;
+  activity?: AgentActivity;
 }
 
 /**
@@ -125,6 +126,7 @@ export async function executeAgentNode(
       routingHints: result.routingHints,
       error: result.error,
       timestamp: new Date().toISOString(),
+      activity: result.activity,
     };
 
     return {

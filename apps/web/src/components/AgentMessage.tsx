@@ -1,4 +1,5 @@
-import type { AgentEvent, AgentType, SelfReviewSummary } from '../types';
+import { useState } from 'react';
+import type { AgentEvent, AgentType, SelfReviewSummary, SubAgentActivity, ToolUsage } from '../types';
 
 interface AgentMessageProps {
   event: AgentEvent;
@@ -39,11 +40,18 @@ const AGENT_NAMES: Record<AgentType, string> = {
 };
 
 export function AgentMessage({ event }: AgentMessageProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const icon = AGENT_ICONS[event.agent] || '🔹';
   const name = AGENT_NAMES[event.agent] || event.agent;
   const isWaiting = event.status === 'awaiting_approval';
   const isComplete = event.status === 'completed';
   const isError = event.status === 'failed';
+  const hasActivity = event.activity && (
+    event.activity.thinking ||
+    event.activity.tools?.length ||
+    event.activity.hooks?.length ||
+    event.activity.response
+  );
 
   return (
     <div
@@ -61,11 +69,29 @@ export function AgentMessage({ event }: AgentMessageProps) {
       <div className="flex items-center gap-2 mb-2">
         <span className="text-lg">{icon}</span>
         <span className="font-semibold text-xs text-text-primary">{name}</span>
+        {hasActivity && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-2xs px-1.5 py-0.5 rounded bg-bg-tertiary hover:bg-bg-hover text-text-muted transition-colors"
+          >
+            {isExpanded ? '▼ Hide Details' : '▶ Show Details'}
+          </button>
+        )}
+        {event.activity?.tokenUsage && (
+          <span className="text-2xs text-text-muted">
+            {event.activity.tokenUsage.input + event.activity.tokenUsage.output} tokens
+          </span>
+        )}
         <span className="text-2xs text-text-muted ml-auto">{formatTime(event.timestamp)}</span>
       </div>
 
       {/* Message */}
       <div className="text-xs text-text-secondary whitespace-pre-wrap">{event.message}</div>
+
+      {/* Activity Details (Expandable) */}
+      {hasActivity && isExpanded && (
+        <ActivityDetails activity={event.activity!} />
+      )}
 
       {/* Self-Review Badge */}
       {event.selfReview && <SelfReviewBadge review={event.selfReview} />}
@@ -162,4 +188,130 @@ function SelfReviewBadge({ review }: { review: SelfReviewSummary }) {
 
 function formatTime(timestamp: string): string {
   return new Date(timestamp).toLocaleTimeString();
+}
+
+/**
+ * Displays detailed sub-agent activity: thinking, tools, hooks, response
+ */
+function ActivityDetails({ activity }: { activity: SubAgentActivity }) {
+  return (
+    <div className="mt-3 space-y-3 border-t border-border-primary pt-3">
+      {/* Thinking */}
+      {activity.thinking && (
+        <div className="bg-bg-tertiary rounded p-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-sm">💭</span>
+            <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">Thinking</span>
+          </div>
+          <div className="text-2xs text-text-secondary italic whitespace-pre-wrap max-h-32 overflow-y-auto">
+            {activity.thinking}
+          </div>
+        </div>
+      )}
+
+      {/* Hooks */}
+      {activity.hooks && activity.hooks.length > 0 && (
+        <div className="bg-bg-tertiary rounded p-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-sm">🪝</span>
+            <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">Hooks</span>
+          </div>
+          <div className="space-y-1">
+            {activity.hooks.map((hook, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-2xs">
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  hook.status === 'success' ? 'bg-status-success' :
+                  hook.status === 'failed' ? 'bg-status-error' : 'bg-text-muted'
+                }`} />
+                <span className="text-text-muted">{hook.type}</span>
+                <span className="text-text-primary font-mono">{hook.name}</span>
+                {hook.message && (
+                  <span className="text-text-muted truncate">{hook.message}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tools */}
+      {activity.tools && activity.tools.length > 0 && (
+        <div className="bg-bg-tertiary rounded p-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-sm">🔧</span>
+            <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">
+              Tools ({activity.tools.length})
+            </span>
+          </div>
+          <div className="space-y-2">
+            {activity.tools.map((tool, idx) => (
+              <ToolUsageItem key={idx} tool={tool} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Response */}
+      {activity.response && (
+        <div className="bg-bg-tertiary rounded p-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-sm">💬</span>
+            <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">Response</span>
+          </div>
+          <div className="text-2xs text-text-secondary whitespace-pre-wrap max-h-48 overflow-y-auto">
+            {activity.response}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Single tool usage display with collapsible input/output
+ */
+function ToolUsageItem({ tool }: { tool: ToolUsage }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const hasDetails = tool.input || tool.output;
+
+  return (
+    <div className="border border-border-primary rounded bg-bg-card">
+      <button
+        onClick={() => hasDetails && setShowDetails(!showDetails)}
+        className={`w-full flex items-center gap-2 p-1.5 text-left ${hasDetails ? 'cursor-pointer hover:bg-bg-hover' : ''}`}
+        disabled={!hasDetails}
+      >
+        <span className="text-xs font-mono text-accent-primary">{tool.name}</span>
+        {tool.duration && (
+          <span className="text-2xs text-text-muted">{tool.duration}ms</span>
+        )}
+        {hasDetails && (
+          <span className="text-2xs text-text-muted ml-auto">
+            {showDetails ? '▼' : '▶'}
+          </span>
+        )}
+      </button>
+
+      {showDetails && (
+        <div className="border-t border-border-primary p-1.5 space-y-1.5">
+          {tool.input && (
+            <div>
+              <div className="text-3xs text-text-muted uppercase mb-0.5">Input</div>
+              <pre className="text-2xs text-text-secondary bg-bg-tertiary p-1 rounded overflow-x-auto max-h-24 overflow-y-auto">
+                {tool.input}
+              </pre>
+            </div>
+          )}
+          {tool.output && (
+            <div>
+              <div className="text-3xs text-text-muted uppercase mb-0.5">Output</div>
+              <pre className="text-2xs text-text-secondary bg-bg-tertiary p-1 rounded overflow-x-auto max-h-24 overflow-y-auto">
+                {tool.output}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }

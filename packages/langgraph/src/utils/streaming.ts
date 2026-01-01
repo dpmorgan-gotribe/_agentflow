@@ -85,6 +85,27 @@ export interface AgentCompletedData extends BaseEventData {
   success: boolean;
   artifactCount: number;
   completedAgents?: string[];
+  /** Sub-agent activity details (thinking, tools, hooks, response) */
+  activity?: {
+    thinking?: string;
+    tools?: Array<{
+      name: string;
+      input?: string;
+      output?: string;
+      duration?: number;
+    }>;
+    hooks?: Array<{
+      name: string;
+      type: 'pre' | 'post';
+      status: 'success' | 'failed' | 'skipped';
+      message?: string;
+    }>;
+    response?: string;
+    tokenUsage?: {
+      input: number;
+      output: number;
+    };
+  };
 }
 
 export interface ApprovalNeededData extends BaseEventData {
@@ -134,6 +155,8 @@ export interface ExtraEventData {
   agentOutputs?: unknown[];
   error?: string;
   lastAgent?: string;
+  /** Sub-agent activity details */
+  activity?: AgentCompletedData['activity'];
 }
 
 /**
@@ -215,6 +238,8 @@ export function createStreamEvent(
           success: lastOutput?.success ?? extra.success ?? false,
           artifactCount: lastOutput?.artifacts?.length ?? extra.artifactCount ?? 0,
           completedAgents: state.completedAgents ?? extra.completedAgents,
+          // Include sub-agent activity (thinking, tools, hooks, response)
+          activity: lastOutput?.activity ?? extra.activity,
         }) as AgentCompletedData,
       };
     }

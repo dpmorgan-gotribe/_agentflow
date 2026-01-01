@@ -71,6 +71,40 @@ export const routingHintsSchema = z.object({
 });
 
 /**
+ * Tool usage during agent execution
+ */
+export interface ToolUsage {
+  name: string;
+  input?: string;
+  output?: string;
+  duration?: number;
+}
+
+/**
+ * Hook execution during agent execution
+ */
+export interface HookExecution {
+  name: string;
+  type: 'pre' | 'post';
+  status: 'success' | 'failed' | 'skipped';
+  message?: string;
+}
+
+/**
+ * Sub-agent activity details
+ */
+export interface AgentActivity {
+  thinking?: string;
+  tools?: ToolUsage[];
+  hooks?: HookExecution[];
+  response?: string;
+  tokenUsage?: {
+    input: number;
+    output: number;
+  };
+}
+
+/**
  * Agent output from execution
  */
 export interface AgentOutput {
@@ -81,6 +115,7 @@ export interface AgentOutput {
   routingHints: RoutingHints;
   error?: string;
   timestamp: string;
+  activity?: AgentActivity;
 }
 
 export const agentOutputSchema = z.object({

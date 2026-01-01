@@ -14,6 +14,7 @@ import type {
   AgentContext as LangGraphAgentContext,
   AgentResult as LangGraphAgentResult,
   AgentRegistry as LangGraphAgentRegistry,
+  AgentActivity,
 } from '@aigentflow/langgraph';
 import {
   OrchestratorAgent,
@@ -33,6 +34,86 @@ import {
   type ContextItem,
   type BaseAgent,
 } from '@aigentflow/agents';
+
+/**
+ * Extract activity data from agent output
+ *
+ * Parses the result to find thinking blocks, tool usage, etc.
+ */
+function extractActivity(
+  result: unknown,
+  agentType: AgentType,
+  startTime: number
+): AgentActivity {
+  const activity: AgentActivity = {};
+
+  // Try to extract thinking and response from the result
+  if (result && typeof result === 'object') {
+    const resultObj = result as Record<string, unknown>;
+
+    // Check for thinking field
+    if (typeof resultObj.thinking === 'string') {
+      activity.thinking = resultObj.thinking;
+    }
+
+    // Check for response field
+    if (typeof resultObj.response === 'string') {
+      activity.response = resultObj.response;
+    } else if (typeof resultObj.summary === 'string') {
+      activity.response = resultObj.summary;
+    } else if (typeof resultObj.output === 'string') {
+      activity.response = resultObj.output;
+    }
+
+    // Check for tools used
+    if (Array.isArray(resultObj.toolsUsed)) {
+      activity.tools = resultObj.toolsUsed.map((tool: unknown) => {
+        if (typeof tool === 'string') {
+          return { name: tool };
+        }
+        if (tool && typeof tool === 'object') {
+          const t = tool as Record<string, unknown>;
+          return {
+            name: String(t.name || 'unknown'),
+            input: typeof t.input === 'string' ? t.input : undefined,
+            output: typeof t.output === 'string' ? t.output : undefined,
+            duration: typeof t.duration === 'number' ? t.duration : undefined,
+          };
+        }
+        return { name: 'unknown' };
+      });
+    }
+
+    // Check for token usage
+    if (resultObj.tokenUsage && typeof resultObj.tokenUsage === 'object') {
+      const usage = resultObj.tokenUsage as Record<string, unknown>;
+      if (typeof usage.input === 'number' && typeof usage.output === 'number') {
+        activity.tokenUsage = {
+          input: usage.input,
+          output: usage.output,
+        };
+      }
+    }
+  }
+
+  // If result is a string, treat it as the response
+  if (typeof result === 'string') {
+    activity.response = result.slice(0, 2000); // Limit response preview
+  }
+
+  // Add post-execution hook (simulated for now)
+  const duration = Date.now() - startTime;
+  activity.hooks = [
+    {
+      name: 'validate-output',
+      type: 'post',
+      status: 'success',
+      message: `Agent ${agentType} completed in ${duration}ms`,
+    },
+  ];
+
+  return activity;
+}
 
 /**
  * Maps LangGraph artifact type to @aigentflow/agents artifact type
@@ -106,6 +187,7 @@ class AgentWrapper implements LangGraphAgent {
   }
 
   async execute(context: LangGraphAgentContext): Promise<LangGraphAgentResult> {
+    const startTime = Date.now();
     const agent = createAgent(this.agentType, this.contextManager);
 
     if (!agent) {
@@ -202,6 +284,9 @@ class AgentWrapper implements LangGraphAgent {
       // Execute the agent
       const output = await agent.execute(request);
 
+      // Extract activity data from the agent output
+      const activity = extractActivity(output.result, this.agentType, startTime);
+
       return {
         success: output.success,
         result: output.result,
@@ -219,6 +304,7 @@ class AgentWrapper implements LangGraphAgent {
           isComplete: output.routingHints?.isComplete,
         },
         error: output.errors?.[0]?.message,
+        activity,
       };
     } catch (error) {
       this.logger.debug(

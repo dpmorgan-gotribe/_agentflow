@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import type { AgentEvent, AgentType, TaskStatus, SelfReviewSummary, ArtifactType, ArtifactRef, ApprovalRequest } from '../types';
+import type { AgentEvent, AgentType, TaskStatus, SelfReviewSummary, ArtifactType, ArtifactRef, ApprovalRequest, SubAgentActivity, ToolUsage } from '../types';
 import { getTaskStreamUrl } from '../api';
 
 interface StreamData {
@@ -58,6 +58,27 @@ interface StreamData {
   // Success flag for agent completion
   success?: boolean;
   artifactCount?: number;
+  // Sub-agent activity details
+  activity?: {
+    thinking?: string;
+    tools?: Array<{
+      name: string;
+      input?: string;
+      output?: string;
+      duration?: number;
+    }>;
+    hooks?: Array<{
+      name: string;
+      type: 'pre' | 'post';
+      status: 'success' | 'failed' | 'skipped';
+      message?: string;
+    }>;
+    response?: string;
+    tokenUsage?: {
+      input: number;
+      output: number;
+    };
+  };
 }
 
 /**
@@ -264,6 +285,17 @@ export function useTaskStream(
       // Use API timestamp if provided, otherwise use current time
       const timestamp = data.timestamp || new Date().toISOString();
 
+      // Extract activity data
+      const activity: SubAgentActivity | undefined = data.activity
+        ? {
+            thinking: data.activity.thinking,
+            tools: data.activity.tools as ToolUsage[] | undefined,
+            hooks: data.activity.hooks as HookExecution[] | undefined,
+            response: data.activity.response,
+            tokenUsage: data.activity.tokenUsage,
+          }
+        : undefined;
+
       const agentEvent: AgentEvent = {
         agent: extractAgentName(data),
         status: mapTypeToStatus(data.type, data.status),
@@ -272,6 +304,7 @@ export function useTaskStream(
         artifacts,
         approvalRequest,
         selfReview: extractSelfReview(data),
+        activity,
       };
 
       console.log('SSE Event received:', { type: data.type, message: agentEvent.message, agent: agentEvent.agent });

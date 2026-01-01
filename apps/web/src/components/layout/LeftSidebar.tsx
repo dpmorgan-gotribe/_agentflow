@@ -7,7 +7,6 @@ interface LeftSidebarProps {
   onProjectChange: (projectId: string) => void;
   activeWorktreeCount?: number;
   currentTaskId?: string | null;
-  currentAgent?: string | null;
 }
 
 /** File/folder icons */
@@ -90,7 +89,6 @@ export function LeftSidebar({
   onProjectChange,
   activeWorktreeCount = 0,
   currentTaskId,
-  currentAgent,
 }: LeftSidebarProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<ProjectWithFiles | null>(null);
@@ -199,14 +197,9 @@ export function LeftSidebar({
                 active
               </span>
             </div>
-            <div className="text-2xs text-text-muted font-mono mb-1">
+            <div className="text-2xs text-text-muted font-mono">
               /worktrees/task-{currentTaskId.slice(0, 8)}
             </div>
-            {currentAgent && (
-              <div className="text-2xs text-text-secondary">
-                Agent: <span className="text-text-accent">{currentAgent}</span>
-              </div>
-            )}
           </div>
         ) : (
           <div className="text-xs text-text-muted italic text-center py-4">

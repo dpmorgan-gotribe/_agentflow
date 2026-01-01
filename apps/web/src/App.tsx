@@ -1,11 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Header } from './components/layout/Header';
 import { LeftSidebar } from './components/layout/LeftSidebar';
+import { ActiveAgentsPanel } from './components/layout/ActiveAgentsPanel';
 import { RightSidebar } from './components/layout/RightSidebar';
 import { BottomBar } from './components/layout/BottomBar';
 import { MainContent } from './components/layout/MainContent';
 import { ApprovalDialog } from './components/ApprovalDialog';
-import type { Task, AgentEvent, ApprovalRequest, AgentLogEntry } from './types';
+import type { Task, AgentEvent, ApprovalRequest, ActiveAgent, AgentType, OrchestratorLogEntry } from './types';
 
 type ViewTab = 'activity' | 'kanban' | 'viewer';
 
@@ -22,13 +23,78 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ViewTab>('activity');
   const [isExecuting, setIsExecuting] = useState(false);
 
-  // Derived state for logs
-  const agentLogs: AgentLogEntry[] = events.slice(-20).map((e) => ({
-    time: new Date(e.timestamp).toLocaleTimeString('en-US', { hour12: false }),
-    action: e.status === 'failed' ? 'error' : 'spawned',
-    agent: e.agent || 'system',
-    message: (e.message || e.status || 'Event').split('\n')[0].slice(0, 50),
-  }));
+  // Derived state for orchestrator activity logs
+  const orchestratorLogs: OrchestratorLogEntry[] = events
+    .filter((e) => e.agent === 'orchestrator' || e.agent === 'system')
+    .slice(-15)
+    .map((e) => {
+      const phase =
+        e.status === 'analyzing'
+          ? 'analyzing'
+          : e.status === 'orchestrating'
+            ? 'routing'
+            : e.status === 'agent_working'
+              ? 'executing'
+              : e.status === 'completed'
+                ? 'completed'
+                : e.status === 'failed'
+                  ? 'failed'
+                  : e.status === 'awaiting_approval'
+                    ? 'waiting'
+                    : 'executing';
+
+      return {
+        time: new Date(e.timestamp).toLocaleTimeString('en-US', { hour12: false }),
+        phase,
+        message: (e.message || e.status || 'Event').split('\n')[0].slice(0, 60),
+        details: e.message?.includes('\n') ? e.message.split('\n').slice(1).join(' ').slice(0, 80) : undefined,
+      };
+    });
+
+  // Derive active agents from events
+  const activeAgents = useMemo((): ActiveAgent[] => {
+    const agentMap = new Map<AgentType, ActiveAgent>();
+
+    for (const event of events) {
+      const agentType = event.agent;
+      if (!agentType || agentType === 'system') continue;
+
+      const existing = agentMap.get(agentType);
+
+      if (event.status === 'agent_working' || event.status === 'analyzing' || event.status === 'orchestrating') {
+        agentMap.set(agentType, {
+          type: agentType,
+          status: 'working',
+          startedAt: existing?.startedAt || event.timestamp,
+          message: event.message?.split('\n')[0],
+          artifactCount: event.artifacts?.length,
+        });
+      } else if (event.status === 'completed') {
+        agentMap.set(agentType, {
+          type: agentType,
+          status: 'completed',
+          startedAt: existing?.startedAt,
+          completedAt: event.timestamp,
+          message: event.message?.split('\n')[0],
+          artifactCount: event.artifacts?.length || existing?.artifactCount,
+        });
+      } else if (event.status === 'failed') {
+        agentMap.set(agentType, {
+          type: agentType,
+          status: 'failed',
+          startedAt: existing?.startedAt,
+          completedAt: event.timestamp,
+          message: event.message?.split('\n')[0],
+        });
+      }
+    }
+
+    // Sort: working agents first, then completed, then failed
+    const statusOrder = { working: 0, completed: 1, failed: 2, idle: 3 };
+    return Array.from(agentMap.values()).sort(
+      (a, b) => statusOrder[a.status] - statusOrder[b.status]
+    );
+  }, [events]);
 
   const handleTaskCreated = useCallback((task: Task) => {
     setCurrentTask(task);
@@ -92,16 +158,18 @@ export default function App() {
 
       {/* Main Body */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar */}
+        {/* Left Sidebar - Project, Git, Files */}
         <LeftSidebar
           currentProjectId={currentProjectId}
           onProjectChange={handleProjectChange}
           activeWorktreeCount={currentTask ? 1 : 0}
           currentTaskId={currentTask?.id}
-          currentAgent={events[events.length - 1]?.agent}
         />
 
-        {/* Main Content */}
+        {/* Active Agents Panel */}
+        <ActiveAgentsPanel activeAgents={activeAgents} />
+
+        {/* Main Content - Agent Activity */}
         <MainContent
           activeTab={activeTab}
           currentTask={currentTask}
@@ -113,7 +181,7 @@ export default function App() {
         <RightSidebar
           isExecuting={isExecuting}
           currentAgent={events[events.length - 1]?.agent}
-          agentLogs={agentLogs}
+          orchestratorLogs={orchestratorLogs}
         />
       </div>
 

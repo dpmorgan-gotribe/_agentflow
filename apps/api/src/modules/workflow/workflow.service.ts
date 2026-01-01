@@ -182,6 +182,8 @@ export class WorkflowService implements OnModuleInit {
                       `Agent ${lastOutput.agentId} ${lastOutput.success ? 'completed successfully' : 'failed'}\n` +
                       `Artifacts generated: ${lastOutput.artifacts?.length || 0}`,
                     completedAgents: stateUpdate.completedAgents,
+                    // Include sub-agent activity details (thinking, tools, hooks, response)
+                    activity: lastOutput.activity,
                   })
                 );
 

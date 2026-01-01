@@ -32,6 +32,9 @@ export {
   type ApprovalRequest,
   type ApprovalResponse,
   type WorkflowStatus,
+  type AgentActivity,
+  type ToolUsage,
+  type HookExecution,
 } from './state.js';
 
 // Graphs
