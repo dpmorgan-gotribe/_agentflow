@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import type { AgentEvent, AgentType, TaskStatus, SelfReviewSummary, ArtifactType, ArtifactRef, ApprovalRequest, SubAgentActivity, ToolUsage } from '../types';
+import type { AgentEvent, AgentType, TaskStatus, SelfReviewSummary, ArtifactType, ArtifactRef, ApprovalRequest, SubAgentActivity, ToolUsage, HookExecution } from '../types';
 import { getTaskStreamUrl } from '../api';
 
 interface StreamData {

@@ -11,6 +11,7 @@
 
 import { z } from 'zod';
 import { AgentTypeSchema } from '../types.js';
+import type { StyleResearchOutput } from './analyst-style-output.js';
 
 /**
  * Source type for research citations
@@ -182,6 +183,7 @@ export const ReportTypeSchema = z.enum([
   'investigation',
   'recommendation',
   'feasibility',
+  'style_research',
 ]);
 
 export type ReportType = z.infer<typeof ReportTypeSchema>;
@@ -217,6 +219,10 @@ export const AnalystOutputSchema = z.object({
 
   // For investigation reports
   findings: z.array(FindingSchema).optional(),
+
+  // For style research reports (design workflow)
+  // Using z.custom to reference the type from analyst-style-output.ts
+  styleResearch: z.custom<StyleResearchOutput>().optional(),
 
   // For all reports
   recommendation: RecommendationSchema,

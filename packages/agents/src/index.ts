@@ -316,6 +316,37 @@ export {
 // Analyst agent
 export { AnalystAgent } from './agents/analyst.js';
 
+// Analyst style research schemas (design workflow)
+export {
+  // Schemas
+  ColorMentionSchema,
+  FontMentionSchema,
+  InspirationUrlSchema,
+  PlatformHintSchema,
+  PromptStyleAnalysisSchema,
+  CompetitorAnalysisSchema,
+  DomainResearchSchema,
+  TechRecommendationSchema,
+  StyleConstraintsSchema,
+  StyleResearchOutputSchema,
+  // Types
+  type ColorMention,
+  type FontMention,
+  type InspirationUrl,
+  type PlatformHint,
+  type PromptStyleAnalysis,
+  type CompetitorAnalysis,
+  type DomainResearch,
+  type TechRecommendation,
+  type StyleConstraints,
+  type StyleResearchOutput,
+  // Helper functions
+  extractStyleHintsFromPrompt,
+  createEmptyStyleConstraints,
+  createEmptyPromptAnalysis,
+  MOOD_STYLE_MAPPING,
+} from './schemas/analyst-style-output.js';
+
 // Project Analyzer schemas
 export {
   DetectedLanguageSchema,
