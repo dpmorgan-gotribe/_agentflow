@@ -111,11 +111,48 @@ export type ArtifactType =
   | 'config'
   | 'documentation';
 
+/** Approval option for style competition */
+export interface ApprovalOption {
+  /** Style package ID */
+  id: string;
+  /** Display name (e.g., "Modern Minimalist") */
+  name: string;
+  /** Short description */
+  description: string;
+  /** Path to mega page preview HTML */
+  previewPath: string;
+  /** Optional thumbnail for quick preview */
+  thumbnailPath?: string;
+  /** Associated artifacts */
+  artifacts: ArtifactRef[];
+}
+
 /** Request for user approval */
 export interface ApprovalRequest {
   type: 'design' | 'architecture' | 'implementation' | 'final';
   description: string;
   artifacts: ArtifactRef[];
+  /** Option IDs for selection (style competition) */
+  options?: string[];
+}
+
+/** Extended approval request for style selection */
+export interface StyleSelectionRequest extends ApprovalRequest {
+  /** Style options for user to choose from */
+  styleOptions: ApprovalOption[];
+  /** Current iteration (1-5) */
+  iteration: number;
+  /** Max iterations before requiring specific guidance */
+  maxIterations: number;
+  /** Previously rejected style IDs */
+  rejectedStyleIds: string[];
+}
+
+/** Type guard for style selection request */
+export function isStyleSelectionRequest(
+  request: ApprovalRequest
+): request is StyleSelectionRequest {
+  return 'styleOptions' in request && Array.isArray((request as StyleSelectionRequest).styleOptions);
 }
 
 /** Self-review summary from agent output */

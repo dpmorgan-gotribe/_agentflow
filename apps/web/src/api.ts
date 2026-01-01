@@ -60,16 +60,35 @@ export async function getArtifacts(taskId: string): Promise<Artifact[]> {
 }
 
 /**
+ * Approval options for style selection
+ */
+export interface ApprovalSubmitOptions {
+  /** Approval decision */
+  approved: boolean;
+  /** Selected option ID (for style selection) */
+  selectedOption?: string;
+  /** Reject all options and trigger re-research */
+  rejectAll?: boolean;
+  /** Feedback explaining the decision */
+  feedback?: string;
+}
+
+/**
  * Submit approval decision for a task
  */
 export async function submitApproval(
   taskId: string,
   approved: boolean,
-  feedback?: string
+  feedbackOrOptions?: string | Omit<ApprovalSubmitOptions, 'approved'>
 ): Promise<void> {
+  // Handle both old signature (string feedback) and new options object
+  const body: ApprovalSubmitOptions = typeof feedbackOrOptions === 'string'
+    ? { approved, feedback: feedbackOrOptions }
+    : { approved, ...feedbackOrOptions };
+
   await fetchApi(`/tasks/${taskId}/approve`, {
     method: 'POST',
-    body: JSON.stringify({ approved, feedback }),
+    body: JSON.stringify(body),
   });
 }
 

@@ -42,15 +42,42 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 
 /**
  * Approve task request schema
+ *
+ * Enhanced for style competition:
+ * - selectedOption: ID of the selected style (for style selection)
+ * - rejectAll: Reject all options and trigger re-research
  */
 export const approveTaskSchema = z.object({
   approved: z.boolean(),
+  /** ID of the selected option (for style selection approval) */
+  selectedOption: z
+    .string()
+    .uuid('Selected option must be a valid UUID')
+    .optional(),
+  /** Reject all options and trigger re-research with feedback */
+  rejectAll: z.boolean().optional(),
   feedback: z
     .string()
     .max(5000)
     .regex(safeStringPattern, 'Feedback contains invalid characters')
     .optional(),
-});
+}).refine(
+  (data) => {
+    // If rejectAll is true, approved must be false
+    if (data.rejectAll && data.approved) {
+      return false;
+    }
+    // If approved is true and selectedOption is not provided, that's ok (regular approval)
+    // If rejectAll is true, feedback is required
+    if (data.rejectAll && !data.feedback) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Invalid approval request: rejectAll requires feedback and approved must be false',
+  }
+);
 
 export type ApproveTaskInput = z.infer<typeof approveTaskSchema>;
 

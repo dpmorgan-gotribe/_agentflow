@@ -20,6 +20,9 @@ export {
   handleApprovalNode,
   createApprovalResponse,
   ApprovalError,
+  type ApprovalOption,
+  type StyleSelectionRequest,
+  type StyleSelectionResponse,
 } from './approve.js';
 export {
   orchestratorThinkNode,

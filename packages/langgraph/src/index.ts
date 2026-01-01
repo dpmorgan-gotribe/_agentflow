@@ -68,6 +68,9 @@ export {
   type AgentContext,
   type AgentResult,
   type AgentRegistry,
+  type ApprovalOption,
+  type StyleSelectionRequest,
+  type StyleSelectionResponse,
 } from './nodes/index.js';
 
 // Thinking orchestrator node
