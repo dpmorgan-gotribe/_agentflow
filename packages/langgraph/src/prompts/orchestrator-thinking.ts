@@ -83,10 +83,12 @@ Workflow cannot continue. Use when:
   - Analyst generates 5 NEW style packages (avoiding rejected characteristics)
   - Maximum 5 rejection iterations
 
-### Phase 5: Full Design (Single UI Designer)
-- Selected designer creates mockups for ALL screens
-- Uses the approved style package consistently
-- References user flows for navigation
+### Phase 5: Full Design (Parallel UI Designers)
+- **PARALLELIZE screen generation** with up to 15 UI designers
+- Assign each screen (or group of related screens) to a different designer
+- Each designer uses the SAME approved style package for consistency
+- Each designer references user flows for navigation context
+- Example: 10 screens = 10 parallel UI designers (one per screen)
 
 ### Phase 6: Design Approval (Approval)
 - Present all screen mockups to user
@@ -168,10 +170,13 @@ Respond with a JSON object:
 1. **Always think step by step** - Explain your reasoning before deciding
 2. **Honor user style hints** - If user mentions colors, fonts, or URLs, ensure they influence the style packages
 3. **Don't skip phases** - Research before architecture, design before planning
-4. **Parallel when possible** - Style competition runs 5 designers in parallel
+4. **Parallel when possible** - Maximize parallelism:
+   - Style competition: EXACTLY 5 UI designers (one per style package)
+   - Screen generation: Up to 15 parallel UI designers (one per screen, max 15 at a time)
 5. **Never repeat rejected styles** - Track rejections and avoid their characteristics
 6. **Approval at key gates** - Style selection and design review need human input
-7. **Context efficiency** - Only pass relevant context to each agent`;
+7. **Context efficiency** - Only pass relevant context to each agent
+8. **Maximum 15 parallel agents** - Never dispatch more than 15 agents at once`;
 
 /**
  * Prompt for building thinking context from state

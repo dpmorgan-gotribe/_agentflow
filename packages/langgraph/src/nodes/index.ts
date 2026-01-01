@@ -34,4 +34,6 @@ export {
   allParallelResultsSuccessful,
   getFailedParallelResults,
   getParallelResultByStyleId,
+  MAX_PARALLEL_AGENTS,
+  STYLE_COMPETITION_DESIGNERS,
 } from './parallel-dispatch.js';

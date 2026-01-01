@@ -3,6 +3,7 @@
  *
  * Executes multiple agents in parallel. Used for:
  * - Style competition (5 UI designers with different style packages)
+ * - Screen generation (up to MAX_PARALLEL_AGENTS UI designers)
  * - Parallel reviews
  * - Any concurrent agent execution
  */
@@ -10,6 +11,19 @@
 import type { OrchestratorStateType, AgentOutput } from '../state.js';
 import type { ParallelResult, AgentDispatch } from '../schemas/orchestrator-thinking.js';
 import { getAgentRegistry } from './execute.js';
+
+/**
+ * Maximum number of agents that can run in parallel
+ * - Style competition: 5 UI designers (fixed)
+ * - Screen generation: Up to 15 parallel UI designers
+ * - Other parallel work: Up to 15 agents
+ */
+export const MAX_PARALLEL_AGENTS = 15;
+
+/**
+ * Style competition always uses exactly 5 designers
+ */
+export const STYLE_COMPETITION_DESIGNERS = 5;
 
 /**
  * Execute a single agent as part of parallel dispatch
@@ -124,11 +138,12 @@ async function executeSingleAgent(
  * Parallel dispatch node
  *
  * Executes all pending agents in parallel and collects results.
+ * Enforces MAX_PARALLEL_AGENTS limit to prevent resource exhaustion.
  */
 export async function parallelDispatchNode(
   state: OrchestratorStateType
 ): Promise<Partial<OrchestratorStateType>> {
-  const pendingAgents = state.pendingAgents ?? [];
+  let pendingAgents = state.pendingAgents ?? [];
 
   if (pendingAgents.length === 0) {
     console.warn('parallelDispatchNode called with no pending agents');
@@ -138,7 +153,15 @@ export async function parallelDispatchNode(
     };
   }
 
-  console.log(`Parallel dispatch: executing ${pendingAgents.length} agents`);
+  // Enforce maximum parallel agents limit
+  if (pendingAgents.length > MAX_PARALLEL_AGENTS) {
+    console.warn(
+      `Parallel dispatch: ${pendingAgents.length} agents exceeds max of ${MAX_PARALLEL_AGENTS}, limiting to first ${MAX_PARALLEL_AGENTS}`
+    );
+    pendingAgents = pendingAgents.slice(0, MAX_PARALLEL_AGENTS);
+  }
+
+  console.log(`Parallel dispatch: executing ${pendingAgents.length} agents (max: ${MAX_PARALLEL_AGENTS})`);
 
   // Execute all agents in parallel
   const promises = pendingAgents.map((dispatch) =>
