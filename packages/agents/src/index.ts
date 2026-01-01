@@ -590,6 +590,15 @@ export {
   type Shadows,
   type UIDesignerRoutingHints,
   type UIDesignerOutput,
+  // Mega page types for style competition
+  ComponentStateSchema,
+  ComponentShowcaseSchema,
+  AssetManifestSchema,
+  MegaPageSchema,
+  type ComponentState,
+  type ComponentShowcase,
+  type AssetManifest,
+  type MegaPage,
 } from './schemas/ui-designer-output.js';
 
 // Competitive design schemas

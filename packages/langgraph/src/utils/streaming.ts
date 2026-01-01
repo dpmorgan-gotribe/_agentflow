@@ -18,7 +18,17 @@ export type StreamEventType =
   | 'workflow.approval_needed'
   | 'workflow.completed'
   | 'workflow.failed'
-  | 'workflow.error';
+  | 'workflow.error'
+  // Thinking orchestrator events
+  | 'workflow.orchestrator_thinking'
+  // Parallel execution events
+  | 'workflow.parallel_started'
+  | 'workflow.parallel_agent_completed'
+  | 'workflow.parallel_completed'
+  // Style competition events
+  | 'workflow.style_competition'
+  | 'workflow.style_selected'
+  | 'workflow.style_rejected';
 
 /**
  * Stream event structure
@@ -41,7 +51,14 @@ export type StreamEventData =
   | ApprovalNeededData
   | WorkflowCompletedData
   | WorkflowFailedData
-  | WorkflowErrorData;
+  | WorkflowErrorData
+  | OrchestratorThinkingData
+  | ParallelStartedData
+  | ParallelAgentCompletedData
+  | ParallelCompletedData
+  | StyleCompetitionData
+  | StyleSelectedData
+  | StyleRejectedData;
 
 /**
  * Base event data with optional reasoning/message field
@@ -131,6 +148,95 @@ export interface WorkflowErrorData extends BaseEventData {
   error: string;
 }
 
+// ============================================================================
+// Thinking Orchestrator Events
+// ============================================================================
+
+export interface OrchestratorThinkingData extends BaseEventData {
+  /** What the orchestrator is reasoning about */
+  thinking: string;
+  /** The decision made */
+  action: 'dispatch' | 'parallel_dispatch' | 'approval' | 'complete' | 'fail';
+  /** Target agents for dispatch */
+  targets?: string[];
+  /** Step number in thinking history */
+  step: number;
+}
+
+// ============================================================================
+// Parallel Execution Events
+// ============================================================================
+
+export interface ParallelStartedData extends BaseEventData {
+  /** Agents being executed in parallel */
+  agents: string[];
+  /** Number of agents in parallel execution */
+  agentCount: number;
+  /** Whether this is a style competition */
+  isStyleCompetition?: boolean;
+}
+
+export interface ParallelAgentCompletedData extends BaseEventData {
+  /** Agent that completed */
+  agentId: string;
+  /** Execution ID for this parallel run */
+  executionId: string;
+  /** Whether this agent succeeded */
+  success: boolean;
+  /** Artifact count for this agent */
+  artifactCount: number;
+  /** Style package ID if style competition */
+  stylePackageId?: string;
+  /** Error message if failed */
+  error?: string;
+  /** How many agents are still pending */
+  remainingAgents: number;
+}
+
+export interface ParallelCompletedData extends BaseEventData {
+  /** Total agents executed */
+  totalAgents: number;
+  /** Successful agents count */
+  successfulAgents: number;
+  /** Failed agents count */
+  failedAgents: number;
+  /** Whether this was a style competition */
+  isStyleCompetition?: boolean;
+}
+
+// ============================================================================
+// Style Competition Events
+// ============================================================================
+
+export interface StyleCompetitionData extends BaseEventData {
+  /** Number of style packages being competed */
+  styleCount: number;
+  /** Style package names */
+  styleNames: string[];
+  /** Preview paths for each style */
+  previewPaths?: string[];
+}
+
+export interface StyleSelectedData extends BaseEventData {
+  /** Selected style package ID */
+  selectedStyleId: string;
+  /** Selected style package name */
+  selectedStyleName: string;
+  /** User feedback if any */
+  feedback?: string;
+}
+
+export interface StyleRejectedData extends BaseEventData {
+  /** How many times styles have been rejected */
+  rejectionCount: number;
+  /** Max rejections allowed before asking for specific guidance */
+  maxRejections: number;
+  /** User feedback for rejection */
+  feedback?: string;
+  /** Rejected style IDs */
+  rejectedStyleIds: string[];
+}
+
 /**
  * Extra event data that can be passed to createStreamEvent
  */
@@ -157,6 +263,34 @@ export interface ExtraEventData {
   lastAgent?: string;
   /** Sub-agent activity details */
   activity?: AgentCompletedData['activity'];
+
+  // Thinking orchestrator fields
+  thinking?: string;
+  action?: 'dispatch' | 'parallel_dispatch' | 'approval' | 'complete' | 'fail';
+  targets?: string[];
+  step?: number;
+
+  // Parallel execution fields
+  agents?: string[];
+  agentCount?: number;
+  executionId?: string;
+  stylePackageId?: string;
+  remainingAgents?: number;
+  totalAgents?: number;
+  successfulAgents?: number;
+  failedAgents?: number;
+  isStyleCompetition?: boolean;
+
+  // Style competition fields
+  styleCount?: number;
+  styleNames?: string[];
+  previewPaths?: string[];
+  selectedStyleId?: string;
+  selectedStyleName?: string;
+  feedback?: string;
+  rejectionCount?: number;
+  maxRejections?: number;
+  rejectedStyleIds?: string[];
 }
 
 /**
@@ -298,6 +432,102 @@ export function createStreamEvent(
           taskId: state.taskId ?? extra.taskId ?? '',
           error: state.error ?? extra.error ?? 'Unknown error',
         }) as WorkflowErrorData,
+      };
+
+    // Thinking orchestrator events
+    case 'workflow.orchestrator_thinking':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          thinking: state.orchestratorDecision?.reasoning ?? extra.thinking ?? '',
+          action: state.orchestratorDecision?.action ?? extra.action ?? 'dispatch',
+          targets: state.orchestratorDecision?.targets?.map(t => t.agentId) ?? extra.targets,
+          step: state.thinkingHistory?.length ?? extra.step ?? 1,
+        }) as OrchestratorThinkingData,
+      };
+
+    // Parallel execution events
+    case 'workflow.parallel_started':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          agents: state.pendingAgents?.map(a => a.agentId) ?? extra.agents ?? [],
+          agentCount: state.pendingAgents?.length ?? extra.agentCount ?? 0,
+          isStyleCompetition: state.pendingAgents?.some(a => a.stylePackageId) ?? extra.isStyleCompetition,
+        }) as ParallelStartedData,
+      };
+
+    case 'workflow.parallel_agent_completed':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          agentId: extra.agentId ?? '',
+          executionId: extra.executionId ?? '',
+          success: extra.success ?? false,
+          artifactCount: extra.artifactCount ?? 0,
+          stylePackageId: extra.stylePackageId,
+          error: extra.error,
+          remainingAgents: extra.remainingAgents ?? 0,
+        }) as ParallelAgentCompletedData,
+      };
+
+    case 'workflow.parallel_completed':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          totalAgents: state.parallelResults?.length ?? extra.totalAgents ?? 0,
+          successfulAgents: state.parallelResults?.filter(r => r.success).length ?? extra.successfulAgents ?? 0,
+          failedAgents: state.parallelResults?.filter(r => !r.success).length ?? extra.failedAgents ?? 0,
+          isStyleCompetition: state.parallelResults?.some(r => r.stylePackageId) ?? extra.isStyleCompetition,
+        }) as ParallelCompletedData,
+      };
+
+    // Style competition events
+    case 'workflow.style_competition':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          styleCount: state.stylePackages?.length ?? extra.styleCount ?? 0,
+          styleNames: state.stylePackages?.map(s => (s as { name: string }).name) ?? extra.styleNames ?? [],
+          previewPaths: state.megaPagePreviews?.map(p => p.previewPath) ?? extra.previewPaths,
+        }) as StyleCompetitionData,
+      };
+
+    case 'workflow.style_selected':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          selectedStyleId: state.selectedStyleId ?? extra.selectedStyleId ?? '',
+          selectedStyleName: state.stylePackages?.find(
+            s => (s as { id: string }).id === (state.selectedStyleId ?? extra.selectedStyleId)
+          )?.name as string ?? extra.selectedStyleName ?? '',
+          feedback: extra.feedback,
+        }) as StyleSelectedData,
+      };
+
+    case 'workflow.style_rejected':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          rejectionCount: state.rejectedStyles?.length ?? extra.rejectionCount ?? 0,
+          maxRejections: 5, // Default max rejections
+          feedback: extra.feedback,
+          rejectedStyleIds: state.rejectedStyles?.map(r => r.styleId) ?? extra.rejectedStyleIds ?? [],
+        }) as StyleRejectedData,
       };
 
     default:

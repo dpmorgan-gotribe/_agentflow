@@ -10,7 +10,7 @@ import type { OrchestratorStateType } from '../state.js';
 import {
   ORCHESTRATOR_THINKING_PROMPT,
   buildThinkingContext,
-  parseOrchestratorDecision,
+  parseOrchestratorDecision as parseDecision,
 } from '../prompts/orchestrator-thinking.js';
 import {
   createThinkingStep,
@@ -20,6 +20,9 @@ import {
   type OrchestratorThinking,
   type AgentDispatch,
 } from '../schemas/orchestrator-thinking.js';
+
+// Re-export for use by other modules
+export { parseDecision as parseOrchestratorDecision };
 
 /**
  * Determine what triggered this thinking step
@@ -198,7 +201,7 @@ export async function orchestratorThinkNode(
     });
 
     // Parse the decision
-    const decision = parseOrchestratorDecision(response.content);
+    const decision = parseDecision(response.content);
 
     if (!decision) {
       console.error('Failed to parse orchestrator decision, using fallback');

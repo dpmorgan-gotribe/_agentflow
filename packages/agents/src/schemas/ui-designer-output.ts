@@ -396,6 +396,101 @@ export const ShadowsSchema = z.object({
 export type Shadows = z.infer<typeof ShadowsSchema>;
 
 // ============================================================================
+// Mega Page & Style Competition
+// ============================================================================
+
+/**
+ * Component state variants for mega page showcase
+ */
+export const ComponentStateSchema = z.object({
+  name: z.string().min(1).max(50),
+  description: z.string().max(200),
+  html: z.string().max(10000),
+  cssClass: z.string().max(100).optional(),
+});
+
+export type ComponentState = z.infer<typeof ComponentStateSchema>;
+
+/**
+ * Component showcase entry for mega page
+ * Shows all variants and states of a component
+ */
+export const ComponentShowcaseSchema = z.object({
+  id: z.string().min(1).max(100),
+  name: z.string().min(1).max(100),
+  category: z.string().min(1).max(50), // navigation, forms, feedback, etc.
+  description: z.string().max(500),
+  variants: z.array(
+    z.object({
+      name: z.string().min(1).max(50), // primary, secondary, danger, etc.
+      html: z.string().max(10000),
+    })
+  ),
+  states: z.array(ComponentStateSchema), // default, hover, active, disabled, loading, error
+  responsiveNotes: z.string().max(500).optional(),
+});
+
+export type ComponentShowcase = z.infer<typeof ComponentShowcaseSchema>;
+
+/**
+ * Asset manifest for mega page
+ * Tracks fonts, icons, and other assets used
+ */
+export const AssetManifestSchema = z.object({
+  fonts: z.array(
+    z.object({
+      family: z.string().min(1).max(100),
+      source: z.string().max(200), // google, adobe, system, custom
+      weights: z.array(z.number().int().min(100).max(900)),
+      styles: z.array(z.enum(['normal', 'italic'])),
+    })
+  ),
+  icons: z.object({
+    library: z.string().max(100), // lucide, phosphor, heroicons, etc.
+    style: z.string().max(50), // solid, outline, duotone
+    iconList: z.array(z.string().max(50)), // specific icons used
+  }).optional(),
+  images: z.array(
+    z.object({
+      path: z.string().max(200),
+      alt: z.string().max(200),
+      purpose: z.string().max(100), // hero, logo, placeholder
+    })
+  ).optional(),
+});
+
+export type AssetManifest = z.infer<typeof AssetManifestSchema>;
+
+/**
+ * Mega page definition for style competition
+ * Contains ALL components from the component inventory in a single page
+ */
+export const MegaPageSchema = z.object({
+  /** Unique identifier for the mega page */
+  id: z.string().min(1).max(100),
+  /** Style package ID this mega page is based on */
+  stylePackageId: z.string().max(100),
+  /** Style package name */
+  stylePackageName: z.string().max(100),
+  /** Full HTML content of the mega page */
+  html: z.string().max(500000), // Large limit for comprehensive showcase
+  /** CSS content (design tokens as CSS variables + component styles) */
+  css: z.string().max(100000),
+  /** Component showcase entries */
+  componentShowcase: z.array(ComponentShowcaseSchema),
+  /** Asset manifest */
+  assets: AssetManifestSchema,
+  /** Whether the page includes interactive elements (hover, focus) */
+  isInteractive: z.boolean().default(true),
+  /** Whether dark mode styles are included */
+  includesDarkMode: z.boolean().default(false),
+  /** Generation timestamp */
+  generatedAt: z.string().max(50),
+});
+
+export type MegaPage = z.infer<typeof MegaPageSchema>;
+
+// ============================================================================
 // Routing Hints
 // ============================================================================
 
@@ -441,6 +536,9 @@ export const UIDesignerOutputSchema = z.object({
   spacing: SpacingSchema.optional(),
   borderRadius: BorderRadiusSchema.optional(),
   shadows: ShadowsSchema.optional(),
+
+  // Mega page for style competition (optional)
+  megaPage: MegaPageSchema.optional(),
 
   // Routing hints - use default() to apply all nested defaults
   routingHints: UIDesignerRoutingHintsSchema.default({}),
