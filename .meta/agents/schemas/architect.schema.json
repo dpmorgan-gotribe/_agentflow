@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "architect-output",
+  "title": "Architect Agent Output",
+  "description": "Schema for architect agent analysis output",
+  "type": "object",
+  "required": ["analysis", "recommendation", "adr", "filesAffected"],
+  "properties": {
+    "analysis": {
+      "type": "object",
+      "required": ["summary", "alignment", "concerns", "integrationPoints", "dependencies"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "One-sentence summary of architectural assessment"
+        },
+        "alignment": {
+          "type": "object",
+          "required": ["score", "details"],
+          "properties": {
+            "score": {
+              "type": "string",
+              "enum": ["aligned", "partial", "deviation"]
+            },
+            "details": {
+              "type": "string"
+            }
+          }
+        },
+        "concerns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["severity", "issue", "recommendation"],
+            "properties": {
+              "severity": {
+                "type": "string",
+                "enum": ["critical", "high", "medium", "low"]
+              },
+              "issue": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "recommendation": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "integrationPoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["system", "impact"],
+            "properties": {
+              "system": {
+                "type": "string"
+              },
+              "impact": {
+                "type": "string"
+              },
+              "changes_required": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "dependencies": {
+          "type": "object",
+          "properties": {
+            "packages": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "services": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "internal": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "required": ["approach", "rationale"],
+      "properties": {
+        "approach": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "alternatives": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "adr": {
+      "type": "object",
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "title": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "filesAffected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "action", "reason"],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["create", "modify", "delete"]
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "parallelizationAdvice": {
+      "type": "object",
+      "properties": {
+        "canParallelize": {
+          "type": "boolean"
+        },
+        "suggestedAgents": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "fileBoundaries": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "sequentialDependencies": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -27,6 +27,14 @@ import { ConfigService } from './config';
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
 
+  // Enable graceful shutdown hooks
+  process.on('SIGTERM', () => {
+    logger.log('Received SIGTERM signal');
+  });
+  process.on('SIGINT', () => {
+    logger.log('Received SIGINT signal');
+  });
+
   // Create Fastify app
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
@@ -35,6 +43,9 @@ async function bootstrap(): Promise<void> {
       trustProxy: true,
     })
   );
+
+  // Enable graceful shutdown hooks in NestJS
+  app.enableShutdownHooks();
 
   const configService = app.get(ConfigService);
 

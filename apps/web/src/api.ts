@@ -100,6 +100,25 @@ export function getTaskStreamUrl(taskId: string): string {
 }
 
 /**
+ * Trigger server shutdown
+ */
+export async function triggerShutdown(reason?: string): Promise<{ message: string; shuttingDown: boolean }> {
+  return fetchApi<{ message: string; shuttingDown: boolean }>('/system/shutdown', {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason ?? 'User clicked Kill All button' }),
+  });
+}
+
+/**
+ * Get system status
+ */
+export async function getSystemStatus(): Promise<{ status: string; shuttingDown: boolean; uptime: number }> {
+  return fetchApi<{ status: string; shuttingDown: boolean; uptime: number }>('/system/status', {
+    method: 'POST',
+  });
+}
+
+/**
  * API client with typed methods
  */
 export const apiClient = {

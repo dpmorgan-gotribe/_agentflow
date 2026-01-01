@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "implementation-output",
+  "title": "Implementation Agent Output",
+  "description": "Schema for frontend_dev, backend_dev, and tester agent outputs",
+  "type": "object",
+  "required": ["implementation", "files", "verification"],
+  "properties": {
+    "implementation": {
+      "type": "object",
+      "required": ["summary"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "What was implemented"
+        },
+        "approach": {
+          "type": "string",
+          "description": "How it was implemented"
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "action", "description"],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["create", "modify", "delete"]
+          },
+          "description": {
+            "type": "string"
+          },
+          "linesChanged": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "description": "For frontend_dev - React components created/modified",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["page", "layout", "feature", "ui"]
+          },
+          "props": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "hooks": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "hooks": {
+      "type": "array",
+      "description": "Custom hooks created",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "purpose": { "type": "string" },
+          "file": { "type": "string" }
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "description": "For backend_dev - database changes",
+      "properties": {
+        "schemaChanges": { "type": "boolean" },
+        "migrationRequired": { "type": "boolean" },
+        "migrationDescription": { "type": "string" }
+      }
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file"],
+        "properties": {
+          "file": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["unit", "integration", "e2e", "component"]
+          },
+          "scenarios": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "properties": {
+        "added": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "reason": { "type": "string" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["typecheck", "tests", "lint"],
+      "properties": {
+        "typecheck": {
+          "type": "string",
+          "enum": ["pass", "fail"]
+        },
+        "tests": {
+          "type": "string",
+          "enum": ["pass", "fail"]
+        },
+        "lint": {
+          "type": "string",
+          "enum": ["pass", "fail"]
+        }
+      }
+    },
+    "accessibility": {
+      "type": "object",
+      "description": "For frontend_dev - a11y considerations",
+      "properties": {
+        "considerations": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "missing": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

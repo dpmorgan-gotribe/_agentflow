@@ -119,5 +119,46 @@ class DomainError extends Error {
 
 Check `.meta/current-phase.md` for what we're currently working on.
 
+## 🚀 Session Startup (Plan-First Architecture)
+
+On every new session start, **always check for active plans first**:
+
+1. **Check** `.meta/plans/active/` for any `.md` files
+2. **If found**: Ask "Found incomplete plan: [filename]. Resume? [Y/n]"
+   - If resume → Read plan and continue from **Current Step**
+   - If no → Ask what to do: archive / delete / ignore
+3. **If no active plans**: Proceed normally
+
+### Creating New Plans
+
+When receiving prompts, **create a plan file BEFORE execution**:
+
+| Prompt Pattern | Template | Plan File |
+|----------------|----------|-----------|
+| "fix [issue]" | `bug-fix.template.md` | `bug-YYYY-MM-DD-[slug].md` |
+| "implement [task]" | `task.template.md` | `task-YYYY-MM-DD-[slug].md` |
+| "implement phase N" | `phase.template.md` | `phase-YYYY-MM-DD-[name].md` |
+| "add [feature]" | `task.template.md` | `task-YYYY-MM-DD-[slug].md` |
+
+### Plan File Locations
+
+```
+.meta/plans/
+├── current-plan.md      # Master roadmap (READ-ONLY reference)
+├── active/              # Currently executing plans (SURVIVES CRASHES)
+├── archive/             # Completed plans (for reference)
+└── templates/           # Plan templates by type
+```
+
+### Plan Execution Flow
+
+```
+1. CREATE PLAN → Save to .meta/plans/active/
+2. EXECUTE     → Update checkboxes + Current Step as you work
+3. COMPLETE    → Move to archive/, capture lessons
+```
+
+**Why Plan-First?** If the CLI crashes mid-workflow, the plan file survives. Next session reads the plan and resumes from where it left off. No work is lost.
+
 ---
 *This file is the primary context for all Claude sessions. Keep it focused and updated.*

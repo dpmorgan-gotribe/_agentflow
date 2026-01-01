@@ -1,0 +1,208 @@
+# Agent Definitions for Meta-Orchestrator
+#
+# This file defines all subagents available to the meta-orchestrator.
+# Each agent has specialized capabilities and tool restrictions.
+#
+# Usage:
+#   The orchestrator loads these definitions and spawns agents using
+#   the Claude Agent SDK based on task requirements.
+
+version: "1.0"
+updated: "2025-01-01"
+
+# Default settings for all agents
+defaults:
+  model: sonnet
+  max_tokens: 16000
+  temperature: 0.7
+
+# Agent Definitions
+agents:
+  # === Analysis Agents (Read-Only) ===
+
+  architect:
+    description: "System architecture analysis and design decisions"
+    model: sonnet
+    tools: [Read, Grep, Glob, LSP]
+    prompt: "@prompts/architect.md"
+    output_format: json
+    capabilities:
+      - architecture_analysis
+      - pattern_detection
+      - dependency_mapping
+      - adr_creation
+    restrictions:
+      - read_only
+      - no_file_modifications
+
+  security:
+    description: "Security vulnerability analysis and compliance audit"
+    model: sonnet
+    tools: [Read, Grep, Glob]
+    prompt: "@prompts/security.md"
+    output_format: json
+    capabilities:
+      - vulnerability_detection
+      - owasp_analysis
+      - rls_verification
+      - secrets_scanning
+    restrictions:
+      - read_only
+      - no_file_modifications
+
+  reviewer:
+    description: "Code review and quality assessment"
+    model: sonnet
+    tools: [Read, Grep, Glob, LSP]
+    prompt: "@prompts/reviewer.md"
+    output_format: json
+    capabilities:
+      - code_quality_analysis
+      - pattern_consistency
+      - performance_review
+      - test_coverage_analysis
+    restrictions:
+      - read_only
+      - no_file_modifications
+
+  # === Implementation Agents (Read-Write) ===
+
+  frontend_dev:
+    description: "Frontend implementation specialist (React/TypeScript)"
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    prompt: "@prompts/frontend-dev.md"
+    output_format: json
+    capabilities:
+      - react_components
+      - typescript_strict
+      - tailwind_styling
+      - tanstack_query
+      - form_validation
+    file_boundaries:
+      - "apps/web/**"
+      - "packages/ui/**"
+      - "packages/design-tokens/**"
+    bash_allow:
+      - "pnpm test*"
+      - "pnpm typecheck*"
+      - "pnpm lint*"
+      - "pnpm build*"
+
+  backend_dev:
+    description: "Backend implementation specialist (NestJS/TypeScript)"
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    prompt: "@prompts/backend-dev.md"
+    output_format: json
+    capabilities:
+      - nestjs_services
+      - drizzle_orm
+      - zod_validation
+      - rest_api
+      - queue_workers
+    file_boundaries:
+      - "apps/api/**"
+      - "apps/cli/**"
+      - "packages/database/**"
+      - "packages/agents/**"
+      - "packages/langgraph/**"
+      - "packages/shared/**"
+    bash_allow:
+      - "pnpm test*"
+      - "pnpm typecheck*"
+      - "pnpm lint*"
+      - "pnpm build*"
+      - "pnpm db:*"
+
+  tester:
+    description: "Testing and quality assurance specialist"
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    prompt: "@prompts/tester.md"
+    output_format: json
+    capabilities:
+      - unit_testing
+      - integration_testing
+      - e2e_testing
+      - coverage_analysis
+      - test_generation
+    file_boundaries:
+      - "**/*.test.ts"
+      - "**/*.spec.ts"
+      - "**/test/**"
+      - "**/tests/**"
+      - "**/__tests__/**"
+    bash_allow:
+      - "pnpm test*"
+      - "vitest*"
+      - "pnpm coverage*"
+
+  devops:
+    description: "Infrastructure and deployment specialist"
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    prompt: "@prompts/devops.md"
+    output_format: json
+    capabilities:
+      - docker_config
+      - kubernetes_manifests
+      - ci_cd_pipelines
+      - infrastructure_as_code
+      - monitoring_setup
+    file_boundaries:
+      - "infrastructure/**"
+      - "deploy/**"
+      - ".github/**"
+      - "docker/**"
+      - "Dockerfile*"
+      - "docker-compose*.yml"
+      - "*.Dockerfile"
+    bash_allow:
+      - "docker*"
+      - "kubectl*"
+      - "terraform*"
+      - "tofu*"
+
+# Parallel Execution Groups
+# Agents in the same group can run simultaneously on different file sets
+parallel_groups:
+  analysis:
+    agents: [architect, security, reviewer]
+    description: "Read-only analysis phase - all can run in parallel"
+
+  implementation:
+    agents: [frontend_dev, backend_dev]
+    description: "Implementation phase - parallel on non-overlapping files"
+    constraints:
+      - "Agents must have non-overlapping file_boundaries"
+      - "Orchestrator enforces file isolation"
+
+  verification:
+    agents: [tester, reviewer, security]
+    description: "Post-implementation verification"
+
+# Workflow Templates
+workflows:
+  analyze:
+    description: "Multi-perspective codebase analysis"
+    steps:
+      - parallel: [architect, security, reviewer]
+      - aggregate: true
+      - synthesize: true
+
+  implement_feature:
+    description: "Feature implementation workflow"
+    steps:
+      - analyze: [architect]
+      - parallel: [frontend_dev, backend_dev]
+      - verify: [tester]
+      - review: [reviewer, security]
+
+  fix_bug:
+    description: "Systematic bug resolution"
+    steps:
+      - analyze: [architect, tester]
+      - implement: [frontend_dev, backend_dev]  # based on bug location
+      - verify: [tester]
+      - capture_lesson: true

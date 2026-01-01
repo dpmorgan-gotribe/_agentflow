@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "reviewer-output",
+  "title": "Reviewer Agent Output",
+  "description": "Schema for code reviewer agent output",
+  "type": "object",
+  "required": ["summary", "approval", "issues"],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Overall assessment in 1-2 sentences"
+    },
+    "approval": {
+      "type": "string",
+      "enum": ["approve", "request_changes", "comment"]
+    },
+    "statistics": {
+      "type": "object",
+      "properties": {
+        "filesReviewed": { "type": "integer" },
+        "linesAdded": { "type": "integer" },
+        "linesRemoved": { "type": "integer" },
+        "complexity": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "description"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["blocker", "major", "minor", "suggestion"]
+          },
+          "category": {
+            "type": "string",
+            "enum": ["correctness", "security", "performance", "maintainability", "style"]
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "file": { "type": "string" },
+              "line": { "type": "integer" },
+              "column": { "type": "integer" }
+            }
+          },
+          "description": { "type": "string" },
+          "suggestion": { "type": "string" },
+          "codeSnippet": { "type": "string" }
+        }
+      }
+    },
+    "positives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "location": { "type": "string" }
+        }
+      }
+    },
+    "testing": {
+      "type": "object",
+      "properties": {
+        "coverage": {
+          "type": "string",
+          "enum": ["adequate", "insufficient", "missing"]
+        },
+        "gaps": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "suggestions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "securityNotes": {
+      "type": "object",
+      "properties": {
+        "needsSecurityReview": { "type": "boolean" },
+        "concerns": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "description": { "type": "string" },
+          "rationale": { "type": "string" }
+        }
+      }
+    }
+  }
+}

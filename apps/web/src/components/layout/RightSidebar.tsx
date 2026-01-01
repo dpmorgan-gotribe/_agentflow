@@ -1,13 +1,15 @@
-import type { AgentType, OrchestratorLogEntry } from '../../types';
+import type { AgentType, ExtendedAgentEvent, TaskStatus } from '../../types';
 
 interface RightSidebarProps {
   isExecuting: boolean;
   currentAgent?: AgentType;
-  orchestratorLogs: OrchestratorLogEntry[];
+  orchestratorEvents: ExtendedAgentEvent[];
 }
 
+type Phase = 'analyzing' | 'routing' | 'executing' | 'completed' | 'failed' | 'waiting';
+
 /** Phase colors and icons */
-const PHASE_STYLES: Record<OrchestratorLogEntry['phase'], { color: string; icon: string }> = {
+const PHASE_STYLES: Record<Phase, { color: string; icon: string }> = {
   analyzing: { color: 'text-blue-400', icon: '🔍' },
   routing: { color: 'text-purple-400', icon: '🔀' },
   executing: { color: 'text-yellow-400', icon: '⚡' },
@@ -15,6 +17,19 @@ const PHASE_STYLES: Record<OrchestratorLogEntry['phase'], { color: string; icon:
   failed: { color: 'text-red-400', icon: '✗' },
   waiting: { color: 'text-orange-400', icon: '⏳' },
 };
+
+/** Map task status to display phase */
+function getPhase(status: TaskStatus): Phase {
+  switch (status) {
+    case 'analyzing': return 'analyzing';
+    case 'orchestrating': return 'routing';
+    case 'agent_working': return 'executing';
+    case 'completed': return 'completed';
+    case 'failed': return 'failed';
+    case 'awaiting_approval': return 'waiting';
+    default: return 'executing';
+  }
+}
 
 const AGENT_NAMES: Record<AgentType, string> = {
   system: 'System',
@@ -33,7 +48,10 @@ const AGENT_NAMES: Record<AgentType, string> = {
   git_agent: 'Git Agent',
 };
 
-export function RightSidebar({ isExecuting, currentAgent, orchestratorLogs }: RightSidebarProps) {
+export function RightSidebar({ isExecuting, currentAgent, orchestratorEvents }: RightSidebarProps) {
+  // Get latest thinking from orchestrator events (use reverse + find for ES2022 compatibility)
+  const latestThinking = [...orchestratorEvents].reverse().find((e: ExtendedAgentEvent) => e.thinking);
+
   return (
     <aside className="w-right-sidebar bg-bg-secondary border-l border-border-primary flex flex-col overflow-hidden shrink-0">
       {/* Orchestrator Panel */}
@@ -50,12 +68,37 @@ export function RightSidebar({ isExecuting, currentAgent, orchestratorLogs }: Ri
             {isExecuting ? 'executing' : 'idle'}
           </span>
         </div>
-        {currentAgent && (
+        {currentAgent && currentAgent !== 'orchestrator' && currentAgent !== 'system' && (
           <div className="text-xs text-text-secondary">
-            Current: <span className="text-text-accent">{AGENT_NAMES[currentAgent]}</span>
+            Delegating to: <span className="text-text-accent">{AGENT_NAMES[currentAgent]}</span>
           </div>
         )}
       </div>
+
+      {/* Orchestrator Thinking Panel */}
+      {latestThinking?.thinking && (
+        <div className="p-3 border-b border-border-primary bg-accent-primary/5">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-sm">🧠</span>
+            <span className="text-2xs font-semibold uppercase tracking-wider text-text-muted">
+              Thinking
+            </span>
+          </div>
+          <p className="text-xs text-text-secondary line-clamp-4 mb-2">
+            {latestThinking.thinking.thinking}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-2xs px-1.5 py-0.5 bg-bg-tertiary rounded text-accent-primary">
+              {latestThinking.thinking.action}
+            </span>
+            {latestThinking.thinking.targets?.map((target: string, i: number) => (
+              <span key={i} className="text-2xs px-1.5 py-0.5 bg-bg-tertiary rounded text-text-muted">
+                {target}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Git Status Panel */}
       <div className="p-3 border-b border-border-primary">
@@ -90,32 +133,39 @@ export function RightSidebar({ isExecuting, currentAgent, orchestratorLogs }: Ri
           </span>
         </div>
         <div className="flex-1 overflow-y-auto p-2 min-h-0">
-          {orchestratorLogs.length === 0 ? (
+          {orchestratorEvents.length === 0 ? (
             <div className="text-xs text-text-muted italic text-center py-4">
               No orchestrator activity yet
             </div>
           ) : (
             <div className="space-y-1">
-              {orchestratorLogs.map((log, index) => {
-                const style = PHASE_STYLES[log.phase];
+              {orchestratorEvents.map((event, index) => {
+                const phase = getPhase(event.status);
+                const style = PHASE_STYLES[phase];
+                const time = new Date(event.timestamp).toLocaleTimeString('en-US', { hour12: false });
+                const message = (event.message || event.status || 'Event').split('\n')[0].slice(0, 60);
+                const details = event.message?.includes('\n')
+                  ? event.message.split('\n').slice(1).join(' ').slice(0, 80)
+                  : undefined;
+
                 return (
                   <div
                     key={index}
                     className="px-2 py-1.5 text-2xs rounded hover:bg-bg-tertiary"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-text-muted font-mono shrink-0">{log.time}</span>
+                      <span className="text-text-muted font-mono shrink-0">{time}</span>
                       <span className={`${style.color} shrink-0`}>{style.icon}</span>
                       <span className={`font-medium uppercase text-3xs ${style.color}`}>
-                        {log.phase}
+                        {phase}
                       </span>
                     </div>
                     <div className="text-text-secondary mt-0.5 pl-14 truncate">
-                      {log.message}
+                      {message}
                     </div>
-                    {log.details && (
+                    {details && (
                       <div className="text-text-muted mt-0.5 pl-14 text-3xs truncate">
-                        {log.details}
+                        {details}
                       </div>
                     )}
                   </div>

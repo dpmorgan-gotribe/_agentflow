@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "devops-output",
+  "title": "DevOps Agent Output",
+  "description": "Schema for devops agent output",
+  "type": "object",
+  "required": ["implementation", "files", "verification"],
+  "properties": {
+    "implementation": {
+      "type": "object",
+      "required": ["summary", "type"],
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["dockerfile", "kubernetes", "ci-cd", "terraform", "monitoring", "other"]
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "action", "description"],
+        "properties": {
+          "path": { "type": "string" },
+          "action": {
+            "type": "string",
+            "enum": ["create", "modify", "delete"]
+          },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "infrastructure": {
+      "type": "object",
+      "properties": {
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string" },
+              "name": { "type": "string" },
+              "provider": { "type": "string" }
+            }
+          }
+        },
+        "estimatedCost": { "type": "string" }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "secretsManaged": { "type": "boolean" },
+        "nonRootContainers": { "type": "boolean" },
+        "networkPolicies": { "type": "boolean" },
+        "concerns": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "command": { "type": "string" },
+              "expected": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "properties": {
+        "strategy": { "type": "string" },
+        "commands": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

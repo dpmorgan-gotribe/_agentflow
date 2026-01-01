@@ -5,7 +5,7 @@
  * Integrates with LangGraph for workflow execution.
  */
 
-import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnApplicationShutdown, Inject, forwardRef } from '@nestjs/common';
 import { Observable, Subject } from 'rxjs';
 
 import {
@@ -73,7 +73,7 @@ interface EventHistoryEntry {
 }
 
 @Injectable()
-export class TasksService implements OnModuleInit {
+export class TasksService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(TasksService.name);
   private readonly tasks = new Map<string, StoredTask>();
   private readonly artifacts = new Map<string, StoredArtifact[]>();
@@ -88,6 +88,31 @@ export class TasksService implements OnModuleInit {
     @Inject(forwardRef(() => WorkflowService))
     private readonly workflowService: WorkflowService
   ) {}
+
+  /**
+   * Cleanup on application shutdown
+   */
+  async onApplicationShutdown(signal?: string): Promise<void> {
+    this.logger.log(`TasksService shutting down (signal: ${signal ?? 'unknown'})`);
+
+    // Close all event streams
+    for (const [taskId, subject] of this.eventStreams) {
+      this.logger.debug(`Closing event stream for task: ${taskId}`);
+      subject.complete();
+    }
+    this.eventStreams.clear();
+    this.eventHistory.clear();
+
+    // Persist any pending tasks
+    try {
+      await this.persistTasks();
+      this.logger.log('Tasks persisted successfully');
+    } catch (error) {
+      this.logger.error('Failed to persist tasks on shutdown:', error);
+    }
+
+    this.logger.log('TasksService shutdown complete');
+  }
 
   async onModuleInit(): Promise<void> {
     this.logger.log('TasksService initializing...');

@@ -5,7 +5,7 @@
  * Bridges the API layer to the orchestrator graph.
  */
 
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnApplicationShutdown } from '@nestjs/common';
 import { MemorySaver } from '@langchain/langgraph';
 import { Observable, Subject } from 'rxjs';
 
@@ -51,7 +51,7 @@ export interface WorkflowResult {
 }
 
 @Injectable()
-export class WorkflowService implements OnModuleInit {
+export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(WorkflowService.name);
   private graph: OrchestratorGraph | null = null;
   private checkpointer: MemorySaver | null = null;
@@ -64,6 +64,32 @@ export class WorkflowService implements OnModuleInit {
 
   onModuleInit(): void {
     this.initialize();
+  }
+
+  /**
+   * Cleanup on application shutdown
+   */
+  async onApplicationShutdown(signal?: string): Promise<void> {
+    this.logger.log(`WorkflowService shutting down (signal: ${signal ?? 'unknown'})`);
+
+    // Abort all running workflows
+    for (const [taskId, subject] of this.eventStreams) {
+      this.logger.debug(`Aborting workflow for task: ${taskId}`);
+      subject.next(
+        createStreamEvent('workflow.error', {
+          taskId,
+          error: 'Server shutting down',
+        })
+      );
+      subject.complete();
+    }
+    this.eventStreams.clear();
+
+    // Clear graph and checkpointer
+    this.graph = null;
+    this.checkpointer = null;
+
+    this.logger.log('WorkflowService shutdown complete');
   }
 
   /**

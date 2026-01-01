@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "tester-output",
+  "title": "Tester Agent Output",
+  "description": "Schema for tester agent output",
+  "type": "object",
+  "required": ["tests", "coverage", "verification"],
+  "properties": {
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "type", "scenarios"],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["unit", "integration", "e2e", "component"]
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "functions": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "category"],
+              "properties": {
+                "name": { "type": "string" },
+                "category": {
+                  "type": "string",
+                  "enum": ["happy_path", "error", "edge_case", "security"]
+                },
+                "description": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "mocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target", "reason"],
+        "properties": {
+          "target": { "type": "string" },
+          "reason": { "type": "string" },
+          "file": { "type": "string" }
+        }
+      }
+    },
+    "fixtures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "purpose": { "type": "string" },
+          "file": { "type": "string" }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["estimated"],
+      "properties": {
+        "estimated": {
+          "type": "object",
+          "properties": {
+            "statements": { "type": "string" },
+            "branches": { "type": "string" },
+            "functions": { "type": "string" }
+          }
+        },
+        "gaps": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["tests_pass", "coverage_met"],
+      "properties": {
+        "tests_pass": { "type": "boolean" },
+        "coverage_met": { "type": "boolean" }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

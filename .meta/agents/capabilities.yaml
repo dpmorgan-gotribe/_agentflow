@@ -1,0 +1,363 @@
+# Agent Capabilities and Tool Restrictions
+#
+# Defines what each agent can and cannot do.
+# The orchestrator enforces these restrictions at runtime.
+
+version: "1.0"
+
+# Global Restrictions (apply to ALL agents)
+global:
+  deny:
+    tools:
+      - "Write(.env*)"           # Never write env files
+      - "Write(*.pem)"           # Never write certificates
+      - "Write(*.key)"           # Never write private keys
+      - "Bash(rm -rf *)"         # Prevent destructive commands
+      - "Bash(*--force*)"        # Prevent force flags
+      - "Bash(git push --force*)" # Prevent force push
+      - "Bash(DROP TABLE*)"      # Prevent SQL drops
+      - "Bash(DELETE FROM*)"     # Prevent SQL deletes without WHERE
+
+    patterns:
+      - "hardcoded_secrets"      # No API keys in code
+      - "eval_usage"             # No eval() calls
+      - "sql_concatenation"      # No string SQL building
+
+  require:
+    - "typescript_strict"        # All TS must be strict mode
+    - "parameterized_queries"    # Database queries must be parameterized
+
+# Per-Agent Capabilities
+agents:
+  # === Architect Agent ===
+  architect:
+    tools:
+      allow:
+        - Read
+        - Grep
+        - Glob
+        - LSP
+      deny:
+        - Write
+        - Edit
+        - Bash
+        - NotebookEdit
+
+    paths:
+      read_all: true              # Can read entire codebase
+      write: []                   # Cannot write any files
+
+    outputs:
+      format: json
+      schema: "@schemas/architect.schema.json"
+      required_fields:
+        - analysis
+        - recommendation
+        - filesAffected
+
+  # === Security Agent ===
+  security:
+    tools:
+      allow:
+        - Read
+        - Grep
+        - Glob
+      deny:
+        - Write
+        - Edit
+        - Bash
+        - NotebookEdit
+
+    paths:
+      read_all: true
+      write: []
+
+    scan_patterns:
+      critical:
+        - "password.*=.*['\"]"
+        - "api[_-]?key.*=.*['\"]"
+        - "secret.*=.*['\"]"
+        - "token.*=.*['\"]"
+      high:
+        - "eval\\("
+        - "exec\\("
+        - "dangerouslySetInnerHTML"
+        - "innerHTML.*="
+      medium:
+        - "console\\.log"
+        - "TODO.*security"
+        - "FIXME.*auth"
+
+    outputs:
+      format: json
+      schema: "@schemas/security.schema.json"
+      required_fields:
+        - vulnerabilities
+        - rlsCompliance
+        - approved
+
+  # === Reviewer Agent ===
+  reviewer:
+    tools:
+      allow:
+        - Read
+        - Grep
+        - Glob
+        - LSP
+      deny:
+        - Write
+        - Edit
+        - Bash
+
+    paths:
+      read_all: true
+      write: []
+
+    review_checklist:
+      typescript:
+        - no_any_types
+        - strict_null_checks
+        - proper_generics
+      code_quality:
+        - function_length_limit: 50
+        - complexity_limit: 10
+        - dry_violations
+      patterns:
+        - error_handling
+        - async_await_usage
+        - naming_conventions
+
+    outputs:
+      format: json
+      schema: "@schemas/reviewer.schema.json"
+      required_fields:
+        - summary
+        - approval
+        - issues
+
+  # === Frontend Dev Agent ===
+  frontend_dev:
+    tools:
+      allow:
+        - Read
+        - Write
+        - Edit
+        - Bash
+        - Grep
+        - Glob
+      deny:
+        - NotebookEdit
+
+    paths:
+      read_all: true
+      write:
+        - "apps/web/**/*.ts"
+        - "apps/web/**/*.tsx"
+        - "apps/web/**/*.css"
+        - "apps/web/**/*.json"
+        - "packages/ui/**/*.ts"
+        - "packages/ui/**/*.tsx"
+        - "packages/design-tokens/**"
+      deny_write:
+        - "apps/api/**"
+        - "packages/database/**"
+        - "packages/agents/**"
+        - "infrastructure/**"
+
+    bash:
+      allow:
+        - "pnpm test"
+        - "pnpm test:*"
+        - "pnpm typecheck"
+        - "pnpm lint"
+        - "pnpm lint:fix"
+        - "pnpm build"
+        - "pnpm dev"
+        - "vitest"
+      deny:
+        - "rm -rf"
+        - "git push"
+        - "npm publish"
+        - "pnpm db:*"
+
+    patterns:
+      required:
+        - functional_components
+        - typescript_interfaces
+        - tailwind_classes
+      forbidden:
+        - class_components
+        - inline_styles
+        - css_modules
+
+  # === Backend Dev Agent ===
+  backend_dev:
+    tools:
+      allow:
+        - Read
+        - Write
+        - Edit
+        - Bash
+        - Grep
+        - Glob
+      deny:
+        - NotebookEdit
+
+    paths:
+      read_all: true
+      write:
+        - "apps/api/**/*.ts"
+        - "apps/cli/**/*.ts"
+        - "packages/database/**/*.ts"
+        - "packages/agents/**/*.ts"
+        - "packages/langgraph/**/*.ts"
+        - "packages/shared/**/*.ts"
+      deny_write:
+        - "apps/web/**"
+        - "packages/ui/**"
+        - "infrastructure/**"
+
+    bash:
+      allow:
+        - "pnpm test"
+        - "pnpm test:*"
+        - "pnpm typecheck"
+        - "pnpm lint"
+        - "pnpm lint:fix"
+        - "pnpm build"
+        - "pnpm db:generate"
+        - "pnpm db:migrate"
+        - "pnpm db:push"
+      deny:
+        - "rm -rf"
+        - "git push"
+        - "npm publish"
+        - "pnpm db:drop"
+
+    patterns:
+      required:
+        - zod_validation
+        - typed_errors
+        - rls_tenant_isolation
+      forbidden:
+        - raw_sql_strings
+        - unvalidated_input
+
+  # === Tester Agent ===
+  tester:
+    tools:
+      allow:
+        - Read
+        - Write
+        - Edit
+        - Bash
+        - Grep
+        - Glob
+
+    paths:
+      read_all: true
+      write:
+        - "**/*.test.ts"
+        - "**/*.spec.ts"
+        - "**/test/**/*.ts"
+        - "**/tests/**/*.ts"
+        - "**/__tests__/**/*.ts"
+        - "**/fixtures/**"
+        - "**/mocks/**"
+      deny_write:
+        - "apps/api/src/**"       # Only test files, not source
+        - "apps/web/src/**"       # Only test files, not source
+        - "!**/*.test.ts"         # Exception: can write test files
+        - "!**/*.spec.ts"
+
+    bash:
+      allow:
+        - "pnpm test"
+        - "pnpm test:*"
+        - "vitest"
+        - "vitest run"
+        - "vitest --coverage"
+        - "pnpm coverage"
+        - "pnpm typecheck"
+      deny:
+        - "rm -rf"
+        - "git push"
+        - "pnpm build"            # Not for tester
+        - "pnpm db:*"             # Not for tester
+
+    coverage_thresholds:
+      statements: 80
+      branches: 75
+      functions: 80
+      lines: 80
+
+  # === DevOps Agent ===
+  devops:
+    tools:
+      allow:
+        - Read
+        - Write
+        - Edit
+        - Bash
+        - Grep
+        - Glob
+
+    paths:
+      read_all: true
+      write:
+        - "infrastructure/**"
+        - "deploy/**"
+        - ".github/**"
+        - "docker/**"
+        - "Dockerfile*"
+        - "docker-compose*.yml"
+        - "*.Dockerfile"
+        - ".dockerignore"
+        - "k8s/**"
+        - "helm/**"
+      deny_write:
+        - "apps/**"
+        - "packages/**"           # Application code off-limits
+
+    bash:
+      allow:
+        - "docker build"
+        - "docker compose"
+        - "docker-compose"
+        - "kubectl get"
+        - "kubectl describe"
+        - "kubectl logs"
+        - "terraform plan"
+        - "terraform validate"
+        - "tofu plan"
+        - "tofu validate"
+        - "helm template"
+        - "helm lint"
+      deny:
+        - "docker push"           # Needs explicit approval
+        - "kubectl apply"         # Needs explicit approval
+        - "kubectl delete"        # Dangerous
+        - "terraform apply"       # Needs explicit approval
+        - "tofu apply"            # Needs explicit approval
+        - "rm -rf"
+
+# Coordination Rules
+coordination:
+  file_isolation:
+    enabled: true
+    description: "Agents working in parallel must not modify the same files"
+    enforcement: strict
+
+  conflict_resolution:
+    strategy: "orchestrator_decides"
+    options:
+      - "orchestrator_decides"    # Orchestrator picks best solution
+      - "merge_compatible"        # Auto-merge if no conflicts
+      - "human_approval"          # Escalate to human
+
+  sequential_dependencies:
+    description: "Some operations must complete before others start"
+    rules:
+      - "architect_analysis -> implementation"
+      - "implementation -> tester_verification"
+      - "security_review -> merge_approval"
