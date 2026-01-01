@@ -87,7 +87,10 @@ export const InspirationUrlSchema = z.object({
     'iconography',
     'spacing',
     'overall_vibe',
-  ])),
+    'style',
+    'ux',
+    'branding',
+  ]).catch('overall_vibe')).default([]),
   /** Notes about the reference */
   notes: z.string().max(500).optional(),
 });
@@ -96,6 +99,7 @@ export type InspirationUrl = z.infer<typeof InspirationUrlSchema>;
 
 /**
  * Platform hint (iOS, Material, etc.)
+ * Note: Uses .catch() fallbacks for lenient parsing of Claude responses
  */
 export const PlatformHintSchema = z.object({
   /** Platform name */
@@ -106,10 +110,15 @@ export const PlatformHintSchema = z.object({
     'web',
     'macos',
     'windows',
+    'android',
+    'linux',
+    'desktop',
+    'mobile',
+    'tablet',
     'custom',
-  ]),
+  ]).catch('web'),
   /** Whether explicitly mentioned or inferred */
-  explicit: z.boolean(),
+  explicit: z.boolean().catch(false),
   /** Confidence if inferred */
   confidence: z.number().min(0).max(1).optional(),
 });
@@ -121,19 +130,19 @@ export type PlatformHint = z.infer<typeof PlatformHintSchema>;
  */
 export const PromptStyleAnalysisSchema = z.object({
   /** Colors mentioned in the prompt */
-  colors: z.array(ColorMentionSchema),
+  colors: z.array(ColorMentionSchema).default([]),
   /** Fonts mentioned in the prompt */
-  fonts: z.array(FontMentionSchema),
+  fonts: z.array(FontMentionSchema).default([]),
   /** Inspiration URLs provided */
-  inspirationUrls: z.array(InspirationUrlSchema),
+  inspirationUrls: z.array(InspirationUrlSchema).default([]),
   /** Mood/vibe keywords detected */
-  moodKeywords: z.array(z.string().min(1).max(50)),
+  moodKeywords: z.array(z.string().min(1).max(50)).default([]),
   /** Style keywords (minimal, bold, elegant, etc.) */
-  styleKeywords: z.array(z.string().min(1).max(50)),
+  styleKeywords: z.array(z.string().min(1).max(50)).default([]),
   /** Things to avoid */
-  avoidKeywords: z.array(z.string().min(1).max(50)),
+  avoidKeywords: z.array(z.string().min(1).max(50)).default([]),
   /** Platform hints */
-  platformHints: z.array(PlatformHintSchema),
+  platformHints: z.array(PlatformHintSchema).default([]),
   /** Target audience hints */
   audienceHints: z.object({
     /** Age range if mentioned */
@@ -141,12 +150,12 @@ export const PromptStyleAnalysisSchema = z.object({
     /** Industry/domain */
     industry: z.string().max(100).optional(),
     /** Professional vs consumer */
-    type: z.enum(['professional', 'consumer', 'enterprise', 'mixed', 'unknown']).default('unknown'),
+    type: z.enum(['professional', 'consumer', 'enterprise', 'mixed', 'unknown']).catch('unknown'),
     /** Any explicit mentions */
-    explicit: z.array(z.string().max(200)),
-  }),
+    explicit: z.array(z.string().max(200)).default([]),
+  }).default({}),
   /** Raw hints summary for debugging */
-  rawHintsSummary: z.string().max(1000),
+  rawHintsSummary: z.string().max(1000).default(''),
 });
 
 export type PromptStyleAnalysis = z.infer<typeof PromptStyleAnalysisSchema>;
@@ -156,19 +165,19 @@ export type PromptStyleAnalysis = z.infer<typeof PromptStyleAnalysisSchema>;
  */
 export const CompetitorAnalysisSchema = z.object({
   /** Competitor name */
-  name: z.string().min(1).max(100),
+  name: z.string().min(1).max(100).default(''),
   /** Website or app URL */
   url: z.string().url().optional(),
   /** Description */
-  description: z.string().max(500),
+  description: z.string().max(500).default(''),
   /** Style notes */
-  styleNotes: z.string().max(1000),
+  styleNotes: z.string().max(1000).default(''),
   /** What to learn from them */
-  takeaways: z.array(z.string().max(200)),
+  takeaways: z.array(z.string().max(200)).default([]),
   /** What to avoid from them */
-  avoid: z.array(z.string().max(200)),
+  avoid: z.array(z.string().max(200)).default([]),
   /** Relevance score */
-  relevance: z.number().min(0).max(1),
+  relevance: z.number().min(0).max(1).default(0.5),
 });
 
 export type CompetitorAnalysis = z.infer<typeof CompetitorAnalysisSchema>;
@@ -178,17 +187,17 @@ export type CompetitorAnalysis = z.infer<typeof CompetitorAnalysisSchema>;
  */
 export const DomainResearchSchema = z.object({
   /** Application category */
-  appCategory: z.string().min(1).max(100),
+  appCategory: z.string().min(1).max(100).default(''),
   /** Primary domain/industry */
-  domain: z.string().min(1).max(100),
+  domain: z.string().min(1).max(100).default(''),
   /** Key competitors analyzed */
-  competitors: z.array(CompetitorAnalysisSchema),
+  competitors: z.array(CompetitorAnalysisSchema).default([]),
   /** Common patterns in this domain */
-  domainPatterns: z.array(z.string().max(200)),
+  domainPatterns: z.array(z.string().max(200)).default([]),
   /** Typical user expectations */
-  userExpectations: z.array(z.string().max(200)),
+  userExpectations: z.array(z.string().max(200)).default([]),
   /** Technical considerations */
-  technicalConsiderations: z.array(z.string().max(200)),
+  technicalConsiderations: z.array(z.string().max(200)).default([]),
 });
 
 export type DomainResearch = z.infer<typeof DomainResearchSchema>;
@@ -199,23 +208,23 @@ export type DomainResearch = z.infer<typeof DomainResearchSchema>;
 export const TechRecommendationSchema = z.object({
   /** Frontend framework */
   frontend: z.object({
-    framework: z.string(),
-    reasoning: z.string().max(500),
+    framework: z.string().default('React'),
+    reasoning: z.string().max(500).default(''),
   }),
   /** CSS approach */
   css: z.object({
-    approach: z.enum(['tailwind', 'css-modules', 'styled-components', 'emotion', 'vanilla']),
-    reasoning: z.string().max(500),
+    approach: z.enum(['tailwind', 'css-modules', 'styled-components', 'emotion', 'vanilla', 'sass', 'less', 'postcss']).catch('tailwind'),
+    reasoning: z.string().max(500).default(''),
   }),
   /** Component library suggestion */
   componentLibrary: z.object({
     name: z.string().optional(),
-    reasoning: z.string().max(500),
+    reasoning: z.string().max(500).default(''),
   }),
   /** Animation library */
   animation: z.object({
     library: z.string().optional(),
-    reasoning: z.string().max(500),
+    reasoning: z.string().max(500).default(''),
   }),
 });
 
@@ -226,15 +235,15 @@ export type TechRecommendation = z.infer<typeof TechRecommendationSchema>;
  */
 export const StyleConstraintsSchema = z.object({
   /** Colors that must be used */
-  mustUseColors: z.array(z.string()),
+  mustUseColors: z.array(z.string()).default([]),
   /** Fonts that must be used */
-  mustUseFonts: z.array(z.string()),
+  mustUseFonts: z.array(z.string()).default([]),
   /** URLs that must be referenced */
-  mustMatchUrls: z.array(z.string()),
+  mustMatchUrls: z.array(z.string()).default([]),
   /** Styles that must be avoided */
-  mustAvoid: z.array(z.string()),
+  mustAvoid: z.array(z.string()).default([]),
   /** Platform constraints */
-  platformConstraints: z.array(z.string()),
+  platformConstraints: z.array(z.string()).default([]),
 });
 
 export type StyleConstraints = z.infer<typeof StyleConstraintsSchema>;
@@ -251,10 +260,10 @@ export const StyleResearchOutputSchema = z.object({
 
   /** All screens identified for the application */
   screens: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    description: z.string(),
-    purpose: z.string(),
+    id: z.string().default(''),
+    name: z.string().default(''),
+    description: z.string().default(''),
+    purpose: z.string().default(''),
     type: z.enum([
       'landing',
       'dashboard',
@@ -270,52 +279,63 @@ export const StyleResearchOutputSchema = z.object({
       'search',
       'checkout',
       'confirmation',
-    ]),
-    components: z.array(z.string()),
-    flows: z.array(z.string()),
-    navigatesTo: z.array(z.string()),
-    priority: z.enum(['critical', 'high', 'medium', 'low']),
-  })),
+      'home',
+      'content',
+      'wiki',
+      'article',
+      'about',
+      'contact',
+      'pricing',
+      'booking',
+      'calendar',
+      'chat',
+      'other',
+    ]).catch('other'),
+    components: z.array(z.string()).default([]),
+    flows: z.array(z.string()).default([]),
+    navigatesTo: z.array(z.string()).default([]),
+    priority: z.enum(['critical', 'high', 'medium', 'low']).catch('medium'),
+  })).default([]),
 
   /** User flows identified */
   userFlows: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    description: z.string(),
+    id: z.string().default(''),
+    name: z.string().default(''),
+    description: z.string().default(''),
     steps: z.array(z.object({
-      stepNumber: z.number(),
-      screen: z.string(),
-      action: z.string(),
-      outcome: z.string(),
-      componentsUsed: z.array(z.string()),
-    })),
-    entryPoint: z.string(),
-    exitPoints: z.array(z.string()),
-    isCriticalPath: z.boolean(),
-  })),
+      stepNumber: z.number().default(0),
+      screen: z.string().default(''),
+      action: z.string().default(''),
+      outcome: z.string().default(''),
+      componentsUsed: z.array(z.string()).default([]),
+    })).default([]),
+    entryPoint: z.string().default(''),
+    exitPoints: z.array(z.string()).default([]),
+    isCriticalPath: z.boolean().default(false),
+  })).default([]),
 
   /** Component inventory */
   componentInventory: z.object({
     projectContext: z.object({
-      appType: z.string(),
-      domain: z.string(),
-      platforms: z.array(z.enum(['web', 'mobile', 'desktop'])),
-      audience: z.string(),
+      appType: z.string().default(''),
+      domain: z.string().default(''),
+      platforms: z.array(z.enum(['web', 'mobile', 'desktop', 'tablet', 'all']).catch('web')).default(['web']),
+      audience: z.string().default(''),
     }),
-    navigation: z.array(z.string()),
-    dataDisplay: z.array(z.string()),
-    forms: z.array(z.string()),
-    feedback: z.array(z.string()),
-    overlays: z.array(z.string()),
-    layout: z.array(z.string()),
-    media: z.array(z.string()),
+    navigation: z.array(z.string()).default([]),
+    dataDisplay: z.array(z.string()).default([]),
+    forms: z.array(z.string()).default([]),
+    feedback: z.array(z.string()).default([]),
+    overlays: z.array(z.string()).default([]),
+    layout: z.array(z.string()).default([]),
+    media: z.array(z.string()).default([]),
     specialized: z.array(z.object({
-      component: z.string(),
-      reason: z.string(),
-      complexity: z.enum(['simple', 'moderate', 'complex', 'advanced']),
-    })),
-    requiredStates: z.array(z.string()),
-    totalCount: z.number(),
+      component: z.string().default(''),
+      reason: z.string().default(''),
+      complexity: z.enum(['simple', 'moderate', 'complex', 'advanced']).catch('moderate'),
+    })).default([]),
+    requiredStates: z.array(z.string()).default([]),
+    totalCount: z.number().default(0),
   }),
 
   /** Technology stack recommendation */
@@ -323,43 +343,43 @@ export const StyleResearchOutputSchema = z.object({
 
   /** 5 distinct style packages */
   stylePackages: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    moodDescription: z.string(),
-    characteristics: z.array(z.string()),
-    differentiator: z.string(),
+    id: z.string().default(''),
+    name: z.string().default(''),
+    moodDescription: z.string().default(''),
+    characteristics: z.array(z.string()).default([]),
+    differentiator: z.string().default(''),
     typography: z.object({
-      headingFont: z.string(),
-      bodyFont: z.string(),
-      weights: z.array(z.number()),
-      source: z.enum(['google', 'adobe', 'local', 'system']),
+      headingFont: z.string().default('Inter'),
+      bodyFont: z.string().default('Inter'),
+      weights: z.array(z.number()).default([400, 500, 600, 700]),
+      source: z.enum(['google', 'adobe', 'local', 'system', 'bunny', 'typekit', 'custom']).catch('google'),
     }),
     icons: z.object({
-      library: z.string(),
-      style: z.enum(['outline', 'solid', 'duotone', 'thin', 'regular']),
+      library: z.string().default('lucide'),
+      style: z.enum(['outline', 'solid', 'duotone', 'thin', 'regular', 'light', 'bold', 'filled']).catch('outline'),
     }),
     colors: z.object({
-      primary: z.string(),
-      secondary: z.string(),
-      accent: z.string(),
-      background: z.string(),
-      surface: z.string(),
-      text: z.string(),
-      textMuted: z.string(),
+      primary: z.string().default('#3B82F6'),
+      secondary: z.string().default('#6366F1'),
+      accent: z.string().default('#F59E0B'),
+      background: z.string().default('#FFFFFF'),
+      surface: z.string().default('#F9FAFB'),
+      text: z.string().default('#111827'),
+      textMuted: z.string().default('#6B7280'),
     }),
     visual: z.object({
-      borderRadius: z.string(),
-      shadows: z.boolean(),
-      gradients: z.boolean(),
+      borderRadius: z.string().default('0.5rem'),
+      shadows: z.boolean().default(true),
+      gradients: z.boolean().default(false),
     }),
     references: z.array(z.object({
-      name: z.string(),
+      name: z.string().default(''),
       url: z.string().optional(),
-      notes: z.string(),
-    })),
-    honorsUserHints: z.boolean(),
-    userHintsUsed: z.array(z.string()),
-  })).min(5).max(5),
+      notes: z.string().default(''),
+    })).default([]),
+    honorsUserHints: z.boolean().default(false),
+    userHintsUsed: z.array(z.string()).default([]),
+  })).default([]),
 
   /** Constraints that all styles must honor */
   styleConstraints: StyleConstraintsSchema,
