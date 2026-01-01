@@ -6,7 +6,7 @@ import { RightSidebar } from './components/layout/RightSidebar';
 import { BottomBar } from './components/layout/BottomBar';
 import { MainContent } from './components/layout/MainContent';
 import { ApprovalDialog } from './components/ApprovalDialog';
-import type { Task, AgentEvent, ApprovalRequest, ActiveAgent, AgentType, OrchestratorLogEntry } from './types';
+import type { Task, AgentEvent, ApprovalRequest, ActiveAgent, AgentType, ExtendedAgentEvent } from './types';
 
 type ViewTab = 'activity' | 'kanban' | 'viewer';
 
@@ -23,41 +23,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ViewTab>('activity');
   const [isExecuting, setIsExecuting] = useState(false);
 
-  // Derived state for orchestrator activity logs
-  const orchestratorLogs: OrchestratorLogEntry[] = events
-    .filter((e) => e.agent === 'orchestrator' || e.agent === 'system')
-    .slice(-15)
-    .map((e) => {
-      const phase =
-        e.status === 'analyzing'
-          ? 'analyzing'
-          : e.status === 'orchestrating'
-            ? 'routing'
-            : e.status === 'agent_working'
-              ? 'executing'
-              : e.status === 'completed'
-                ? 'completed'
-                : e.status === 'failed'
-                  ? 'failed'
-                  : e.status === 'awaiting_approval'
-                    ? 'waiting'
-                    : 'executing';
+  // Derived state for orchestrator events (for right sidebar)
+  const orchestratorEvents = useMemo((): ExtendedAgentEvent[] =>
+    (events as ExtendedAgentEvent[])
+      .filter((e) => e.agent === 'orchestrator' || e.agent === 'system')
+      .slice(-20),
+    [events]
+  );
 
-      return {
-        time: new Date(e.timestamp).toLocaleTimeString('en-US', { hour12: false }),
-        phase,
-        message: (e.message || e.status || 'Event').split('\n')[0].slice(0, 60),
-        details: e.message?.includes('\n') ? e.message.split('\n').slice(1).join(' ').slice(0, 80) : undefined,
-      };
-    });
-
-  // Derive active agents from events
+  // Derive active agents from events (excluding orchestrator which is always on)
   const activeAgents = useMemo((): ActiveAgent[] => {
     const agentMap = new Map<AgentType, ActiveAgent>();
 
     for (const event of events) {
       const agentType = event.agent;
-      if (!agentType || agentType === 'system') continue;
+      // Skip system and orchestrator (orchestrator is always on, no need to show)
+      if (!agentType || agentType === 'system' || agentType === 'orchestrator') continue;
 
       const existing = agentMap.get(agentType);
 
@@ -181,7 +162,7 @@ export default function App() {
         <RightSidebar
           isExecuting={isExecuting}
           currentAgent={events[events.length - 1]?.agent}
-          orchestratorLogs={orchestratorLogs}
+          orchestratorEvents={orchestratorEvents}
         />
       </div>
 

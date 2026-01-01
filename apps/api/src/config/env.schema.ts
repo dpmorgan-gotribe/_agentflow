@@ -9,20 +9,22 @@ import { z } from 'zod';
 
 /**
  * Database URL validation
- * - Development: allows SQLite (file:) or PostgreSQL
- * - Production: requires PostgreSQL
+ * PostgreSQL is required in production, optional in development (uses in-memory storage)
  */
 const databaseUrlSchema = z
   .string()
-  .min(1, 'DATABASE_URL is required')
+  .optional()
   .refine(
     (url) => {
-      const nodeEnv = process.env.NODE_ENV || 'development';
-      // Allow SQLite in development/test
-      if (nodeEnv !== 'production' && url.startsWith('file:')) {
+      // Optional in development
+      if (!url && process.env.NODE_ENV === 'development') {
         return true;
       }
-      // Require PostgreSQL in production
+      // Required in production
+      if (!url) {
+        return false;
+      }
+      // Must be valid PostgreSQL URL if provided
       try {
         const parsed = new URL(url);
         return (
@@ -32,7 +34,7 @@ const databaseUrlSchema = z
         return false;
       }
     },
-    { message: 'DATABASE_URL must be a valid database connection string' }
+    { message: 'DATABASE_URL must be a valid PostgreSQL connection string (optional in development)' }
   );
 
 /**

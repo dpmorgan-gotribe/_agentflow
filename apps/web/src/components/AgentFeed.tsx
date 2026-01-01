@@ -67,55 +67,22 @@ function ParallelProgress({
   );
 }
 
-/**
- * Orchestrator thinking indicator
- */
-function ThinkingIndicator({
-  thinking,
-  action,
-  targets,
-}: {
-  thinking: string;
-  action: string;
-  targets?: string[];
-}) {
-  return (
-    <div className="bg-bg-tertiary rounded-lg p-3 border border-border-primary border-l-4 border-l-accent-primary">
-      <div className="flex items-start gap-2">
-        <span className="text-lg">🧠</span>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-text-primary mb-1">
-            Orchestrator Thinking
-          </div>
-          <p className="text-xs text-text-secondary line-clamp-3">
-            {thinking}
-          </p>
-          <div className="flex items-center gap-2 mt-2 text-2xs text-text-muted">
-            <span className="px-1.5 py-0.5 bg-bg-card rounded">
-              Action: {action}
-            </span>
-            {targets && targets.length > 0 && (
-              <span className="px-1.5 py-0.5 bg-bg-card rounded">
-                Targets: {targets.join(', ')}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function AgentFeed({ taskId, events, onEvent }: AgentFeedProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Connect to SSE stream
   useTaskStream(taskId, onEvent);
 
+  // Filter to only sub-agent events (exclude orchestrator and system)
+  const subAgentEvents = useMemo(() =>
+    events.filter(e => e.agent !== 'orchestrator' && e.agent !== 'system'),
+    [events]
+  );
+
   // Auto-scroll to bottom on new events
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [events]);
+  }, [subAgentEvents]);
 
   // Extract current parallel execution state from events
   const parallelState = useMemo(() => {
@@ -149,16 +116,6 @@ export function AgentFeed({ taskId, events, onEvent }: AgentFeedProps) {
     return { agents, isStyleCompetition, isActive };
   }, [events]);
 
-  // Get latest thinking event
-  const latestThinking = useMemo(() => {
-    for (let i = events.length - 1; i >= 0; i--) {
-      if (events[i].thinking) {
-        return events[i].thinking;
-      }
-    }
-    return null;
-  }, [events]);
-
   if (!taskId) {
     return (
       <div className="text-text-muted text-center py-8">
@@ -169,12 +126,13 @@ export function AgentFeed({ taskId, events, onEvent }: AgentFeedProps) {
     );
   }
 
-  if (events.length === 0) {
+  if (subAgentEvents.length === 0) {
     return (
       <div className="text-text-muted text-center py-8">
         <div className="animate-pulse flex flex-col items-center">
           <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-sm">Connecting to orchestrator...</p>
+          <p className="text-sm">Waiting for agent activity...</p>
+          <p className="text-xs mt-2">Orchestrator is processing your request</p>
         </div>
       </div>
     );
@@ -190,17 +148,8 @@ export function AgentFeed({ taskId, events, onEvent }: AgentFeedProps) {
         />
       )}
 
-      {/* Show latest thinking if available */}
-      {latestThinking && (
-        <ThinkingIndicator
-          thinking={latestThinking.thinking}
-          action={latestThinking.action}
-          targets={latestThinking.targets}
-        />
-      )}
-
-      {/* Event messages */}
-      {events.map((event, index) => (
+      {/* Sub-agent event messages only (orchestrator activity is in right sidebar) */}
+      {subAgentEvents.map((event, index) => (
         <AgentMessage key={index} event={event} />
       ))}
       <div ref={bottomRef} />

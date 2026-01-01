@@ -18,7 +18,7 @@ services:
       - '${POSTGRES_PORT:-5432}:5432'
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-aigentflow}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aigentflow_dev_2026}
       POSTGRES_DB: ${POSTGRES_DB:-aigentflow}
       # Performance tuning for development
       POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=en_US.UTF-8'
