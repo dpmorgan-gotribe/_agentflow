@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logs - Aigentflow</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <style>
+    /* Log screen specific styles */
+    .log-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Log Filters Sidebar */
+    .log-filters-panel {
+      width: 260px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .filter-section {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .filter-title {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .filter-options {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .filter-option:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .filter-checkbox {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border-secondary);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+
+    .filter-checkbox.checked {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+    }
+
+    .filter-label {
+      flex: 1;
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .filter-count {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Severity badges */
+    .severity-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .severity-dot.error { background: var(--status-error); }
+    .severity-dot.warn { background: var(--status-warning); }
+    .severity-dot.info { background: var(--status-info); }
+    .severity-dot.debug { background: var(--text-muted); }
+    .severity-dot.trace { background: #6366f1; }
+
+    /* Date Range */
+    .date-input {
+      width: 100%;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: var(--text-xs);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    /* Saved Filters */
+    .saved-filter {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .saved-filter:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .saved-filter-icon {
+      color: var(--text-accent);
+    }
+
+    .saved-filter-name {
+      flex: 1;
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+    }
+
+    /* Main Log Panel */
+    .log-main-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .log-toolbar {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .log-search {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .log-search-input {
+      flex: 1;
+      max-width: 400px;
+      padding: var(--spacing-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: var(--text-sm);
+      font-family: var(--font-mono);
+    }
+
+    .log-search-input:focus {
+      border-color: var(--accent-primary);
+      outline: none;
+    }
+
+    .log-stats {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-lg);
+      font-size: var(--text-sm);
+    }
+
+    .log-stat {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+
+    .log-stat-value {
+      font-weight: 600;
+    }
+
+    .log-stat-value.error { color: var(--status-error); }
+    .log-stat-value.warn { color: var(--status-warning); }
+
+    /* Log Stream Controls */
+    .stream-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-xs) var(--spacing-md);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .stream-status {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .stream-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--status-success);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .stream-dot.paused {
+      background: var(--status-warning);
+      animation: none;
+    }
+
+    /* Log Viewer */
+    .log-viewer {
+      flex: 1;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.6;
+      background: var(--bg-primary);
+    }
+
+    .log-entry {
+      display: flex;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-xs) var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      transition: background 0.1s ease;
+    }
+
+    .log-entry:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .log-entry.selected {
+      background: var(--accent-glow);
+    }
+
+    .log-entry.error { border-left: 3px solid var(--status-error); }
+    .log-entry.warn { border-left: 3px solid var(--status-warning); }
+    .log-entry.info { border-left: 3px solid var(--status-info); }
+    .log-entry.debug { border-left: 3px solid var(--text-muted); }
+
+    .log-timestamp {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      width: 90px;
+    }
+
+    .log-level {
+      width: 50px;
+      flex-shrink: 0;
+      font-weight: 600;
+    }
+
+    .log-level.error { color: var(--status-error); }
+    .log-level.warn { color: var(--status-warning); }
+    .log-level.info { color: var(--status-info); }
+    .log-level.debug { color: var(--text-muted); }
+
+    .log-source {
+      color: var(--text-accent);
+      width: 120px;
+      flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .log-message {
+      flex: 1;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .log-message .highlight {
+      background: rgba(245, 158, 11, 0.3);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    /* Log Detail Panel */
+    .log-detail-panel {
+      width: 360px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .detail-header {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .detail-title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .detail-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .detail-section {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .detail-section-title {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--spacing-xs) 0;
+      font-size: var(--text-sm);
+    }
+
+    .detail-label {
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+
+    /* Stack Trace */
+    .stack-trace {
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-sm);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      overflow-x: auto;
+      white-space: pre;
+      line-height: 1.5;
+    }
+
+    .stack-trace .file {
+      color: var(--text-accent);
+    }
+
+    .stack-trace .line {
+      color: var(--status-warning);
+    }
+
+    /* Context Data */
+    .context-data {
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-sm);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      overflow-x: auto;
+    }
+
+    .json-key { color: #e06c75; }
+    .json-string { color: #98c379; }
+    .json-number { color: #d19a66; }
+    .json-boolean { color: #c678dd; }
+
+    /* Live tail indicator */
+    .live-tail {
+      position: sticky;
+      bottom: 0;
+      padding: var(--spacing-xs) var(--spacing-md);
+      background: linear-gradient(transparent, var(--bg-secondary));
+      display: flex;
+      justify-content: center;
+    }
+
+    .live-tail-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) var(--spacing-md);
+      background: var(--accent-primary);
+      border: none;
+      border-radius: var(--radius-md);
+      color: white;
+      font-size: var(--text-xs);
+      cursor: pointer;
+    }
+
+    /* Export dropdown */
+    .export-menu {
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>Aigentflow</span>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Activity</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab">Tasks</button>
+        <button class="nav-tab active">Logs</button>
+        <button class="nav-tab">CI/CD</button>
+      </nav>
+
+      <div class="header-right">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>Building</span>
+        </div>
+        <div class="header-stats">
+          <span class="header-stat">
+            <span>Entries:</span>
+            <span class="header-stat-value">12,847</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Body -->
+    <div class="app-body">
+      <!-- Filters Sidebar -->
+      <aside class="log-filters-panel">
+        <div class="filter-section">
+          <div class="filter-title">Severity</div>
+          <div class="filter-options">
+            <div class="filter-option">
+              <div class="filter-checkbox checked">✓</div>
+              <span class="severity-dot error"></span>
+              <span class="filter-label">Error</span>
+              <span class="filter-count">23</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox checked">✓</div>
+              <span class="severity-dot warn"></span>
+              <span class="filter-label">Warning</span>
+              <span class="filter-count">156</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox checked">✓</div>
+              <span class="severity-dot info"></span>
+              <span class="filter-label">Info</span>
+              <span class="filter-count">8,432</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox"></div>
+              <span class="severity-dot debug"></span>
+              <span class="filter-label">Debug</span>
+              <span class="filter-count">4,236</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-title">Source</div>
+          <div class="filter-options">
+            <div class="filter-option">
+              <div class="filter-checkbox checked">✓</div>
+              <span class="filter-label">Orchestrator</span>
+              <span class="filter-count">1,234</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox checked">✓</div>
+              <span class="filter-label">Agents</span>
+              <span class="filter-count">5,678</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox checked">✓</div>
+              <span class="filter-label">Database</span>
+              <span class="filter-count">2,345</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox checked">✓</div>
+              <span class="filter-label">API</span>
+              <span class="filter-count">1,890</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox"></div>
+              <span class="filter-label">MCP</span>
+              <span class="filter-count">456</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox"></div>
+              <span class="filter-label">System</span>
+              <span class="filter-count">1,244</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-title">Time Range</div>
+          <input type="text" class="date-input" placeholder="From: 2024-12-31 00:00">
+          <input type="text" class="date-input" placeholder="To: Now">
+          <div style="display: flex; gap: var(--spacing-xs); flex-wrap: wrap; margin-top: var(--spacing-xs);">
+            <button class="btn btn-secondary btn-sm">15m</button>
+            <button class="btn btn-secondary btn-sm">1h</button>
+            <button class="btn btn-secondary btn-sm">6h</button>
+            <button class="btn btn-secondary btn-sm">24h</button>
+            <button class="btn btn-secondary btn-sm">7d</button>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-title">Agent</div>
+          <div class="filter-options">
+            <div class="filter-option">
+              <div class="filter-checkbox checked">✓</div>
+              <span class="filter-label">All Agents</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox"></div>
+              <span class="filter-label">Architect</span>
+              <span class="filter-count">892</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox"></div>
+              <span class="filter-label">PM</span>
+              <span class="filter-count">456</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox"></div>
+              <span class="filter-label">Frontend</span>
+              <span class="filter-count">1,234</span>
+            </div>
+            <div class="filter-option">
+              <div class="filter-checkbox"></div>
+              <span class="filter-label">Backend</span>
+              <span class="filter-count">987</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-title">Saved Filters</div>
+          <div class="saved-filter">
+            <span class="saved-filter-icon">★</span>
+            <span class="saved-filter-name">Errors Only</span>
+          </div>
+          <div class="saved-filter">
+            <span class="saved-filter-icon">★</span>
+            <span class="saved-filter-name">Agent Activity</span>
+          </div>
+          <div class="saved-filter">
+            <span class="saved-filter-icon">★</span>
+            <span class="saved-filter-name">Database Queries</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Log Panel -->
+      <main class="log-main-panel">
+        <div class="log-toolbar">
+          <div class="log-search">
+            <input type="text" class="log-search-input" placeholder="Search logs... (supports regex)">
+            <button class="btn btn-secondary btn-sm">Regex</button>
+          </div>
+          <div class="log-stats">
+            <div class="log-stat">
+              <span class="severity-dot error"></span>
+              <span class="log-stat-value error">23</span>
+            </div>
+            <div class="log-stat">
+              <span class="severity-dot warn"></span>
+              <span class="log-stat-value warn">156</span>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm">Export</button>
+          <button class="btn btn-secondary btn-sm">Clear</button>
+        </div>
+
+        <div class="stream-controls">
+          <div class="stream-status">
+            <span class="stream-dot"></span>
+            <span>Live tail enabled</span>
+          </div>
+          <button class="btn btn-ghost btn-sm">Pause</button>
+          <div style="flex: 1;"></div>
+          <span style="font-size: var(--text-xs); color: var(--text-muted);">Showing 8,611 of 12,847 entries</span>
+        </div>
+
+        <div class="log-viewer">
+          <div class="log-entry error selected">
+            <span class="log-timestamp">14:32:15.847</span>
+            <span class="log-level error">ERROR</span>
+            <span class="log-source">orchestrator</span>
+            <span class="log-message">Agent execution failed: Token budget exceeded for task TASK-0042. Used: 15,234 / Limit: 10,000</span>
+          </div>
+
+          <div class="log-entry warn">
+            <span class="log-timestamp">14:32:15.234</span>
+            <span class="log-level warn">WARN</span>
+            <span class="log-source">agents/architect</span>
+            <span class="log-message">Approaching token limit: 9,456 / 10,000 (94.6%)</span>
+          </div>
+
+          <div class="log-entry info">
+            <span class="log-timestamp">14:32:14.892</span>
+            <span class="log-level info">INFO</span>
+            <span class="log-source">agents/architect</span>
+            <span class="log-message">Generating artifact: <span class="highlight">router.ts</span> (v2)</span>
+          </div>
+
+          <div class="log-entry info">
+            <span class="log-timestamp">14:32:14.123</span>
+            <span class="log-level info">INFO</span>
+            <span class="log-source">database</span>
+            <span class="log-message">Query executed: SELECT * FROM tasks WHERE id = $1 [TASK-0042] - 2.3ms</span>
+          </div>
+
+          <div class="log-entry info">
+            <span class="log-timestamp">14:32:13.567</span>
+            <span class="log-level info">INFO</span>
+            <span class="log-source">orchestrator</span>
+            <span class="log-message">Routing decision: task=TASK-0042 → agent=architect (deterministic rule: architecture_task)</span>
+          </div>
+
+          <div class="log-entry debug">
+            <span class="log-timestamp">14:32:13.234</span>
+            <span class="log-level debug">DEBUG</span>
+            <span class="log-source">mcp/filesystem</span>
+            <span class="log-message">File read: src/orchestration/router.ts (3.2KB)</span>
+          </div>
+
+          <div class="log-entry info">
+            <span class="log-timestamp">14:32:12.891</span>
+            <span class="log-level info">INFO</span>
+            <span class="log-source">agents/architect</span>
+            <span class="log-message">Starting execution for task TASK-0042: "Implement orchestrator routing"</span>
+          </div>
+
+          <div class="log-entry warn">
+            <span class="log-timestamp">14:32:12.456</span>
+            <span class="log-level warn">WARN</span>
+            <span class="log-source">guardrails</span>
+            <span class="log-message">Rate limit warning: Agent 'architect' at 85% of request limit (85/100 per minute)</span>
+          </div>
+
+          <div class="log-entry info">
+            <span class="log-timestamp">14:32:11.123</span>
+            <span class="log-level info">INFO</span>
+            <span class="log-source">api</span>
+            <span class="log-message">POST /api/v1/tasks/TASK-0042/execute - 200 OK - 45ms</span>
+          </div>
+
+          <div class="log-entry info">
+            <span class="log-timestamp">14:32:10.789</span>
+            <span class="log-level info">INFO</span>
+            <span class="log-source">orchestrator</span>
+            <span class="log-message">State transition: TASK-0042 pending → in_progress</span>
+          </div>
+
+          <div class="log-entry error">
+            <span class="log-timestamp">14:32:09.234</span>
+            <span class="log-level error">ERROR</span>
+            <span class="log-source">database</span>
+            <span class="log-message">Connection pool exhausted, waiting for available connection...</span>
+          </div>
+
+          <div class="log-entry info">
+            <span class="log-timestamp">14:32:08.567</span>
+            <span class="log-level info">INFO</span>
+            <span class="log-source">audit</span>
+            <span class="log-message">Audit log: user=system action=task_execute target=TASK-0042 tenant=tenant-001</span>
+          </div>
+
+          <div class="live-tail">
+            <button class="live-tail-btn">
+              <span>↓</span>
+              Jump to latest
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Log Detail Panel -->
+      <aside class="log-detail-panel">
+        <div class="detail-header">
+          <span class="detail-title">Log Details</span>
+          <button class="btn btn-ghost btn-sm btn-icon">×</button>
+        </div>
+
+        <div class="detail-content">
+          <div class="detail-section">
+            <div class="detail-section-title">Entry Info</div>
+            <div class="detail-row">
+              <span class="detail-label">Timestamp</span>
+              <span class="detail-value">2024-12-31T14:32:15.847Z</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Level</span>
+              <span class="badge badge-error">ERROR</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Source</span>
+              <span class="detail-value" style="color: var(--text-accent);">orchestrator</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Request ID</span>
+              <span class="detail-value">req-a1b2c3d4</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Tenant ID</span>
+              <span class="detail-value">tenant-001</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Message</div>
+            <div class="stack-trace" style="white-space: pre-wrap;">Agent execution failed: Token budget exceeded for task TASK-0042. Used: 15,234 / Limit: 10,000</div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Stack Trace</div>
+            <div class="stack-trace">Error: TokenBudgetExceeded
+  at <span class="file">OrchestratorAgent.execute</span> (<span class="file">orchestrator.ts</span>:<span class="line">127</span>)
+  at <span class="file">Router.route</span> (<span class="file">router.ts</span>:<span class="line">89</span>)
+  at <span class="file">DecisionEngine.decide</span> (<span class="file">decision-engine.ts</span>:<span class="line">45</span>)
+  at async <span class="file">processTask</span> (<span class="file">task-processor.ts</span>:<span class="line">23</span>)</div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Context</div>
+            <div class="context-data">
+{
+  <span class="json-key">"taskId"</span>: <span class="json-string">"TASK-0042"</span>,
+  <span class="json-key">"agentType"</span>: <span class="json-string">"architect"</span>,
+  <span class="json-key">"tokenUsage"</span>: {
+    <span class="json-key">"used"</span>: <span class="json-number">15234</span>,
+    <span class="json-key">"limit"</span>: <span class="json-number">10000</span>,
+    <span class="json-key">"percentage"</span>: <span class="json-number">152.34</span>
+  },
+  <span class="json-key">"iteration"</span>: <span class="json-number">12</span>,
+  <span class="json-key">"phase"</span>: <span class="json-string">"execution"</span>
+}
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Related Logs</div>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-xs);">
+              <div style="font-size: var(--text-xs); color: var(--text-secondary); padding: var(--spacing-xs); background: var(--bg-tertiary); border-radius: var(--radius-sm); cursor: pointer;">
+                <span style="color: var(--status-warning);">WARN</span> 14:32:15.234 - Approaching token limit...
+              </div>
+              <div style="font-size: var(--text-xs); color: var(--text-secondary); padding: var(--spacing-xs); background: var(--bg-tertiary); border-radius: var(--radius-sm); cursor: pointer;">
+                <span style="color: var(--status-info);">INFO</span> 14:32:12.891 - Starting execution for task...
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Command Bar -->
+    <footer class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Search logs, filter by source, or use query syntax...">
+        <span class="command-shortcut">Ctrl+F</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Create Alert</button>
+        <button class="btn-command">Save Filter</button>
+        <button class="btn-execute">Download Logs</button>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

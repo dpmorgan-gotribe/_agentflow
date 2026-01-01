@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aigentflow - MCP Server Configuration</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    .mcp-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+    .mcp-main {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-lg);
+    }
+    .mcp-sidebar {
+      width: 320px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-primary);
+      overflow-y: auto;
+      padding: var(--spacing-md);
+    }
+
+    .server-list {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: var(--spacing-lg);
+    }
+    .server-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .server-row {
+      display: flex;
+      align-items: center;
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .server-row:last-child {
+      border-bottom: none;
+    }
+    .server-row:hover {
+      background: var(--bg-tertiary);
+    }
+    .server-row.selected {
+      background: var(--bg-tertiary);
+      border-left: 3px solid var(--accent-primary);
+    }
+
+    .server-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-right: var(--spacing-md);
+      flex-shrink: 0;
+    }
+    .server-icon.filesystem { background: var(--status-warning-bg); }
+    .server-icon.git { background: var(--status-error-bg); }
+    .server-icon.memory { background: var(--status-success-bg); }
+    .server-icon.web { background: var(--status-info-bg); }
+    .server-icon.github { background: #333; color: white; }
+    .server-icon.postgres { background: #336791; color: white; }
+
+    .server-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .server-name {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .server-description {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .server-status {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--text-xs);
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      margin-right: var(--spacing-md);
+    }
+    .server-status.connected {
+      background: var(--status-success-bg);
+      color: var(--status-success);
+    }
+    .server-status.connecting {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+    }
+    .server-status.disconnected {
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+    }
+    .server-status.error {
+      background: var(--status-error-bg);
+      color: var(--status-error);
+    }
+
+    .server-tools-count {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-right: var(--spacing-md);
+    }
+
+    .server-actions {
+      display: flex;
+      gap: var(--spacing-xs);
+    }
+
+    .tool-registry {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .tool-registry-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .tool-row {
+      display: flex;
+      align-items: center;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      font-size: var(--text-sm);
+    }
+    .tool-row:last-child {
+      border-bottom: none;
+    }
+    .tool-row:hover {
+      background: var(--bg-tertiary);
+    }
+    .tool-name {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--text-primary);
+      min-width: 150px;
+    }
+    .tool-server {
+      font-size: var(--text-xs);
+      color: var(--text-accent);
+      min-width: 100px;
+    }
+    .tool-description {
+      flex: 1;
+      color: var(--text-muted);
+      font-size: var(--text-xs);
+    }
+
+    .detail-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+    }
+    .detail-panel-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-md);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    .detail-section {
+      margin-bottom: var(--spacing-md);
+    }
+    .detail-label {
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-xs);
+    }
+    .detail-value {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+    .detail-value.mono {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      background: var(--bg-tertiary);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+    }
+
+    .permissions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-xs);
+    }
+    .permission-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+    .permission-check {
+      color: var(--status-success);
+    }
+    .permission-cross {
+      color: var(--status-error);
+    }
+
+    .risk-badge {
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-weight: 500;
+    }
+    .risk-badge.low {
+      background: var(--status-success-bg);
+      color: var(--status-success);
+    }
+    .risk-badge.medium {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+    }
+    .risk-badge.high {
+      background: var(--status-error-bg);
+      color: var(--status-error);
+    }
+    .risk-badge.critical {
+      background: var(--status-error);
+      color: white;
+    }
+
+    .available-tools-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .available-tool-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+    }
+    .available-tool-item:hover {
+      background: var(--bg-tertiary);
+    }
+    .available-tool-name {
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>AGENTFLOW</span>
+      </div>
+      <button class="header-btn">LIVE LOG STREAM</button>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        connected
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab">Activity</button>
+        <button class="nav-tab">Planning</button>
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Editor</button>
+        <button class="nav-tab">Viewer</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab">Skills</button>
+        <button class="nav-tab">Guard Rails</button>
+        <button class="nav-tab active">MCP</button>
+        <button class="nav-tab">Database</button>
+        <button class="nav-tab">Git</button>
+      </nav>
+      <div class="header-right">
+        <div class="header-stats">
+          <span class="header-stat">Active: <span class="header-stat-value">0</span></span>
+          <span class="header-stat">Cost: <span class="header-stat-value">$0.00</span></span>
+        </div>
+        <button class="btn-new-project">+ New Project</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- Left Sidebar -->
+      <aside class="left-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">
+            <span class="sidebar-section-title">Server Types</span>
+          </div>
+          <div class="branch-list">
+            <div class="branch-item active">
+              <span class="branch-name">All Servers</span>
+              <span class="branch-meta">6</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Connected</span>
+              <span class="branch-meta">3</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Disconnected</span>
+              <span class="branch-meta">2</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Error</span>
+              <span class="branch-meta">1</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="content-header">
+          <h1 class="content-title">MCP Servers</h1>
+          <span class="badge badge-success">3 Connected</span>
+          <span class="badge badge-neutral">45 Tools</span>
+          <div style="margin-left: auto;">
+            <button class="btn btn-primary btn-sm">+ Add Server</button>
+          </div>
+        </div>
+
+        <div class="mcp-container">
+          <div class="mcp-main">
+            <!-- Server List -->
+            <div class="server-list">
+              <div class="server-list-header">
+                <span style="font-weight: 600;">MCP Servers</span>
+                <input type="text" class="form-input" placeholder="Search servers..." style="width: 200px; padding: 4px 8px; font-size: 11px;">
+              </div>
+
+              <div class="server-row selected">
+                <div class="server-icon filesystem">📁</div>
+                <div class="server-info">
+                  <div class="server-name">filesystem</div>
+                  <div class="server-description">File system operations (read, write, list)</div>
+                </div>
+                <span class="server-status connected">Connected</span>
+                <span class="server-tools-count">12 tools</span>
+                <div class="server-actions">
+                  <button class="btn btn-ghost btn-sm btn-icon">⏸</button>
+                  <button class="btn btn-ghost btn-sm btn-icon">⚙️</button>
+                </div>
+              </div>
+
+              <div class="server-row">
+                <div class="server-icon git">🔀</div>
+                <div class="server-info">
+                  <div class="server-name">git</div>
+                  <div class="server-description">Version control operations</div>
+                </div>
+                <span class="server-status connected">Connected</span>
+                <span class="server-tools-count">8 tools</span>
+                <div class="server-actions">
+                  <button class="btn btn-ghost btn-sm btn-icon">⏸</button>
+                  <button class="btn btn-ghost btn-sm btn-icon">⚙️</button>
+                </div>
+              </div>
+
+              <div class="server-row">
+                <div class="server-icon memory">🧠</div>
+                <div class="server-info">
+                  <div class="server-name">memory</div>
+                  <div class="server-description">Persistent key-value storage</div>
+                </div>
+                <span class="server-status connected">Connected</span>
+                <span class="server-tools-count">4 tools</span>
+                <div class="server-actions">
+                  <button class="btn btn-ghost btn-sm btn-icon">⏸</button>
+                  <button class="btn btn-ghost btn-sm btn-icon">⚙️</button>
+                </div>
+              </div>
+
+              <div class="server-row">
+                <div class="server-icon web">🌐</div>
+                <div class="server-info">
+                  <div class="server-name">web</div>
+                  <div class="server-description">HTTP fetching capabilities</div>
+                </div>
+                <span class="server-status connecting">Connecting</span>
+                <span class="server-tools-count">6 tools</span>
+                <div class="server-actions">
+                  <button class="btn btn-ghost btn-sm btn-icon">▶</button>
+                  <button class="btn btn-ghost btn-sm btn-icon">⚙️</button>
+                </div>
+              </div>
+
+              <div class="server-row">
+                <div class="server-icon github">🐙</div>
+                <div class="server-info">
+                  <div class="server-name">github</div>
+                  <div class="server-description">GitHub API integration</div>
+                </div>
+                <span class="server-status disconnected">Disabled</span>
+                <span class="server-tools-count">15 tools</span>
+                <div class="server-actions">
+                  <button class="btn btn-ghost btn-sm btn-icon">▶</button>
+                  <button class="btn btn-ghost btn-sm btn-icon">⚙️</button>
+                </div>
+              </div>
+
+              <div class="server-row">
+                <div class="server-icon postgres">🐘</div>
+                <div class="server-info">
+                  <div class="server-name">postgres</div>
+                  <div class="server-description">Database operations</div>
+                </div>
+                <span class="server-status error">Error</span>
+                <span class="server-tools-count">0 tools</span>
+                <div class="server-actions">
+                  <button class="btn btn-ghost btn-sm btn-icon">🔄</button>
+                  <button class="btn btn-ghost btn-sm btn-icon">⚙️</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tool Registry -->
+            <div class="tool-registry">
+              <div class="tool-registry-header">
+                <span style="font-weight: 600;">Tool Registry (45 tools from 5 servers)</span>
+                <input type="text" class="form-input" placeholder="Search tools..." style="width: 200px; padding: 4px 8px; font-size: 11px;">
+              </div>
+              <div class="tool-row">
+                <span class="tool-name">read_file</span>
+                <span class="tool-server">filesystem</span>
+                <span class="tool-description">Read contents of a file at the specified path</span>
+                <button class="btn btn-secondary btn-sm" style="font-size: 10px;">Test</button>
+              </div>
+              <div class="tool-row">
+                <span class="tool-name">write_file</span>
+                <span class="tool-server">filesystem</span>
+                <span class="tool-description">Write contents to a file at the specified path</span>
+                <button class="btn btn-secondary btn-sm" style="font-size: 10px;">Test</button>
+              </div>
+              <div class="tool-row">
+                <span class="tool-name">list_directory</span>
+                <span class="tool-server">filesystem</span>
+                <span class="tool-description">List files and directories at a path</span>
+                <button class="btn btn-secondary btn-sm" style="font-size: 10px;">Test</button>
+              </div>
+              <div class="tool-row">
+                <span class="tool-name">git_status</span>
+                <span class="tool-server">git</span>
+                <span class="tool-description">Get current git repository status</span>
+                <button class="btn btn-secondary btn-sm" style="font-size: 10px;">Test</button>
+              </div>
+              <div class="tool-row">
+                <span class="tool-name">git_commit</span>
+                <span class="tool-server">git</span>
+                <span class="tool-description">Create a new git commit with message</span>
+                <button class="btn btn-secondary btn-sm" style="font-size: 10px;">Test</button>
+              </div>
+              <div class="tool-row">
+                <span class="tool-name">store_memory</span>
+                <span class="tool-server">memory</span>
+                <span class="tool-description">Store a key-value pair in persistent memory</span>
+                <button class="btn btn-secondary btn-sm" style="font-size: 10px;">Test</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detail Sidebar -->
+          <div class="mcp-sidebar">
+            <div class="detail-panel">
+              <div class="detail-panel-title">
+                <span class="server-icon filesystem" style="width: 28px; height: 28px; font-size: 14px;">📁</span>
+                filesystem
+              </div>
+
+              <div class="detail-section">
+                <div class="detail-label">Status</div>
+                <span class="server-status connected">Connected</span>
+              </div>
+
+              <div class="detail-section">
+                <div class="detail-label">Transport</div>
+                <div class="detail-value">stdio</div>
+              </div>
+
+              <div class="detail-section">
+                <div class="detail-label">Command</div>
+                <div class="detail-value mono">npx @modelcontextprotocol/server-filesystem</div>
+              </div>
+
+              <div class="detail-section">
+                <div class="detail-label">Risk Level</div>
+                <span class="risk-badge high">HIGH</span>
+              </div>
+
+              <div class="detail-section">
+                <div class="detail-label">Permissions</div>
+                <div class="permissions-grid">
+                  <span class="permission-item"><span class="permission-check">✓</span> Read Files</span>
+                  <span class="permission-item"><span class="permission-check">✓</span> Write Files</span>
+                  <span class="permission-item"><span class="permission-cross">✗</span> Execute Commands</span>
+                  <span class="permission-item"><span class="permission-cross">✗</span> Network Access</span>
+                </div>
+              </div>
+
+              <div class="detail-section">
+                <div class="detail-label">Connected Since</div>
+                <div class="detail-value">2024-12-31 14:30:00</div>
+              </div>
+            </div>
+
+            <div class="detail-panel">
+              <div class="detail-panel-title">Available Tools (12)</div>
+              <div class="available-tools-list">
+                <div class="available-tool-item">
+                  <span class="available-tool-name">read_file</span>
+                  <button class="btn btn-ghost btn-sm" style="font-size: 10px;">Test</button>
+                </div>
+                <div class="available-tool-item">
+                  <span class="available-tool-name">write_file</span>
+                  <button class="btn btn-ghost btn-sm" style="font-size: 10px;">Test</button>
+                </div>
+                <div class="available-tool-item">
+                  <span class="available-tool-name">list_directory</span>
+                  <button class="btn btn-ghost btn-sm" style="font-size: 10px;">Test</button>
+                </div>
+                <div class="available-tool-item">
+                  <span class="available-tool-name">create_directory</span>
+                  <button class="btn btn-ghost btn-sm" style="font-size: 10px;">Test</button>
+                </div>
+                <div class="available-tool-item">
+                  <span class="available-tool-name">delete_file</span>
+                  <button class="btn btn-ghost btn-sm" style="font-size: 10px;">Test</button>
+                </div>
+                <div class="available-tool-item">
+                  <span class="available-tool-name">move_file</span>
+                  <button class="btn btn-ghost btn-sm" style="font-size: 10px;">Test</button>
+                </div>
+                <div class="available-tool-item">
+                  <span class="available-tool-name">copy_file</span>
+                  <button class="btn btn-ghost btn-sm" style="font-size: 10px;">Test</button>
+                </div>
+                <div class="available-tool-item">
+                  <span class="available-tool-name">search_files</span>
+                  <button class="btn btn-ghost btn-sm" style="font-size: 10px;">Test</button>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: var(--spacing-sm);">
+              <button class="btn btn-secondary btn-sm" style="flex: 1;">Disconnect</button>
+              <button class="btn btn-primary btn-sm" style="flex: 1;">Configure</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Connect server, test tool, configure...">
+        <span class="command-shortcut">Ctrl+K</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Refresh</button>
+        <button class="btn-execute">Connect All</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

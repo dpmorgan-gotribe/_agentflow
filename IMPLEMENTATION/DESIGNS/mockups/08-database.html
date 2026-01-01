@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aigentflow - Database Management</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    .db-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+    .db-schema-browser {
+      width: 250px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .db-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .schema-header {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .schema-title {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-sm);
+    }
+    .schema-search {
+      width: 100%;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: var(--text-xs);
+    }
+
+    .schema-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-sm);
+    }
+    .schema-item {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: var(--text-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+    .schema-item:hover {
+      background: var(--bg-tertiary);
+    }
+    .schema-item.active {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    .schema-item-icon {
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .schema-item-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .schema-item.database {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .schema-item.table {
+      padding-left: var(--spacing-lg);
+      color: var(--text-secondary);
+    }
+    .schema-item.column {
+      padding-left: calc(var(--spacing-lg) * 2);
+      color: var(--text-muted);
+      font-size: var(--text-xs);
+    }
+    .column-type {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-accent);
+    }
+
+    .query-editor-section {
+      border-bottom: 1px solid var(--border-primary);
+      padding: var(--spacing-md);
+      background: var(--bg-secondary);
+    }
+    .query-editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-sm);
+    }
+    .query-editor-title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .query-editor-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+    .query-editor {
+      width: 100%;
+      min-height: 120px;
+      padding: var(--spacing-md);
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.6;
+      resize: vertical;
+    }
+    .query-editor:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+    }
+    .query-keyword {
+      color: var(--accent-primary);
+    }
+    .query-string {
+      color: var(--status-success);
+    }
+
+    .results-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .results-meta {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+    .results-meta strong {
+      color: var(--text-primary);
+    }
+
+    .results-table-wrapper {
+      flex: 1;
+      overflow: auto;
+    }
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+    .results-table th {
+      text-align: left;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--bg-tertiary);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-primary);
+      position: sticky;
+      top: 0;
+      white-space: nowrap;
+    }
+    .results-table td {
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      color: var(--text-secondary);
+      white-space: nowrap;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .results-table tr:hover td {
+      background: var(--bg-card);
+    }
+    .results-table .id-col {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .results-table .status-col {
+      display: inline-flex;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-weight: 500;
+    }
+    .results-table .status-col.running {
+      background: var(--status-success-bg);
+      color: var(--status-success);
+    }
+    .results-table .status-col.pending {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+    }
+    .results-table .status-col.completed {
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+    }
+
+    .db-connection-status {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .db-connection-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--text-sm);
+    }
+    .db-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .db-status-dot.connected {
+      background: var(--status-success);
+    }
+    .db-status-dot.disconnected {
+      background: var(--status-error);
+    }
+
+    .vector-search-panel {
+      padding: var(--spacing-md);
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      margin: var(--spacing-md);
+    }
+    .vector-search-title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-md);
+    }
+    .vector-collection-select {
+      margin-bottom: var(--spacing-md);
+    }
+    .vector-result-item {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      margin-bottom: var(--spacing-xs);
+      background: var(--bg-tertiary);
+    }
+    .vector-result-text {
+      flex: 1;
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .vector-result-score {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--status-success);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>AGENTFLOW</span>
+      </div>
+      <button class="header-btn">LIVE LOG STREAM</button>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        connected
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab">Activity</button>
+        <button class="nav-tab">Planning</button>
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Editor</button>
+        <button class="nav-tab">Viewer</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab">Skills</button>
+        <button class="nav-tab">Guard Rails</button>
+        <button class="nav-tab">MCP</button>
+        <button class="nav-tab active">Database</button>
+        <button class="nav-tab">Git</button>
+      </nav>
+      <div class="header-right">
+        <div class="header-stats">
+          <span class="header-stat">Active: <span class="header-stat-value">0</span></span>
+          <span class="header-stat">Cost: <span class="header-stat-value">$0.00</span></span>
+        </div>
+        <button class="btn-new-project">+ New Project</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- Left Sidebar (minimal for DB screen) -->
+      <aside class="left-sidebar" style="width: 60px; min-width: 60px;">
+        <div class="sidebar-section" style="padding: 8px;">
+          <div style="text-align: center; color: var(--text-muted); font-size: 10px; margin-bottom: 8px;">DB</div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="content-header">
+          <h1 class="content-title">Database</h1>
+          <span class="badge badge-success">PostgreSQL</span>
+          <span class="badge badge-info">Qdrant</span>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="db-connection-status">
+          <div class="db-connection-item">
+            <span class="db-status-dot connected"></span>
+            <span>PostgreSQL</span>
+          </div>
+          <div class="db-connection-item">
+            <span class="db-status-dot connected"></span>
+            <span>Qdrant</span>
+          </div>
+          <div style="margin-left: auto; font-size: var(--text-xs); color: var(--text-muted);">
+            Tables: 12 | Rows: 45,234 | Disk: 128MB | Connections: 5/20
+          </div>
+        </div>
+
+        <div class="db-container">
+          <!-- Schema Browser -->
+          <div class="db-schema-browser">
+            <div class="schema-header">
+              <div class="schema-title">Schema Browser</div>
+              <input type="text" class="schema-search" placeholder="Search tables...">
+            </div>
+            <div class="schema-tree">
+              <div class="schema-item database">
+                <span class="schema-item-icon">📁</span>
+                <span class="schema-item-name">public</span>
+              </div>
+              <div class="schema-item table active">
+                <span class="schema-item-icon">📋</span>
+                <span class="schema-item-name">tasks</span>
+              </div>
+              <div class="schema-item column">
+                <span class="schema-item-name">id</span>
+                <span class="column-type">uuid</span>
+              </div>
+              <div class="schema-item column">
+                <span class="schema-item-name">prompt</span>
+                <span class="column-type">text</span>
+              </div>
+              <div class="schema-item column">
+                <span class="schema-item-name">status</span>
+                <span class="column-type">varchar</span>
+              </div>
+              <div class="schema-item column">
+                <span class="schema-item-name">agent_id</span>
+                <span class="column-type">varchar</span>
+              </div>
+              <div class="schema-item column">
+                <span class="schema-item-name">created_at</span>
+                <span class="column-type">timestamp</span>
+              </div>
+              <div class="schema-item table">
+                <span class="schema-item-icon">📋</span>
+                <span class="schema-item-name">users</span>
+              </div>
+              <div class="schema-item table">
+                <span class="schema-item-icon">📋</span>
+                <span class="schema-item-name">agents</span>
+              </div>
+              <div class="schema-item table">
+                <span class="schema-item-icon">📋</span>
+                <span class="schema-item-name">artifacts</span>
+              </div>
+              <div class="schema-item table">
+                <span class="schema-item-icon">📋</span>
+                <span class="schema-item-name">audit_logs</span>
+              </div>
+              <div class="schema-item table">
+                <span class="schema-item-icon">📋</span>
+                <span class="schema-item-name">lessons</span>
+              </div>
+
+              <div class="schema-item database" style="margin-top: var(--spacing-md);">
+                <span class="schema-item-icon">🔮</span>
+                <span class="schema-item-name">qdrant</span>
+              </div>
+              <div class="schema-item table">
+                <span class="schema-item-icon">🔮</span>
+                <span class="schema-item-name">lessons (1536d)</span>
+              </div>
+              <div class="schema-item table">
+                <span class="schema-item-icon">🔮</span>
+                <span class="schema-item-name">code_context (1536d)</span>
+              </div>
+              <div class="schema-item table">
+                <span class="schema-item-icon">🔮</span>
+                <span class="schema-item-name">task_history (1536d)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main DB Area -->
+          <div class="db-main">
+            <!-- Query Editor -->
+            <div class="query-editor-section">
+              <div class="query-editor-header">
+                <div class="query-editor-title">Query Editor</div>
+                <div class="query-editor-actions">
+                  <button class="btn btn-secondary btn-sm">Format</button>
+                  <button class="btn btn-secondary btn-sm">History</button>
+                  <button class="btn btn-primary btn-sm">▶ Execute</button>
+                </div>
+              </div>
+              <textarea class="query-editor" spellcheck="false">SELECT * FROM tasks
+WHERE status = 'running'
+ORDER BY created_at DESC
+LIMIT 10;</textarea>
+            </div>
+
+            <!-- Results -->
+            <div class="results-section">
+              <div class="results-header">
+                <div class="results-meta">
+                  Results: <strong>10 rows</strong> | Execution time: <strong>23ms</strong>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-secondary btn-sm">Export CSV</button>
+                  <button class="btn btn-secondary btn-sm">Export JSON</button>
+                </div>
+              </div>
+              <div class="results-table-wrapper">
+                <table class="results-table">
+                  <thead>
+                    <tr>
+                      <th>id</th>
+                      <th>prompt</th>
+                      <th>status</th>
+                      <th>agent_id</th>
+                      <th>created_at</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="id-col">task-001</td>
+                      <td>Add SSO authentication using OAuth2</td>
+                      <td><span class="status-col running">running</span></td>
+                      <td>orchestrator</td>
+                      <td>2024-12-31 14:30:00</td>
+                    </tr>
+                    <tr>
+                      <td class="id-col">task-002</td>
+                      <td>Generate Dashboard mockup</td>
+                      <td><span class="status-col running">running</span></td>
+                      <td>ui_designer</td>
+                      <td>2024-12-31 14:28:00</td>
+                    </tr>
+                    <tr>
+                      <td class="id-col">task-003</td>
+                      <td>Build LoginForm component</td>
+                      <td><span class="status-col running">running</span></td>
+                      <td>frontend_dev</td>
+                      <td>2024-12-31 14:25:00</td>
+                    </tr>
+                    <tr>
+                      <td class="id-col">task-004</td>
+                      <td>Fix type error in users.ts</td>
+                      <td><span class="status-col pending">pending</span></td>
+                      <td>backend_dev</td>
+                      <td>2024-12-31 14:20:00</td>
+                    </tr>
+                    <tr>
+                      <td class="id-col">task-005</td>
+                      <td>Review authentication flow</td>
+                      <td><span class="status-col completed">completed</span></td>
+                      <td>reviewer</td>
+                      <td>2024-12-31 14:15:00</td>
+                    </tr>
+                    <tr>
+                      <td class="id-col">task-006</td>
+                      <td>Create user registration form</td>
+                      <td><span class="status-col completed">completed</span></td>
+                      <td>ui_designer</td>
+                      <td>2024-12-31 14:10:00</td>
+                    </tr>
+                    <tr>
+                      <td class="id-col">task-007</td>
+                      <td>Setup database migrations</td>
+                      <td><span class="status-col completed">completed</span></td>
+                      <td>backend_dev</td>
+                      <td>2024-12-31 14:05:00</td>
+                    </tr>
+                    <tr>
+                      <td class="id-col">task-008</td>
+                      <td>Implement API rate limiting</td>
+                      <td><span class="status-col completed">completed</span></td>
+                      <td>backend_dev</td>
+                      <td>2024-12-31 14:00:00</td>
+                    </tr>
+                    <tr>
+                      <td class="id-col">task-009</td>
+                      <td>Add unit tests for auth module</td>
+                      <td><span class="status-col completed">completed</span></td>
+                      <td>tester</td>
+                      <td>2024-12-31 13:55:00</td>
+                    </tr>
+                    <tr>
+                      <td class="id-col">task-010</td>
+                      <td>Create architecture decision record</td>
+                      <td><span class="status-col completed">completed</span></td>
+                      <td>architect</td>
+                      <td>2024-12-31 13:50:00</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Sidebar -->
+      <aside class="right-sidebar">
+        <div class="orchestrator-panel">
+          <div class="orchestrator-header">
+            <span class="orchestrator-title">Query Stats</span>
+          </div>
+        </div>
+        <div class="git-status-panel">
+          <div class="git-status-title">DATABASE STATS</div>
+          <div class="git-status-row">
+            <span class="git-status-label">Total Tables</span>
+            <span class="git-status-value">12</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Total Rows</span>
+            <span class="git-status-value">45,234</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Disk Usage</span>
+            <span class="git-status-value">128 MB</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Connections</span>
+            <span class="git-status-value">5 / 20</span>
+          </div>
+        </div>
+
+        <!-- Vector Search -->
+        <div class="vector-search-panel">
+          <div class="vector-search-title">Vector Search (Qdrant)</div>
+          <div class="vector-collection-select">
+            <select class="form-input form-select" style="width: 100%; padding: 6px; font-size: 12px;">
+              <option>lessons (1536 dimensions)</option>
+              <option>code_context (1536 dimensions)</option>
+              <option>task_history (1536 dimensions)</option>
+            </select>
+          </div>
+          <input type="text" class="form-input" placeholder="Semantic search query..." style="width: 100%; margin-bottom: 8px; padding: 6px; font-size: 12px;">
+          <button class="btn btn-primary btn-sm" style="width: 100%; margin-bottom: 12px;">Search</button>
+
+          <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">Recent Results:</div>
+          <div class="vector-result-item">
+            <span class="vector-result-text">Token refresh requires mutex lock...</span>
+            <span class="vector-result-score">0.92</span>
+          </div>
+          <div class="vector-result-item">
+            <span class="vector-result-text">Use Zod for config validation...</span>
+            <span class="vector-result-score">0.87</span>
+          </div>
+          <div class="vector-result-item">
+            <span class="vector-result-text">Tenant isolation via RLS...</span>
+            <span class="vector-result-score">0.84</span>
+          </div>
+        </div>
+
+        <div class="agent-logs-panel">
+          <div class="agent-logs-header">
+            <span class="agent-logs-title">QUERY HISTORY</span>
+          </div>
+          <div class="agent-logs-list">
+            <div class="agent-log-entry">
+              <span class="agent-log-time">14:32:15</span>
+              <span class="agent-log-action commit">23ms</span>
+              <span class="agent-log-message">SELECT * FROM tasks</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">14:30:00</span>
+              <span class="agent-log-action commit">12ms</span>
+              <span class="agent-log-message">SELECT * FROM users</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">14:28:00</span>
+              <span class="agent-log-action error">ERR</span>
+              <span class="agent-log-message">Invalid column name</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Enter SQL query or search command...">
+        <span class="command-shortcut">Ctrl+Enter</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Backup</button>
+        <button class="btn-execute">Execute</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

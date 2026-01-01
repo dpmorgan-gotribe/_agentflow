@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aigentflow - Compliance Dashboard</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    .compliance-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-lg);
+    }
+    .compliance-header-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+      padding: var(--spacing-md);
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+    }
+    .overall-status {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    .overall-status-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .overall-status-icon.warning {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+    }
+    .overall-status-icon.success {
+      background: var(--status-success-bg);
+      color: var(--status-success);
+    }
+    .overall-status-icon.error {
+      background: var(--status-error-bg);
+      color: var(--status-error);
+    }
+    .overall-status-text {
+      display: flex;
+      flex-direction: column;
+    }
+    .overall-status-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .overall-status-value {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--status-warning);
+    }
+    .overall-status-value.success { color: var(--status-success); }
+    .overall-status-value.error { color: var(--status-error); }
+
+    .last-scan-info {
+      margin-left: auto;
+      text-align: right;
+    }
+    .last-scan-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .last-scan-value {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .framework-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-xl);
+    }
+    .framework-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+    .framework-card:hover {
+      border-color: var(--border-secondary);
+    }
+    .framework-card-title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-sm);
+    }
+    .framework-card-score {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: var(--spacing-xs);
+    }
+    .framework-card-score.pass { color: var(--status-success); }
+    .framework-card-score.warning { color: var(--status-warning); }
+    .framework-card-score.fail { color: var(--status-error); }
+    .framework-card-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-weight: 500;
+    }
+    .framework-card-status.pass {
+      background: var(--status-success-bg);
+      color: var(--status-success);
+    }
+    .framework-card-status.warning {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+    }
+    .framework-card-status.fail {
+      background: var(--status-error-bg);
+      color: var(--status-error);
+    }
+
+    .violations-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--spacing-lg);
+      overflow: hidden;
+    }
+    .violations-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .violations-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .violations-filters {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+    .violations-table {
+      width: 100%;
+    }
+    .violations-table th {
+      text-align: left;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--bg-tertiary);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .violations-table td {
+      padding: var(--spacing-sm) var(--spacing-md);
+      font-size: var(--text-sm);
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .violations-table tr:hover td {
+      background: var(--bg-tertiary);
+    }
+    .severity-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-weight: 600;
+    }
+    .severity-badge.critical {
+      background: var(--status-error-bg);
+      color: var(--status-error);
+    }
+    .severity-badge.high {
+      background: rgba(249, 115, 22, 0.15);
+      color: #f97316;
+    }
+    .severity-badge.medium {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+    }
+    .severity-badge.low {
+      background: var(--status-success-bg);
+      color: var(--status-success);
+    }
+    .violation-location {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-accent);
+    }
+    .violation-fix-btn {
+      padding: 2px 8px;
+      background: var(--accent-primary);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      font-size: var(--text-xs);
+      cursor: pointer;
+    }
+    .violation-fix-btn:hover {
+      background: var(--accent-primary-hover);
+    }
+
+    .recommendations-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+    }
+    .recommendations-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-md);
+    }
+    .recommendation-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--spacing-xs);
+    }
+    .recommendation-item:hover {
+      background: var(--bg-tertiary);
+    }
+    .recommendation-icon {
+      color: var(--status-info);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .recommendation-text {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+    .recommendation-count {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      margin-left: var(--spacing-xs);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>AGENTFLOW</span>
+      </div>
+      <button class="header-btn">LIVE LOG STREAM</button>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        connected
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab">Activity</button>
+        <button class="nav-tab">Planning</button>
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Editor</button>
+        <button class="nav-tab">Viewer</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab">Skills</button>
+        <button class="nav-tab active">Guard Rails</button>
+        <button class="nav-tab">MCP</button>
+        <button class="nav-tab">Database</button>
+        <button class="nav-tab">Git</button>
+      </nav>
+      <div class="header-right">
+        <div class="header-stats">
+          <span class="header-stat">Active: <span class="header-stat-value">0</span></span>
+          <span class="header-stat">Cost: <span class="header-stat-value">$0.00</span></span>
+        </div>
+        <button class="btn-new-project">+ New Project</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- Left Sidebar -->
+      <aside class="left-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">
+            <span class="sidebar-section-title">Git Branches</span>
+          </div>
+          <div class="branch-list">
+            <div class="branch-item active">
+              <span class="branch-status current"></span>
+              <span class="branch-name">main</span>
+              <span class="branch-badge current">current</span>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-section" style="flex: 1;">
+          <div class="sidebar-section-header">
+            <span class="sidebar-section-title">Compliance Tabs</span>
+          </div>
+          <div class="branch-list">
+            <div class="branch-item active">
+              <span class="branch-name">Dashboard</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Violations</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Reports</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Settings</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="content-header">
+          <h1 class="content-title">Compliance Dashboard</h1>
+          <div style="margin-left: auto; display: flex; gap: 8px;">
+            <button class="btn btn-primary btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+              Scan Now
+            </button>
+            <button class="btn btn-secondary btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Export PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="compliance-container">
+          <!-- Overall Status Bar -->
+          <div class="compliance-header-bar">
+            <div class="overall-status">
+              <div class="overall-status-icon warning">!</div>
+              <div class="overall-status-text">
+                <span class="overall-status-label">Overall Status</span>
+                <span class="overall-status-value">NEEDS ATTENTION</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: var(--spacing-lg);">
+              <div style="text-align: center;">
+                <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--status-error);">2</div>
+                <div style="font-size: var(--text-xs); color: var(--text-muted);">Critical</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: var(--text-2xl); font-weight: 700; color: #f97316;">5</div>
+                <div style="font-size: var(--text-xs); color: var(--text-muted);">High</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--status-warning);">8</div>
+                <div style="font-size: var(--text-xs); color: var(--text-muted);">Medium</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: var(--text-2xl); font-weight: 700; color: var(--status-success);">8</div>
+                <div style="font-size: var(--text-xs); color: var(--text-muted);">Low</div>
+              </div>
+            </div>
+            <div class="last-scan-info">
+              <div class="last-scan-label">Last Scan</div>
+              <div class="last-scan-value">2 hours ago</div>
+            </div>
+          </div>
+
+          <!-- Framework Score Cards -->
+          <div class="framework-cards">
+            <div class="framework-card">
+              <div class="framework-card-title">Platform</div>
+              <div class="framework-card-score pass">100%</div>
+              <span class="framework-card-status pass">Pass</span>
+            </div>
+            <div class="framework-card">
+              <div class="framework-card-title">GDPR</div>
+              <div class="framework-card-score warning">85%</div>
+              <span class="framework-card-status warning">Warning</span>
+            </div>
+            <div class="framework-card">
+              <div class="framework-card-title">SOC2</div>
+              <div class="framework-card-score pass">92%</div>
+              <span class="framework-card-status pass">Pass</span>
+            </div>
+            <div class="framework-card">
+              <div class="framework-card-title">HIPAA</div>
+              <div class="framework-card-score pass">94%</div>
+              <span class="framework-card-status pass">Pass</span>
+            </div>
+            <div class="framework-card">
+              <div class="framework-card-title">PCI-DSS</div>
+              <div class="framework-card-score warning">78%</div>
+              <span class="framework-card-status warning">Warning</span>
+            </div>
+          </div>
+
+          <!-- Violations Table -->
+          <div class="violations-section">
+            <div class="violations-header">
+              <span class="violations-title">Violations (23)</span>
+              <div class="violations-filters">
+                <select class="form-input form-select" style="width: auto; padding: 4px 24px 4px 8px; font-size: 11px;">
+                  <option>All Severities</option>
+                  <option>Critical</option>
+                  <option>High</option>
+                  <option>Medium</option>
+                  <option>Low</option>
+                </select>
+                <select class="form-input form-select" style="width: auto; padding: 4px 24px 4px 8px; font-size: 11px;">
+                  <option>All Frameworks</option>
+                  <option>Platform</option>
+                  <option>GDPR</option>
+                  <option>SOC2</option>
+                  <option>HIPAA</option>
+                  <option>PCI-DSS</option>
+                </select>
+                <input type="text" class="form-input" placeholder="Search..." style="width: 150px; padding: 4px 8px; font-size: 11px;">
+              </div>
+            </div>
+            <table class="violations-table">
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Rule</th>
+                  <th>Framework</th>
+                  <th>Location</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="severity-badge critical">CRITICAL</span></td>
+                  <td>Hardcoded API key detected</td>
+                  <td>Platform</td>
+                  <td><span class="violation-location">src/config.ts:42</span></td>
+                  <td><button class="violation-fix-btn">Auto-fix</button></td>
+                </tr>
+                <tr>
+                  <td><span class="severity-badge critical">CRITICAL</span></td>
+                  <td>Missing input validation</td>
+                  <td>Platform</td>
+                  <td><span class="violation-location">src/api/user.ts:18</span></td>
+                  <td><button class="violation-fix-btn">Auto-fix</button></td>
+                </tr>
+                <tr>
+                  <td><span class="severity-badge high">HIGH</span></td>
+                  <td>No audit logging for login</td>
+                  <td>SOC2</td>
+                  <td><span class="violation-location">src/auth/login.ts:55</span></td>
+                  <td><button class="btn btn-secondary btn-sm" style="font-size: 10px;">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="severity-badge high">HIGH</span></td>
+                  <td>SQL injection vulnerability</td>
+                  <td>Platform</td>
+                  <td><span class="violation-location">src/db/queries.ts:23</span></td>
+                  <td><button class="violation-fix-btn">Auto-fix</button></td>
+                </tr>
+                <tr>
+                  <td><span class="severity-badge medium">MEDIUM</span></td>
+                  <td>Missing HTTPS enforcement</td>
+                  <td>PCI-DSS</td>
+                  <td><span class="violation-location">src/server.ts:12</span></td>
+                  <td><button class="btn btn-secondary btn-sm" style="font-size: 10px;">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="severity-badge medium">MEDIUM</span></td>
+                  <td>Weak password policy</td>
+                  <td>SOC2</td>
+                  <td><span class="violation-location">src/auth/password.ts:8</span></td>
+                  <td><button class="btn btn-secondary btn-sm" style="font-size: 10px;">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="severity-badge low">LOW</span></td>
+                  <td>Consent mechanism not detected</td>
+                  <td>GDPR</td>
+                  <td><span class="violation-location">src/gdpr/consent.ts:1</span></td>
+                  <td><button class="btn btn-secondary btn-sm" style="font-size: 10px;">View</button></td>
+                </tr>
+                <tr>
+                  <td><span class="severity-badge low">LOW</span></td>
+                  <td>Missing data retention policy</td>
+                  <td>GDPR</td>
+                  <td><span class="violation-location">src/gdpr/retention.ts:1</span></td>
+                  <td><button class="btn btn-secondary btn-sm" style="font-size: 10px;">View</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Recommendations -->
+          <div class="recommendations-section">
+            <div class="recommendations-title">Recommendations</div>
+            <div class="recommendation-item">
+              <svg class="recommendation-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span class="recommendation-text">
+                Implement Zod validation on all API inputs
+                <span class="recommendation-count">3 violations</span>
+              </span>
+            </div>
+            <div class="recommendation-item">
+              <svg class="recommendation-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span class="recommendation-text">
+                Add audit logging wrapper to auth functions
+                <span class="recommendation-count">2 violations</span>
+              </span>
+            </div>
+            <div class="recommendation-item">
+              <svg class="recommendation-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span class="recommendation-text">
+                Enable HTTPS redirect middleware
+                <span class="recommendation-count">1 violation</span>
+              </span>
+            </div>
+            <div class="recommendation-item">
+              <svg class="recommendation-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span class="recommendation-text">
+                Move secrets to environment variables
+                <span class="recommendation-count">2 violations</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Sidebar -->
+      <aside class="right-sidebar">
+        <div class="orchestrator-panel">
+          <div class="orchestrator-header">
+            <span class="orchestrator-title">Compliance Agent</span>
+            <span class="orchestrator-status idle">idle</span>
+          </div>
+        </div>
+        <div class="git-status-panel">
+          <div class="git-status-title">SCAN HISTORY</div>
+          <div class="git-status-row">
+            <span class="git-status-label">Today</span>
+            <span class="git-status-value">3 scans</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">This Week</span>
+            <span class="git-status-value">12 scans</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Trend</span>
+            <span class="git-status-value" style="color: var(--status-success);">+5% improved</span>
+          </div>
+        </div>
+        <div class="agent-logs-panel">
+          <div class="agent-logs-header">
+            <span class="agent-logs-title">RECENT SCANS</span>
+          </div>
+          <div class="agent-logs-list">
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:30:00</span>
+              <span class="agent-log-action commit">Pass</span>
+              <span class="agent-log-message">Platform scan</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">10:15:00</span>
+              <span class="agent-log-action writing">Warn</span>
+              <span class="agent-log-message">GDPR scan</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">08:00:00</span>
+              <span class="agent-log-action commit">Pass</span>
+              <span class="agent-log-message">SOC2 scan</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Run compliance scan, check GDPR status...">
+        <span class="command-shortcut">Ctrl+K</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Configure</button>
+        <button class="btn-execute">Run Scan</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

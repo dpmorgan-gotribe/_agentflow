@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lessons Learnt - Aigentflow</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <style>
+    /* Lessons screen specific styles */
+    .lessons-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Filters Sidebar */
+    .lessons-sidebar {
+      width: 280px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .sidebar-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: var(--spacing-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: var(--text-sm);
+    }
+
+    .filter-section {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .filter-title {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .filter-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+    }
+
+    .filter-tag {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .filter-tag:hover {
+      border-color: var(--border-secondary);
+      color: var(--text-primary);
+    }
+
+    .filter-tag.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+    }
+
+    /* Category Icons */
+    .category-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: var(--spacing-xs);
+    }
+
+    .category-icon.bugfix { background: var(--status-error); }
+    .category-icon.architecture { background: var(--accent-primary); }
+    .category-icon.security { background: var(--status-warning); }
+    .category-icon.performance { background: var(--status-success); }
+    .category-icon.pattern { background: var(--status-info); }
+
+    /* Stats Section */
+    .stats-section {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-sm);
+    }
+
+    .stat-item {
+      padding: var(--spacing-sm);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .stat-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    /* Main Content */
+    .lessons-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .lessons-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .lessons-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .lessons-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    .lessons-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-lg);
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: var(--spacing-md);
+      align-content: start;
+    }
+
+    /* Lesson Card */
+    .lesson-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .lesson-card:hover {
+      border-color: var(--border-secondary);
+      box-shadow: var(--shadow-md);
+    }
+
+    .lesson-card.selected {
+      border-color: var(--accent-primary);
+    }
+
+    .lesson-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .lesson-category-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-md);
+      flex-shrink: 0;
+    }
+
+    .lesson-category-icon.bugfix { background: var(--status-error-bg); color: var(--status-error); }
+    .lesson-category-icon.architecture { background: rgba(139, 92, 246, 0.15); color: var(--accent-primary); }
+    .lesson-category-icon.security { background: var(--status-warning-bg); color: var(--status-warning); }
+    .lesson-category-icon.performance { background: var(--status-success-bg); color: var(--status-success); }
+    .lesson-category-icon.pattern { background: var(--status-info-bg); color: var(--status-info); }
+
+    .lesson-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .lesson-id {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-accent);
+      margin-bottom: 2px;
+    }
+
+    .lesson-title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .lesson-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: var(--spacing-xs);
+    }
+
+    .lesson-card-body {
+      padding: var(--spacing-md);
+    }
+
+    .lesson-summary {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .lesson-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+    }
+
+    .lesson-tag {
+      padding: 2px 8px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    .lesson-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border-primary);
+    }
+
+    .lesson-impact {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--text-xs);
+    }
+
+    .impact-stars {
+      display: flex;
+      gap: 2px;
+    }
+
+    .impact-star {
+      color: var(--status-warning);
+    }
+
+    .impact-star.empty {
+      color: var(--text-muted);
+    }
+
+    .lesson-uses {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    /* Lesson Detail Panel */
+    .lesson-detail-panel {
+      width: 400px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .detail-header {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .detail-title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .detail-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .detail-section {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .detail-section-title {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .detail-text {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Code Example */
+    .code-example {
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .code-example-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .code-example-title {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    .code-example-body {
+      padding: var(--spacing-sm);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      white-space: pre;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+
+    /* Related Items */
+    .related-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .related-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .related-item:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .related-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      flex-shrink: 0;
+    }
+
+    .related-icon.task { background: var(--status-info-bg); color: var(--status-info); }
+    .related-icon.file { background: var(--status-success-bg); color: var(--status-success); }
+    .related-icon.lesson { background: rgba(139, 92, 246, 0.15); color: var(--accent-primary); }
+
+    .related-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .related-name {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .related-type {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    /* Agent Usage */
+    .agent-usage {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+
+    .agent-usage-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .agent-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .agent-name {
+      flex: 1;
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+    }
+
+    .agent-uses {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>Aigentflow</span>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab">Skills</button>
+        <button class="nav-tab active">Lessons</button>
+        <button class="nav-tab">Training</button>
+        <button class="nav-tab">Settings</button>
+      </nav>
+
+      <div class="header-right">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>Learning</span>
+        </div>
+        <button class="btn-new-project">+ Capture Lesson</button>
+      </div>
+    </header>
+
+    <!-- Main Body -->
+    <div class="app-body">
+      <!-- Filters Sidebar -->
+      <aside class="lessons-sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title">Knowledge Base</div>
+          <input type="text" class="search-input" placeholder="Search lessons...">
+        </div>
+
+        <div class="stats-section">
+          <div class="filter-title">Overview</div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value">127</div>
+              <div class="stat-label">Total Lessons</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">23</div>
+              <div class="stat-label">This Week</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">89%</div>
+              <div class="stat-label">Applied</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">12</div>
+              <div class="stat-label">High Impact</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-title">Category</div>
+          <div class="filter-tags">
+            <span class="filter-tag active">All</span>
+            <span class="filter-tag"><span class="category-icon bugfix"></span>Bug Fixes</span>
+            <span class="filter-tag"><span class="category-icon architecture"></span>Architecture</span>
+            <span class="filter-tag"><span class="category-icon security"></span>Security</span>
+            <span class="filter-tag"><span class="category-icon performance"></span>Performance</span>
+            <span class="filter-tag"><span class="category-icon pattern"></span>Patterns</span>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-title">Component</div>
+          <div class="filter-tags">
+            <span class="filter-tag">Orchestrator</span>
+            <span class="filter-tag">Agents</span>
+            <span class="filter-tag">Database</span>
+            <span class="filter-tag">API</span>
+            <span class="filter-tag">UI</span>
+            <span class="filter-tag">Auth</span>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-title">Agent Source</div>
+          <div class="filter-tags">
+            <span class="filter-tag">Architect</span>
+            <span class="filter-tag">PM</span>
+            <span class="filter-tag">Frontend</span>
+            <span class="filter-tag">Backend</span>
+            <span class="filter-tag">QA</span>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-title">Impact Level</div>
+          <div class="filter-tags">
+            <span class="filter-tag">Critical</span>
+            <span class="filter-tag">High</span>
+            <span class="filter-tag">Medium</span>
+            <span class="filter-tag">Low</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="lessons-main">
+        <div class="lessons-header">
+          <span class="lessons-title">All Lessons (127)</span>
+          <div class="lessons-actions">
+            <button class="btn btn-secondary btn-sm">Export</button>
+            <button class="btn btn-secondary btn-sm">Import</button>
+            <button class="btn btn-primary btn-sm">+ Capture Lesson</button>
+          </div>
+        </div>
+
+        <div class="lessons-grid">
+          <!-- Lesson Card 1 -->
+          <div class="lesson-card selected">
+            <div class="lesson-card-header">
+              <div class="lesson-category-icon bugfix">B</div>
+              <div class="lesson-info">
+                <div class="lesson-id">LESSON-0127</div>
+                <div class="lesson-title">Token refresh requires mutex lock to prevent race conditions</div>
+                <div class="lesson-meta">
+                  <span>Phase 2</span>
+                  <span>Architect</span>
+                  <span>2 days ago</span>
+                </div>
+              </div>
+            </div>
+            <div class="lesson-card-body">
+              <div class="lesson-summary">
+                Concurrent token refresh requests can cause authentication failures. Implementing a mutex lock prevents multiple refresh attempts from occurring simultaneously.
+              </div>
+              <div class="lesson-tags">
+                <span class="lesson-tag">authentication</span>
+                <span class="lesson-tag">concurrency</span>
+                <span class="lesson-tag">orchestrator</span>
+              </div>
+            </div>
+            <div class="lesson-card-footer">
+              <div class="lesson-impact">
+                <span>Impact:</span>
+                <div class="impact-stars">
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star empty">★</span>
+                </div>
+              </div>
+              <span class="lesson-uses">Applied 12 times</span>
+            </div>
+          </div>
+
+          <!-- Lesson Card 2 -->
+          <div class="lesson-card">
+            <div class="lesson-card-header">
+              <div class="lesson-category-icon architecture">A</div>
+              <div class="lesson-info">
+                <div class="lesson-id">LESSON-0126</div>
+                <div class="lesson-title">Use Zod for all configuration validation</div>
+                <div class="lesson-meta">
+                  <span>Phase 1</span>
+                  <span>Architect</span>
+                  <span>3 days ago</span>
+                </div>
+              </div>
+            </div>
+            <div class="lesson-card-body">
+              <div class="lesson-summary">
+                Zod schemas provide runtime type safety and better error messages. Always define configuration schemas with Zod and validate on load.
+              </div>
+              <div class="lesson-tags">
+                <span class="lesson-tag">validation</span>
+                <span class="lesson-tag">typescript</span>
+                <span class="lesson-tag">configuration</span>
+              </div>
+            </div>
+            <div class="lesson-card-footer">
+              <div class="lesson-impact">
+                <span>Impact:</span>
+                <div class="impact-stars">
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                </div>
+              </div>
+              <span class="lesson-uses">Applied 45 times</span>
+            </div>
+          </div>
+
+          <!-- Lesson Card 3 -->
+          <div class="lesson-card">
+            <div class="lesson-card-header">
+              <div class="lesson-category-icon security">S</div>
+              <div class="lesson-info">
+                <div class="lesson-id">LESSON-0125</div>
+                <div class="lesson-title">Always validate tenant isolation in vector queries</div>
+                <div class="lesson-meta">
+                  <span>Phase 1</span>
+                  <span>Backend</span>
+                  <span>5 days ago</span>
+                </div>
+              </div>
+            </div>
+            <div class="lesson-card-body">
+              <div class="lesson-summary">
+                Vector database queries must include tenant filter conditions to prevent cross-tenant data leakage. Use filter conditions, not just metadata.
+              </div>
+              <div class="lesson-tags">
+                <span class="lesson-tag">security</span>
+                <span class="lesson-tag">multi-tenancy</span>
+                <span class="lesson-tag">qdrant</span>
+              </div>
+            </div>
+            <div class="lesson-card-footer">
+              <div class="lesson-impact">
+                <span>Impact:</span>
+                <div class="impact-stars">
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                </div>
+              </div>
+              <span class="lesson-uses">Applied 8 times</span>
+            </div>
+          </div>
+
+          <!-- Lesson Card 4 -->
+          <div class="lesson-card">
+            <div class="lesson-card-header">
+              <div class="lesson-category-icon performance">P</div>
+              <div class="lesson-info">
+                <div class="lesson-id">LESSON-0124</div>
+                <div class="lesson-title">Use file chunking with overlap for code indexing</div>
+                <div class="lesson-meta">
+                  <span>Phase 1</span>
+                  <span>Backend</span>
+                  <span>1 week ago</span>
+                </div>
+              </div>
+            </div>
+            <div class="lesson-card-body">
+              <div class="lesson-summary">
+                Large files should be split into overlapping chunks (512 tokens with 64 token overlap) for better semantic search results.
+              </div>
+              <div class="lesson-tags">
+                <span class="lesson-tag">vectors</span>
+                <span class="lesson-tag">indexing</span>
+                <span class="lesson-tag">performance</span>
+              </div>
+            </div>
+            <div class="lesson-card-footer">
+              <div class="lesson-impact">
+                <span>Impact:</span>
+                <div class="impact-stars">
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star empty">★</span>
+                  <span class="impact-star empty">★</span>
+                </div>
+              </div>
+              <span class="lesson-uses">Applied 5 times</span>
+            </div>
+          </div>
+
+          <!-- Lesson Card 5 -->
+          <div class="lesson-card">
+            <div class="lesson-card-header">
+              <div class="lesson-category-icon pattern">D</div>
+              <div class="lesson-info">
+                <div class="lesson-id">LESSON-0123</div>
+                <div class="lesson-title">Use 'as unknown as' for necessary type coercion</div>
+                <div class="lesson-meta">
+                  <span>Phase 1</span>
+                  <span>Architect</span>
+                  <span>1 week ago</span>
+                </div>
+              </div>
+            </div>
+            <div class="lesson-card-body">
+              <div class="lesson-summary">
+                When TypeScript type narrowing is insufficient, prefer 'as unknown as TargetType' over direct casting for clarity about intentional coercion.
+              </div>
+              <div class="lesson-tags">
+                <span class="lesson-tag">typescript</span>
+                <span class="lesson-tag">patterns</span>
+                <span class="lesson-tag">type-safety</span>
+              </div>
+            </div>
+            <div class="lesson-card-footer">
+              <div class="lesson-impact">
+                <span>Impact:</span>
+                <div class="impact-stars">
+                  <span class="impact-star">★</span>
+                  <span class="impact-star">★</span>
+                  <span class="impact-star empty">★</span>
+                  <span class="impact-star empty">★</span>
+                  <span class="impact-star empty">★</span>
+                </div>
+              </div>
+              <span class="lesson-uses">Applied 18 times</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Lesson Detail Panel -->
+      <aside class="lesson-detail-panel">
+        <div class="detail-header">
+          <span class="detail-title">Lesson Details</span>
+          <button class="btn btn-ghost btn-sm btn-icon">×</button>
+        </div>
+
+        <div class="detail-content">
+          <div class="detail-section">
+            <div class="detail-section-title">Problem</div>
+            <div class="detail-text">
+              When multiple agents attempt to refresh authentication tokens simultaneously, race conditions can occur leading to:
+              <br><br>
+              - Multiple refresh requests to the auth server
+              <br>
+              - Token invalidation conflicts
+              <br>
+              - Intermittent authentication failures
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Solution</div>
+            <div class="detail-text">
+              Implement a mutex lock around the token refresh operation. Only one refresh can occur at a time; other requests wait for the result.
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Code Example</div>
+            <div class="code-example">
+              <div class="code-example-header">
+                <span class="code-example-title">token-refresh.ts</span>
+                <button class="btn btn-ghost btn-sm">Copy</button>
+              </div>
+              <div class="code-example-body">private refreshMutex = new Mutex();
+
+async refreshToken(): Promise<Token> {
+  return this.refreshMutex.runExclusive(
+    async () => {
+      // Check if already refreshed
+      if (!this.isExpired()) {
+        return this.token;
+      }
+      // Perform refresh
+      return await this.doRefresh();
+    }
+  );
+}</div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Related Items</div>
+            <div class="related-list">
+              <div class="related-item">
+                <div class="related-icon task">T</div>
+                <div class="related-info">
+                  <div class="related-name">TASK-0034: Fix auth race condition</div>
+                  <div class="related-type">Source Task</div>
+                </div>
+              </div>
+              <div class="related-item">
+                <div class="related-icon file">F</div>
+                <div class="related-info">
+                  <div class="related-name">src/auth/token-manager.ts</div>
+                  <div class="related-type">Related File</div>
+                </div>
+              </div>
+              <div class="related-item">
+                <div class="related-icon lesson">L</div>
+                <div class="related-info">
+                  <div class="related-name">LESSON-0098: Async mutex patterns</div>
+                  <div class="related-type">Related Lesson</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Agent Usage</div>
+            <div class="agent-usage">
+              <div class="agent-usage-item">
+                <div class="agent-avatar">AR</div>
+                <span class="agent-name">Architect</span>
+                <span class="agent-uses">8 times</span>
+              </div>
+              <div class="agent-usage-item">
+                <div class="agent-avatar">BE</div>
+                <span class="agent-name">Backend</span>
+                <span class="agent-uses">3 times</span>
+              </div>
+              <div class="agent-usage-item">
+                <div class="agent-avatar">QA</div>
+                <span class="agent-name">QA</span>
+                <span class="agent-uses">1 time</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Command Bar -->
+    <footer class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Search lessons, capture new insight, or ask questions...">
+        <span class="command-shortcut">Ctrl+K</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Edit</button>
+        <button class="btn-command">Share</button>
+        <button class="btn-execute">Apply to Task</button>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

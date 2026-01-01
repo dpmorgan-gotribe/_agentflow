@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viewer - Aigentflow</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <style>
+    /* Viewer-specific styles */
+    .viewer-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .viewer-sidebar {
+      width: 260px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .viewer-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .viewer-tab {
+      flex: 1;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .viewer-tab:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+    }
+
+    .viewer-tab.active {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-bottom: 2px solid var(--accent-primary);
+    }
+
+    .artifact-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-sm);
+    }
+
+    .artifact-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .artifact-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .artifact-item.active {
+      background: var(--bg-tertiary);
+      border-left: 2px solid var(--accent-primary);
+    }
+
+    .artifact-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-sm);
+      flex-shrink: 0;
+    }
+
+    .artifact-icon.code { background: var(--status-info-bg); color: var(--status-info); }
+    .artifact-icon.doc { background: var(--status-success-bg); color: var(--status-success); }
+    .artifact-icon.config { background: var(--status-warning-bg); color: var(--status-warning); }
+    .artifact-icon.image { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+    .artifact-icon.data { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
+
+    .artifact-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .artifact-name {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .artifact-meta {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-top: 2px;
+    }
+
+    .artifact-version {
+      color: var(--text-accent);
+    }
+
+    /* Main Viewer Area */
+    .viewer-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .viewer-toolbar {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .viewer-path {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .viewer-path-segment {
+      color: var(--text-muted);
+    }
+
+    .viewer-path-file {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .viewer-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+
+    .viewer-content {
+      flex: 1;
+      overflow: auto;
+      background: var(--bg-primary);
+    }
+
+    /* Code Viewer */
+    .code-viewer {
+      padding: var(--spacing-md);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      line-height: 1.6;
+    }
+
+    .code-line {
+      display: flex;
+      min-height: 1.6em;
+    }
+
+    .code-line:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .line-number {
+      width: 50px;
+      text-align: right;
+      padding-right: var(--spacing-md);
+      color: var(--text-muted);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .line-content {
+      flex: 1;
+      white-space: pre;
+      color: var(--text-primary);
+    }
+
+    /* Syntax highlighting */
+    .syntax-keyword { color: #c678dd; }
+    .syntax-string { color: #98c379; }
+    .syntax-comment { color: #5c6370; font-style: italic; }
+    .syntax-function { color: #61afef; }
+    .syntax-variable { color: #e06c75; }
+    .syntax-number { color: #d19a66; }
+    .syntax-type { color: #e5c07b; }
+    .syntax-operator { color: #56b6c2; }
+
+    /* Diff Viewer */
+    .diff-line {
+      display: flex;
+      min-height: 1.6em;
+    }
+
+    .diff-line.added {
+      background: rgba(34, 197, 94, 0.1);
+    }
+
+    .diff-line.removed {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .diff-indicator {
+      width: 20px;
+      text-align: center;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .diff-line.added .diff-indicator { color: var(--status-success); }
+    .diff-line.removed .diff-indicator { color: var(--status-error); }
+
+    /* Viewer Info Panel */
+    .viewer-info-panel {
+      width: 280px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .info-section {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .info-section-title {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--spacing-xs) 0;
+      font-size: var(--text-sm);
+    }
+
+    .info-label {
+      color: var(--text-muted);
+    }
+
+    .info-value {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* Version History */
+    .version-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .version-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .version-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .version-item.current {
+      background: var(--bg-tertiary);
+      border-left: 2px solid var(--status-success);
+    }
+
+    .version-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    .version-item.current .version-dot {
+      background: var(--status-success);
+    }
+
+    .version-info {
+      flex: 1;
+    }
+
+    .version-number {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .version-meta {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .version-agent {
+      color: var(--text-accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>Aigentflow</span>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Activity</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab active">Viewer</button>
+        <button class="nav-tab">Files</button>
+        <button class="nav-tab">Tasks</button>
+      </nav>
+
+      <div class="header-right">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>Building</span>
+        </div>
+        <div class="header-stats">
+          <span class="header-stat">
+            <span>Artifacts:</span>
+            <span class="header-stat-value">47</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Body -->
+    <div class="app-body">
+      <!-- Viewer Sidebar - Artifact List -->
+      <aside class="viewer-sidebar">
+        <div class="viewer-tabs">
+          <button class="viewer-tab active">Artifacts</button>
+          <button class="viewer-tab">Recent</button>
+          <button class="viewer-tab">Starred</button>
+        </div>
+
+        <div style="padding: var(--spacing-sm); border-bottom: 1px solid var(--border-primary);">
+          <input type="text" class="form-input" placeholder="Search artifacts..." style="font-size: var(--text-xs);">
+        </div>
+
+        <div class="artifact-list">
+          <!-- Code Artifacts -->
+          <div style="padding: var(--spacing-xs) var(--spacing-sm); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase;">Source Code</div>
+
+          <div class="artifact-item active">
+            <div class="artifact-icon code">TS</div>
+            <div class="artifact-info">
+              <div class="artifact-name">orchestrator.ts</div>
+              <div class="artifact-meta">
+                <span class="artifact-version">v3</span>
+                <span>2.4 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="artifact-item">
+            <div class="artifact-icon code">TS</div>
+            <div class="artifact-info">
+              <div class="artifact-name">base-agent.ts</div>
+              <div class="artifact-meta">
+                <span class="artifact-version">v2</span>
+                <span>1.8 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="artifact-item">
+            <div class="artifact-icon code">TS</div>
+            <div class="artifact-info">
+              <div class="artifact-name">router.ts</div>
+              <div class="artifact-meta">
+                <span class="artifact-version">v1</span>
+                <span>3.2 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Documentation -->
+          <div style="padding: var(--spacing-xs) var(--spacing-sm); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; margin-top: var(--spacing-sm);">Documentation</div>
+
+          <div class="artifact-item">
+            <div class="artifact-icon doc">MD</div>
+            <div class="artifact-info">
+              <div class="artifact-name">architecture.md</div>
+              <div class="artifact-meta">
+                <span class="artifact-version">v4</span>
+                <span>12.1 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="artifact-item">
+            <div class="artifact-icon doc">MD</div>
+            <div class="artifact-info">
+              <div class="artifact-name">ADR-0012.md</div>
+              <div class="artifact-meta">
+                <span class="artifact-version">v1</span>
+                <span>4.5 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Config -->
+          <div style="padding: var(--spacing-xs) var(--spacing-sm); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; margin-top: var(--spacing-sm);">Configuration</div>
+
+          <div class="artifact-item">
+            <div class="artifact-icon config">JS</div>
+            <div class="artifact-info">
+              <div class="artifact-name">drizzle.config.ts</div>
+              <div class="artifact-meta">
+                <span class="artifact-version">v2</span>
+                <span>0.8 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="artifact-item">
+            <div class="artifact-icon data">JN</div>
+            <div class="artifact-info">
+              <div class="artifact-name">tsconfig.json</div>
+              <div class="artifact-meta">
+                <span class="artifact-version">v1</span>
+                <span>1.2 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Design -->
+          <div style="padding: var(--spacing-xs) var(--spacing-sm); font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; margin-top: var(--spacing-sm);">Design</div>
+
+          <div class="artifact-item">
+            <div class="artifact-icon image">HT</div>
+            <div class="artifact-info">
+              <div class="artifact-name">dashboard.html</div>
+              <div class="artifact-meta">
+                <span class="artifact-version">v5</span>
+                <span>8.3 KB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Viewer -->
+      <main class="viewer-main">
+        <div class="viewer-toolbar">
+          <div class="viewer-path">
+            <span class="viewer-path-segment">src</span>
+            <span>/</span>
+            <span class="viewer-path-segment">orchestration</span>
+            <span>/</span>
+            <span class="viewer-path-file">orchestrator.ts</span>
+          </div>
+          <div class="viewer-actions">
+            <button class="btn btn-secondary btn-sm">Raw</button>
+            <button class="btn btn-secondary btn-sm">Diff</button>
+            <button class="btn btn-secondary btn-sm">Download</button>
+            <button class="btn btn-primary btn-sm">Approve</button>
+          </div>
+        </div>
+
+        <div class="viewer-content">
+          <div class="code-viewer">
+            <div class="code-line">
+              <span class="line-number">1</span>
+              <span class="line-content"><span class="syntax-keyword">import</span> { BaseAgent } <span class="syntax-keyword">from</span> <span class="syntax-string">'./base-agent'</span>;</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">2</span>
+              <span class="line-content"><span class="syntax-keyword">import</span> { Router } <span class="syntax-keyword">from</span> <span class="syntax-string">'./router'</span>;</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">3</span>
+              <span class="line-content"><span class="syntax-keyword">import</span> { DecisionEngine } <span class="syntax-keyword">from</span> <span class="syntax-string">'./decision-engine'</span>;</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">4</span>
+              <span class="line-content"></span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">5</span>
+              <span class="line-content"><span class="syntax-comment">/**</span></span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">6</span>
+              <span class="line-content"><span class="syntax-comment"> * OrchestratorAgent - Central coordination for multi-agent workflows</span></span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">7</span>
+              <span class="line-content"><span class="syntax-comment"> */</span></span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">8</span>
+              <span class="line-content"><span class="syntax-keyword">export class</span> <span class="syntax-type">OrchestratorAgent</span> <span class="syntax-keyword">extends</span> <span class="syntax-type">BaseAgent</span> {</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">9</span>
+              <span class="line-content">  <span class="syntax-keyword">private</span> <span class="syntax-variable">router</span>: <span class="syntax-type">Router</span>;</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">10</span>
+              <span class="line-content">  <span class="syntax-keyword">private</span> <span class="syntax-variable">decisionEngine</span>: <span class="syntax-type">DecisionEngine</span>;</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">11</span>
+              <span class="line-content">  <span class="syntax-keyword">private</span> <span class="syntax-variable">maxIterations</span> = <span class="syntax-number">100</span>;</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">12</span>
+              <span class="line-content"></span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">13</span>
+              <span class="line-content">  <span class="syntax-keyword">constructor</span>(<span class="syntax-variable">config</span>: <span class="syntax-type">OrchestratorConfig</span>) {</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">14</span>
+              <span class="line-content">    <span class="syntax-keyword">super</span>(<span class="syntax-string">'orchestrator'</span>, config);</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">15</span>
+              <span class="line-content">    <span class="syntax-keyword">this</span>.<span class="syntax-variable">router</span> = <span class="syntax-keyword">new</span> <span class="syntax-function">Router</span>(config.routingRules);</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">16</span>
+              <span class="line-content">    <span class="syntax-keyword">this</span>.<span class="syntax-variable">decisionEngine</span> = <span class="syntax-keyword">new</span> <span class="syntax-function">DecisionEngine</span>();</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">17</span>
+              <span class="line-content">  }</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">18</span>
+              <span class="line-content"></span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">19</span>
+              <span class="line-content">  <span class="syntax-keyword">async</span> <span class="syntax-function">execute</span>(<span class="syntax-variable">input</span>: <span class="syntax-type">OrchestratorInput</span>): <span class="syntax-type">Promise</span>&lt;<span class="syntax-type">OrchestratorOutput</span>&gt; {</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">20</span>
+              <span class="line-content">    <span class="syntax-keyword">const</span> <span class="syntax-variable">validated</span> = <span class="syntax-keyword">await</span> <span class="syntax-keyword">this</span>.<span class="syntax-function">validateInput</span>(input);</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">21</span>
+              <span class="line-content">    </span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">22</span>
+              <span class="line-content">    <span class="syntax-keyword">let</span> <span class="syntax-variable">iteration</span> = <span class="syntax-number">0</span>;</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">23</span>
+              <span class="line-content">    <span class="syntax-keyword">while</span> (iteration &lt; <span class="syntax-keyword">this</span>.<span class="syntax-variable">maxIterations</span>) {</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">24</span>
+              <span class="line-content">      <span class="syntax-keyword">const</span> <span class="syntax-variable">decision</span> = <span class="syntax-keyword">await</span> <span class="syntax-keyword">this</span>.<span class="syntax-variable">decisionEngine</span>.<span class="syntax-function">decide</span>(validated);</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">25</span>
+              <span class="line-content">      <span class="syntax-keyword">const</span> <span class="syntax-variable">result</span> = <span class="syntax-keyword">await</span> <span class="syntax-keyword">this</span>.<span class="syntax-variable">router</span>.<span class="syntax-function">route</span>(decision);</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">26</span>
+              <span class="line-content">      </span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">27</span>
+              <span class="line-content">      <span class="syntax-keyword">if</span> (result.complete) <span class="syntax-keyword">break</span>;</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">28</span>
+              <span class="line-content">      iteration++;</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">29</span>
+              <span class="line-content">    }</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">30</span>
+              <span class="line-content"></span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">31</span>
+              <span class="line-content">    <span class="syntax-keyword">return</span> <span class="syntax-keyword">this</span>.<span class="syntax-function">synthesize</span>(results);</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">32</span>
+              <span class="line-content">  }</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">33</span>
+              <span class="line-content">}</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Info Panel -->
+      <aside class="viewer-info-panel">
+        <div class="info-section">
+          <div class="info-section-title">File Details</div>
+          <div class="info-row">
+            <span class="info-label">Type</span>
+            <span class="info-value">TypeScript</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Size</span>
+            <span class="info-value">2.4 KB</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Lines</span>
+            <span class="info-value">247</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Status</span>
+            <span class="badge badge-warning">Pending Review</span>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">Generated By</div>
+          <div class="info-row">
+            <span class="info-label">Agent</span>
+            <span class="info-value" style="color: var(--text-accent);">Architect</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Task</span>
+            <span class="info-value">TASK-0042</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Created</span>
+            <span class="info-value">2 min ago</span>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">Quality Metrics</div>
+          <div class="info-row">
+            <span class="info-label">Complexity</span>
+            <span class="info-value">12</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Test Coverage</span>
+            <span class="info-value">87%</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Lint Issues</span>
+            <span class="info-value">0</span>
+          </div>
+        </div>
+
+        <div class="info-section" style="border-bottom: none;">
+          <div class="info-section-title">Version History</div>
+        </div>
+
+        <div class="version-list">
+          <div class="version-item current">
+            <div class="version-dot"></div>
+            <div class="version-info">
+              <div class="version-number">v3 (Current)</div>
+              <div class="version-meta">
+                <span class="version-agent">Architect</span> - 2 min ago
+              </div>
+            </div>
+          </div>
+          <div class="version-item">
+            <div class="version-dot"></div>
+            <div class="version-info">
+              <div class="version-number">v2</div>
+              <div class="version-meta">
+                <span class="version-agent">Architect</span> - 15 min ago
+              </div>
+            </div>
+          </div>
+          <div class="version-item">
+            <div class="version-dot"></div>
+            <div class="version-info">
+              <div class="version-number">v1</div>
+              <div class="version-meta">
+                <span class="version-agent">PM</span> - 1 hour ago
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Command Bar -->
+    <footer class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Ask about this file, request changes, or search artifacts...">
+        <span class="command-shortcut">Ctrl+K</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Compare</button>
+        <button class="btn-command">History</button>
+        <button class="btn-execute">Review</button>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

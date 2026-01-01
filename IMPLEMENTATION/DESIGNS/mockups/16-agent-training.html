@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Training - Aigentflow</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <style>
+    /* Agent Training screen specific styles */
+    .training-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Agent Sidebar */
+    .agent-sidebar {
+      width: 280px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .sidebar-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .agent-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .agent-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .agent-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .agent-item.selected {
+      background: var(--bg-tertiary);
+      border-left: 3px solid var(--accent-primary);
+    }
+
+    .agent-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: var(--text-sm);
+      flex-shrink: 0;
+    }
+
+    .agent-avatar.orchestrator { background: rgba(139, 92, 246, 0.2); color: var(--accent-primary); }
+    .agent-avatar.architect { background: var(--status-info-bg); color: var(--status-info); }
+    .agent-avatar.pm { background: var(--status-success-bg); color: var(--status-success); }
+    .agent-avatar.frontend { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+    .agent-avatar.backend { background: var(--status-warning-bg); color: var(--status-warning); }
+    .agent-avatar.qa { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
+    .agent-avatar.compliance { background: var(--status-error-bg); color: var(--status-error); }
+
+    .agent-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .agent-name {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .agent-stats {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .agent-evolution {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .evolution-bar {
+      width: 40px;
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .evolution-progress {
+      height: 100%;
+      background: var(--accent-primary);
+      border-radius: 2px;
+    }
+
+    /* Main Content */
+    .training-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .training-header {
+      padding: var(--spacing-lg);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .training-header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .training-agent-info {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+    }
+
+    .training-agent-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-xl);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: var(--text-lg);
+    }
+
+    .training-agent-details {
+      flex: 1;
+    }
+
+    .training-agent-name {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .training-agent-role {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .training-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    /* Stats Grid */
+    .training-stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: var(--spacing-md);
+    }
+
+    .training-stat {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      text-align: center;
+    }
+
+    .training-stat-value {
+      font-size: var(--text-xl);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .training-stat-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .training-stat-trend {
+      font-size: var(--text-xs);
+      margin-top: var(--spacing-xs);
+    }
+
+    .training-stat-trend.positive { color: var(--status-success); }
+    .training-stat-trend.negative { color: var(--status-error); }
+
+    /* Tabs */
+    .training-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-primary);
+      background: var(--bg-secondary);
+    }
+
+    .training-tab {
+      padding: var(--spacing-sm) var(--spacing-lg);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border-bottom: 2px solid transparent;
+    }
+
+    .training-tab:hover {
+      color: var(--text-secondary);
+    }
+
+    .training-tab.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent-primary);
+    }
+
+    /* Content Area */
+    .training-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-lg);
+    }
+
+    /* Feedback Section */
+    .feedback-section {
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .section-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .feedback-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--spacing-md);
+    }
+
+    .feedback-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+    }
+
+    .feedback-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .feedback-type {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--text-sm);
+      font-weight: 500;
+    }
+
+    .feedback-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .feedback-icon.positive { background: var(--status-success-bg); color: var(--status-success); }
+    .feedback-icon.negative { background: var(--status-error-bg); color: var(--status-error); }
+    .feedback-icon.suggestion { background: var(--status-info-bg); color: var(--status-info); }
+
+    .feedback-time {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    .feedback-content {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .feedback-task {
+      font-size: var(--text-xs);
+      color: var(--text-accent);
+      font-family: var(--font-mono);
+    }
+
+    .feedback-actions {
+      display: flex;
+      gap: var(--spacing-xs);
+      margin-top: var(--spacing-sm);
+      padding-top: var(--spacing-sm);
+      border-top: 1px solid var(--border-primary);
+    }
+
+    /* Evolution Chart Placeholder */
+    .evolution-chart {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .chart-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: var(--spacing-md);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.accuracy { background: var(--accent-primary); }
+    .legend-dot.efficiency { background: var(--status-success); }
+    .legend-dot.quality { background: var(--status-info); }
+
+    .chart-placeholder {
+      height: 200px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+    }
+
+    /* Skill Improvements */
+    .skill-improvements {
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .skill-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+
+    .skill-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md);
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+    }
+
+    .skill-name {
+      width: 200px;
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .skill-bar-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .skill-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .skill-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .skill-bar-fill.previous {
+      background: var(--text-muted);
+      position: absolute;
+    }
+
+    .skill-bar-fill.current {
+      background: var(--accent-primary);
+    }
+
+    .skill-value {
+      width: 50px;
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      text-align: right;
+    }
+
+    .skill-change {
+      width: 60px;
+      font-size: var(--text-xs);
+      text-align: right;
+    }
+
+    .skill-change.positive { color: var(--status-success); }
+    .skill-change.negative { color: var(--status-error); }
+
+    /* Training Sessions */
+    .training-sessions {
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .session-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+
+    .session-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md);
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .session-item:hover {
+      border-color: var(--border-secondary);
+    }
+
+    .session-status {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-sm);
+      flex-shrink: 0;
+    }
+
+    .session-status.completed { background: var(--status-success-bg); color: var(--status-success); }
+    .session-status.in_progress { background: var(--status-info-bg); color: var(--status-info); }
+    .session-status.scheduled { background: var(--bg-tertiary); color: var(--text-muted); }
+
+    .session-info {
+      flex: 1;
+    }
+
+    .session-title {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .session-meta {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .session-metrics {
+      display: flex;
+      gap: var(--spacing-lg);
+    }
+
+    .session-metric {
+      text-align: center;
+    }
+
+    .session-metric-value {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .session-metric-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    /* Right Panel - Training Config */
+    .training-config-panel {
+      width: 320px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .config-header {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .config-title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .config-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .config-section {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .config-section-title {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .config-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-sm) 0;
+    }
+
+    .config-label {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+
+    .config-value {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+      width: 40px;
+      height: 20px;
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .toggle-switch.active {
+      background: var(--accent-primary);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s ease;
+    }
+
+    .toggle-switch.active::after {
+      transform: translateX(20px);
+    }
+
+    /* Slider */
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: var(--text-sm);
+    }
+
+    .slider-track {
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      position: relative;
+    }
+
+    .slider-fill {
+      height: 100%;
+      background: var(--accent-primary);
+      border-radius: 3px;
+    }
+
+    .slider-thumb {
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+      position: absolute;
+      top: -4px;
+      transform: translateX(-50%);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Training Objectives */
+    .objective-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .objective-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+    }
+
+    .objective-checkbox {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border-secondary);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+
+    .objective-checkbox.checked {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+    }
+
+    .objective-text {
+      flex: 1;
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>Aigentflow</span>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab">Skills</button>
+        <button class="nav-tab">Lessons</button>
+        <button class="nav-tab active">Training</button>
+        <button class="nav-tab">Settings</button>
+      </nav>
+
+      <div class="header-right">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>Training Active</span>
+        </div>
+        <button class="btn-new-project">+ New Training Session</button>
+      </div>
+    </header>
+
+    <!-- Main Body -->
+    <div class="app-body">
+      <!-- Agent Sidebar -->
+      <aside class="agent-sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title">Agents</div>
+        </div>
+
+        <div class="agent-list">
+          <div class="agent-item selected">
+            <div class="agent-avatar architect">AR</div>
+            <div class="agent-info">
+              <div class="agent-name">Architect</div>
+              <div class="agent-stats">
+                <span>87% accuracy</span>
+                <div class="evolution-bar">
+                  <div class="evolution-progress" style="width: 72%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="agent-item">
+            <div class="agent-avatar orchestrator">OR</div>
+            <div class="agent-info">
+              <div class="agent-name">Orchestrator</div>
+              <div class="agent-stats">
+                <span>92% accuracy</span>
+                <div class="evolution-bar">
+                  <div class="evolution-progress" style="width: 85%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="agent-item">
+            <div class="agent-avatar pm">PM</div>
+            <div class="agent-info">
+              <div class="agent-name">Project Manager</div>
+              <div class="agent-stats">
+                <span>78% accuracy</span>
+                <div class="evolution-bar">
+                  <div class="evolution-progress" style="width: 54%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="agent-item">
+            <div class="agent-avatar frontend">FE</div>
+            <div class="agent-info">
+              <div class="agent-name">Frontend Dev</div>
+              <div class="agent-stats">
+                <span>84% accuracy</span>
+                <div class="evolution-bar">
+                  <div class="evolution-progress" style="width: 68%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="agent-item">
+            <div class="agent-avatar backend">BE</div>
+            <div class="agent-info">
+              <div class="agent-name">Backend Dev</div>
+              <div class="agent-stats">
+                <span>89% accuracy</span>
+                <div class="evolution-bar">
+                  <div class="evolution-progress" style="width: 76%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="agent-item">
+            <div class="agent-avatar qa">QA</div>
+            <div class="agent-info">
+              <div class="agent-name">QA Engineer</div>
+              <div class="agent-stats">
+                <span>91% accuracy</span>
+                <div class="evolution-bar">
+                  <div class="evolution-progress" style="width: 82%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="agent-item">
+            <div class="agent-avatar compliance">CP</div>
+            <div class="agent-info">
+              <div class="agent-name">Compliance</div>
+              <div class="agent-stats">
+                <span>95% accuracy</span>
+                <div class="evolution-bar">
+                  <div class="evolution-progress" style="width: 90%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="training-main">
+        <div class="training-header">
+          <div class="training-header-top">
+            <div class="training-agent-info">
+              <div class="training-agent-avatar agent-avatar architect">AR</div>
+              <div class="training-agent-details">
+                <div class="training-agent-name">Architect Agent</div>
+                <div class="training-agent-role">Technical decisions, architecture design, ADR generation</div>
+              </div>
+            </div>
+            <div class="training-actions">
+              <button class="btn btn-secondary btn-sm">Reset</button>
+              <button class="btn btn-secondary btn-sm">Export Model</button>
+              <button class="btn btn-primary btn-sm">Start Training</button>
+            </div>
+          </div>
+          <div class="training-stats">
+            <div class="training-stat">
+              <div class="training-stat-value">87%</div>
+              <div class="training-stat-label">Accuracy</div>
+              <div class="training-stat-trend positive">+3.2%</div>
+            </div>
+            <div class="training-stat">
+              <div class="training-stat-value">1,247</div>
+              <div class="training-stat-label">Tasks Completed</div>
+              <div class="training-stat-trend positive">+156</div>
+            </div>
+            <div class="training-stat">
+              <div class="training-stat-value">45</div>
+              <div class="training-stat-label">Lessons Applied</div>
+              <div class="training-stat-trend positive">+8</div>
+            </div>
+            <div class="training-stat">
+              <div class="training-stat-value">4.2s</div>
+              <div class="training-stat-label">Avg Response</div>
+              <div class="training-stat-trend positive">-0.8s</div>
+            </div>
+            <div class="training-stat">
+              <div class="training-stat-value">72%</div>
+              <div class="training-stat-label">Evolution</div>
+              <div class="training-stat-trend positive">+5%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="training-tabs">
+          <button class="training-tab active">Feedback</button>
+          <button class="training-tab">Evolution</button>
+          <button class="training-tab">Skills</button>
+          <button class="training-tab">Sessions</button>
+          <button class="training-tab">History</button>
+        </div>
+
+        <div class="training-content">
+          <!-- Feedback Section -->
+          <div class="feedback-section">
+            <div class="section-header">
+              <div class="section-title">Recent Feedback</div>
+              <button class="btn btn-secondary btn-sm">+ Add Feedback</button>
+            </div>
+            <div class="feedback-grid">
+              <div class="feedback-card">
+                <div class="feedback-header">
+                  <div class="feedback-type">
+                    <span class="feedback-icon positive">+</span>
+                    <span>Positive</span>
+                  </div>
+                  <span class="feedback-time">2 hours ago</span>
+                </div>
+                <div class="feedback-content">
+                  Excellent architecture decision on using event sourcing for the audit system. Good consideration of scalability requirements.
+                </div>
+                <div class="feedback-task">TASK-0042</div>
+                <div class="feedback-actions">
+                  <button class="btn btn-ghost btn-sm">Apply to Training</button>
+                  <button class="btn btn-ghost btn-sm">Dismiss</button>
+                </div>
+              </div>
+
+              <div class="feedback-card">
+                <div class="feedback-header">
+                  <div class="feedback-type">
+                    <span class="feedback-icon negative">-</span>
+                    <span>Needs Improvement</span>
+                  </div>
+                  <span class="feedback-time">5 hours ago</span>
+                </div>
+                <div class="feedback-content">
+                  Token budget was exceeded in the routing implementation. Should check budget earlier in the process.
+                </div>
+                <div class="feedback-task">TASK-0041</div>
+                <div class="feedback-actions">
+                  <button class="btn btn-ghost btn-sm">Create Lesson</button>
+                  <button class="btn btn-ghost btn-sm">Dismiss</button>
+                </div>
+              </div>
+
+              <div class="feedback-card">
+                <div class="feedback-header">
+                  <div class="feedback-type">
+                    <span class="feedback-icon suggestion">!</span>
+                    <span>Suggestion</span>
+                  </div>
+                  <span class="feedback-time">1 day ago</span>
+                </div>
+                <div class="feedback-content">
+                  Consider adding more detailed comments for complex type coercion patterns to help other agents understand the code.
+                </div>
+                <div class="feedback-task">TASK-0038</div>
+                <div class="feedback-actions">
+                  <button class="btn btn-ghost btn-sm">Apply to Training</button>
+                  <button class="btn btn-ghost btn-sm">Dismiss</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Evolution Chart -->
+          <div class="evolution-chart">
+            <div class="chart-header">
+              <div class="chart-title">Performance Evolution (Last 30 Days)</div>
+              <div class="chart-legend">
+                <div class="legend-item">
+                  <span class="legend-dot accuracy"></span>
+                  <span>Accuracy</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot efficiency"></span>
+                  <span>Efficiency</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot quality"></span>
+                  <span>Code Quality</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-placeholder">
+              [Performance Chart - Shows upward trends for all metrics over 30 days]
+            </div>
+          </div>
+
+          <!-- Skill Improvements -->
+          <div class="skill-improvements">
+            <div class="section-header">
+              <div class="section-title">Skill Progress</div>
+            </div>
+            <div class="skill-list">
+              <div class="skill-item">
+                <div class="skill-name">Architecture Design</div>
+                <div class="skill-bar-container">
+                  <div class="skill-bar">
+                    <div class="skill-bar-fill previous" style="width: 78%;"></div>
+                    <div class="skill-bar-fill current" style="width: 87%;"></div>
+                  </div>
+                  <div class="skill-value">87%</div>
+                  <div class="skill-change positive">+9%</div>
+                </div>
+              </div>
+              <div class="skill-item">
+                <div class="skill-name">ADR Generation</div>
+                <div class="skill-bar-container">
+                  <div class="skill-bar">
+                    <div class="skill-bar-fill previous" style="width: 82%;"></div>
+                    <div class="skill-bar-fill current" style="width: 91%;"></div>
+                  </div>
+                  <div class="skill-value">91%</div>
+                  <div class="skill-change positive">+9%</div>
+                </div>
+              </div>
+              <div class="skill-item">
+                <div class="skill-name">Token Efficiency</div>
+                <div class="skill-bar-container">
+                  <div class="skill-bar">
+                    <div class="skill-bar-fill previous" style="width: 65%;"></div>
+                    <div class="skill-bar-fill current" style="width: 72%;"></div>
+                  </div>
+                  <div class="skill-value">72%</div>
+                  <div class="skill-change positive">+7%</div>
+                </div>
+              </div>
+              <div class="skill-item">
+                <div class="skill-name">Error Handling</div>
+                <div class="skill-bar-container">
+                  <div class="skill-bar">
+                    <div class="skill-bar-fill previous" style="width: 88%;"></div>
+                    <div class="skill-bar-fill current" style="width: 85%;"></div>
+                  </div>
+                  <div class="skill-value">85%</div>
+                  <div class="skill-change negative">-3%</div>
+                </div>
+              </div>
+              <div class="skill-item">
+                <div class="skill-name">Security Awareness</div>
+                <div class="skill-bar-container">
+                  <div class="skill-bar">
+                    <div class="skill-bar-fill previous" style="width: 90%;"></div>
+                    <div class="skill-bar-fill current" style="width: 94%;"></div>
+                  </div>
+                  <div class="skill-value">94%</div>
+                  <div class="skill-change positive">+4%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Training Sessions -->
+          <div class="training-sessions">
+            <div class="section-header">
+              <div class="section-title">Training Sessions</div>
+              <button class="btn btn-secondary btn-sm">Schedule Session</button>
+            </div>
+            <div class="session-list">
+              <div class="session-item">
+                <div class="session-status in_progress">↻</div>
+                <div class="session-info">
+                  <div class="session-title">Token Efficiency Optimization</div>
+                  <div class="session-meta">In progress - Started 15 min ago</div>
+                </div>
+                <div class="session-metrics">
+                  <div class="session-metric">
+                    <div class="session-metric-value">247</div>
+                    <div class="session-metric-label">Examples</div>
+                  </div>
+                  <div class="session-metric">
+                    <div class="session-metric-value">62%</div>
+                    <div class="session-metric-label">Progress</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="session-item">
+                <div class="session-status completed">✓</div>
+                <div class="session-info">
+                  <div class="session-title">Security Pattern Recognition</div>
+                  <div class="session-meta">Completed 2 days ago - Duration: 45 min</div>
+                </div>
+                <div class="session-metrics">
+                  <div class="session-metric">
+                    <div class="session-metric-value">512</div>
+                    <div class="session-metric-label">Examples</div>
+                  </div>
+                  <div class="session-metric">
+                    <div class="session-metric-value">+4%</div>
+                    <div class="session-metric-label">Improvement</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="session-item">
+                <div class="session-status scheduled">○</div>
+                <div class="session-info">
+                  <div class="session-title">ADR Quality Enhancement</div>
+                  <div class="session-meta">Scheduled for tomorrow at 2:00 PM</div>
+                </div>
+                <div class="session-metrics">
+                  <div class="session-metric">
+                    <div class="session-metric-value">~300</div>
+                    <div class="session-metric-label">Examples</div>
+                  </div>
+                  <div class="session-metric">
+                    <div class="session-metric-value">Est.</div>
+                    <div class="session-metric-label">30 min</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Training Config Panel -->
+      <aside class="training-config-panel">
+        <div class="config-header">
+          <span class="config-title">Training Configuration</span>
+        </div>
+
+        <div class="config-content">
+          <div class="config-section">
+            <div class="config-section-title">Learning Mode</div>
+            <div class="config-option">
+              <span class="config-label">Auto-learn from feedback</span>
+              <div class="toggle-switch active"></div>
+            </div>
+            <div class="config-option">
+              <span class="config-label">Learn from lessons</span>
+              <div class="toggle-switch active"></div>
+            </div>
+            <div class="config-option">
+              <span class="config-label">Cross-agent learning</span>
+              <div class="toggle-switch"></div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="config-section-title">Learning Rate</div>
+            <div class="slider-container">
+              <div class="slider-header">
+                <span class="config-label">Adaptation Speed</span>
+                <span class="config-value">Medium</span>
+              </div>
+              <div class="slider-track">
+                <div class="slider-fill" style="width: 50%;"></div>
+                <div class="slider-thumb" style="left: 50%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="config-section-title">Feedback Weight</div>
+            <div class="slider-container">
+              <div class="slider-header">
+                <span class="config-label">Positive</span>
+                <span class="config-value">1.5x</span>
+              </div>
+              <div class="slider-track">
+                <div class="slider-fill" style="width: 75%;"></div>
+                <div class="slider-thumb" style="left: 75%;"></div>
+              </div>
+            </div>
+            <div class="slider-container" style="margin-top: var(--spacing-md);">
+              <div class="slider-header">
+                <span class="config-label">Negative</span>
+                <span class="config-value">2.0x</span>
+              </div>
+              <div class="slider-track">
+                <div class="slider-fill" style="width: 100%;"></div>
+                <div class="slider-thumb" style="left: 100%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="config-section-title">Training Objectives</div>
+            <div class="objective-list">
+              <div class="objective-item">
+                <div class="objective-checkbox checked">✓</div>
+                <span class="objective-text">Improve token efficiency</span>
+              </div>
+              <div class="objective-item">
+                <div class="objective-checkbox checked">✓</div>
+                <span class="objective-text">Enhance security awareness</span>
+              </div>
+              <div class="objective-item">
+                <div class="objective-checkbox checked">✓</div>
+                <span class="objective-text">Better error handling</span>
+              </div>
+              <div class="objective-item">
+                <div class="objective-checkbox"></div>
+                <span class="objective-text">Faster response time</span>
+              </div>
+              <div class="objective-item">
+                <div class="objective-checkbox"></div>
+                <span class="objective-text">Code documentation</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="config-section-title">Constraints</div>
+            <div class="config-option">
+              <span class="config-label">Max training time</span>
+              <span class="config-value">1 hour</span>
+            </div>
+            <div class="config-option">
+              <span class="config-label">Min examples</span>
+              <span class="config-value">100</span>
+            </div>
+            <div class="config-option">
+              <span class="config-label">Validation split</span>
+              <span class="config-value">20%</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Command Bar -->
+    <footer class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Add feedback, start training, or ask questions about agent performance...">
+        <span class="command-shortcut">Ctrl+K</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Pause Training</button>
+        <button class="btn-command">View Logs</button>
+        <button class="btn-execute">Apply Changes</button>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

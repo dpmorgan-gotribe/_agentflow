@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aigentflow - Kanban Board</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>AGENTFLOW</span>
+      </div>
+      <button class="header-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+        </svg>
+        LIVE LOG STREAM
+      </button>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        connected
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab">Activity</button>
+        <button class="nav-tab">Planning</button>
+        <button class="nav-tab active">Kanban</button>
+        <button class="nav-tab">Editor</button>
+        <button class="nav-tab">Viewer</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab">Skills</button>
+        <button class="nav-tab">Guard Rails</button>
+        <button class="nav-tab">MCP</button>
+        <button class="nav-tab">Database</button>
+        <button class="nav-tab">Git</button>
+      </nav>
+      <div class="header-right">
+        <div class="header-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><path d="M18 6V3"/><circle cx="18" cy="9" r="3"/>
+          </svg>
+          feature/agent-improvements
+        </div>
+        <div class="header-stats">
+          <span class="header-stat">Active: <span class="header-stat-value">0</span></span>
+          <span class="header-stat">Parallel: <span class="header-stat-value">0/15</span></span>
+          <span class="header-stat">Cost: <span class="header-stat-value">$0.00</span></span>
+        </div>
+        <button class="btn-new-project">+ New Project</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- Left Sidebar -->
+      <aside class="left-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">
+            <span class="sidebar-section-title">Git Branches</span>
+            <button class="sidebar-section-action">+</button>
+          </div>
+          <div class="branch-list">
+            <div class="branch-item active">
+              <span class="branch-status current"></span>
+              <span class="branch-name">main</span>
+              <span class="branch-badge current">current</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-status ahead"></span>
+              <span class="branch-name">feature/gallery-ui</span>
+              <span class="branch-meta">2 ahead</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-status ahead"></span>
+              <span class="branch-name">feature/auth-system</span>
+              <span class="branch-meta">5 ahead</span>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">
+            <span class="sidebar-section-title">Worktrees</span>
+            <span class="badge badge-success">3 active</span>
+          </div>
+          <div class="worktree-item">
+            <div class="worktree-header">
+              <span class="worktree-name">gallery-ui</span>
+              <span class="worktree-status active">active</span>
+            </div>
+            <div class="worktree-path">feature/gallery-ui • /worktrees/gallery</div>
+            <div class="worktree-meta">
+              <span>Agent: <span class="worktree-agent">UI Designer</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-section" style="flex: 1;">
+          <div class="sidebar-section-header">
+            <span class="sidebar-section-title">Files</span>
+          </div>
+          <div class="file-tree">
+            <div class="file-tree-item folder">
+              <span class="file-name">src</span>
+            </div>
+            <div class="file-tree-item folder" style="padding-left: 16px;">
+              <span class="file-name">components</span>
+            </div>
+            <div class="file-tree-item file" style="padding-left: 32px;">
+              <span class="file-name">Gallery.jsx</span>
+              <span class="file-status modified">M</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="content-header">
+          <h1 class="content-title">Task Board</h1>
+          <span class="badge badge-success">Executing</span>
+          <span class="badge badge-neutral">dori</span>
+          <div style="margin-left: auto; display: flex; gap: 8px;">
+            <button class="btn btn-secondary btn-sm">Idle</button>
+            <button class="btn btn-sm" style="background: var(--status-warning); color: white;">Pause</button>
+            <button class="btn btn-sm" style="background: var(--status-error); color: white;">Stop</button>
+            <span style="color: var(--text-muted); font-size: 11px; display: flex; align-items: center; gap: 8px;">
+              Sim: 99.85%  #13
+            </span>
+          </div>
+        </div>
+
+        <div class="kanban-container">
+          <div class="kanban-board">
+            <!-- Queued Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-queued);"></span>
+                  Queued
+                </div>
+                <span class="kanban-column-count">0</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-empty">Empty</div>
+              </div>
+            </div>
+
+            <!-- Planning Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-planning);"></span>
+                  Planning
+                </div>
+                <span class="kanban-column-count">3</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-card">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon pm">M</span>
+                    <span class="kanban-card-title">Plan layout structure and navigation flow</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">PM-001</span>
+                    <span class="kanban-card-estimate">+8 min</span>
+                  </div>
+                </div>
+                <div class="kanban-card">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon pm">M</span>
+                    <span class="kanban-card-title">Plan main feature components</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">PM-002</span>
+                    <span class="kanban-card-estimate">0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Designing Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-designing);"></span>
+                  Designing
+                </div>
+                <span class="kanban-column-count">3</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-card">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon ui">M</span>
+                    <span class="kanban-card-title">Setup project structure and dependencies</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">DES-001</span>
+                    <span class="kanban-card-estimate">+15 min</span>
+                  </div>
+                </div>
+                <div class="kanban-card">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon ui">M</span>
+                    <span class="kanban-card-title">Plan data models and API architecture</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">DES-002</span>
+                    <span class="kanban-card-estimate">+15 min</span>
+                  </div>
+                </div>
+                <div class="kanban-card">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon ui">M</span>
+                    <span class="kanban-card-title">Build database models</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">DES-003</span>
+                    <span class="kanban-card-estimate">+15 min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Building Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-building);"></span>
+                  Building
+                </div>
+                <span class="kanban-column-count">2</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-card">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon fe">M</span>
+                    <span class="kanban-card-title">Build API endpoints</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">BLD-001</span>
+                    <span class="kanban-card-estimate">+15 min</span>
+                  </div>
+                </div>
+                <div class="kanban-card">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon fe">S</span>
+                    <span class="kanban-card-title">Write tests</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">BLD-002</span>
+                    <span class="kanban-card-estimate">0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Testing Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-testing);"></span>
+                  Testing
+                </div>
+                <span class="kanban-column-count">0</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-empty">Empty</div>
+              </div>
+            </div>
+
+            <!-- Diagnosing Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-diagnosing);"></span>
+                  Diagnosing
+                </div>
+                <span class="kanban-column-count">0</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-empty">Empty</div>
+              </div>
+            </div>
+
+            <!-- Bug Fix Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-bugfix);"></span>
+                  Bug Fix
+                </div>
+                <span class="kanban-column-count">0</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-empty">Empty</div>
+              </div>
+            </div>
+
+            <!-- Review Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-review);"></span>
+                  Review
+                </div>
+                <span class="kanban-column-count">0</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-empty">Empty</div>
+              </div>
+            </div>
+
+            <!-- Done Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-done);"></span>
+                  Done
+                </div>
+                <span class="kanban-column-count">7</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-card" style="opacity: 0.7;">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon" style="background: var(--kanban-done);">M</span>
+                    <span class="kanban-card-title">Design core layout and navigation</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">DON-001</span>
+                  </div>
+                </div>
+                <div class="kanban-card" style="opacity: 0.7;">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon" style="background: var(--kanban-done);">M</span>
+                    <span class="kanban-card-title">Build core layout and navigation</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">DON-002</span>
+                  </div>
+                </div>
+                <div class="kanban-card" style="opacity: 0.7;">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon" style="background: var(--kanban-done);">M</span>
+                    <span class="kanban-card-title">Design main feature UI</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">DON-003</span>
+                  </div>
+                </div>
+                <div class="kanban-card" style="opacity: 0.7;">
+                  <div class="kanban-card-header">
+                    <span class="kanban-card-icon" style="background: var(--kanban-done);">M</span>
+                    <span class="kanban-card-title">Build main feature components</span>
+                  </div>
+                  <div class="kanban-card-meta">
+                    <span class="kanban-card-id">DON-004</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Blocked Column -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <div class="kanban-column-title">
+                  <span class="kanban-column-dot" style="background: var(--kanban-blocked);"></span>
+                  Blocked
+                </div>
+                <span class="kanban-column-count">0</span>
+              </div>
+              <div class="kanban-column-body">
+                <div class="kanban-empty">Empty</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Sidebar -->
+      <aside class="right-sidebar">
+        <div class="orchestrator-panel">
+          <div class="orchestrator-header">
+            <span class="orchestrator-title">Orchestrator</span>
+            <span class="orchestrator-status executing">executing</span>
+          </div>
+        </div>
+        <div class="git-status-panel">
+          <div class="git-status-title">GIT STATUS</div>
+          <div class="git-status-row">
+            <span class="git-status-label">Branch</span>
+            <span class="git-status-value branch">feature/gallery-ui</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Ahead/Behind</span>
+            <span class="git-status-value">+2 / -0</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Modified</span>
+            <span class="git-status-value">3 files</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Staged</span>
+            <span class="git-status-value">0 files</span>
+          </div>
+        </div>
+        <div class="agent-logs-panel">
+          <div class="agent-logs-header">
+            <span class="agent-logs-title">AGENT LOGS</span>
+          </div>
+          <div class="agent-logs-list">
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:31:45</span>
+              <span class="agent-log-action reading">UI_Designer</span>
+              <span class="agent-log-message">spawned</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:31:46</span>
+              <span class="agent-log-action reading">Reading</span>
+              <span class="agent-log-message">gallery.jsx</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:31:48</span>
+              <span class="agent-log-action writing">Writing</span>
+              <span class="agent-log-message">gallery.css</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:31:52</span>
+              <span class="agent-log-action commit">Commit</span>
+              <span class="agent-log-message">feat: Add Gallery component</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:31:55</span>
+              <span class="agent-log-action reading">Reading</span>
+              <span class="agent-log-message">index.tsx</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:31:58</span>
+              <span class="agent-log-action writing">Writing</span>
+              <span class="agent-log-message">App.tsx</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:32:01</span>
+              <span class="agent-log-action commit">Commit</span>
+              <span class="agent-log-message">feat: Add validation and error handling</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:32:05</span>
+              <span class="agent-log-action reading">Connect</span>
+              <span class="agent-log-message">frontend to backend</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:32:10</span>
+              <span class="agent-log-action writing">Apply</span>
+              <span class="agent-log-message">design system and styling</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Tell the orchestrator what to do...">
+        <span class="command-shortcut">Ctrl+K</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command pause">Pause</button>
+        <button class="btn-command stop">Stop</button>
+        <button class="btn-execute">Execute</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

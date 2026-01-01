@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aigentflow - Skills Management</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    .skills-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-lg);
+    }
+    .skills-section-title {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .skill-packs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-xl);
+    }
+    .skill-pack-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+      transition: all 0.15s ease;
+    }
+    .skill-pack-card:hover {
+      border-color: var(--border-secondary);
+    }
+    .skill-pack-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--accent-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: var(--spacing-sm);
+    }
+    .skill-pack-icon.security { background: var(--status-error); }
+    .skill-pack-icon.react { background: #61dafb; color: #000; }
+    .skill-pack-icon.testing { background: var(--status-success); }
+    .skill-pack-icon.api { background: var(--status-info); }
+    .skill-pack-name {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .skill-pack-count {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-sm);
+    }
+    .skill-pack-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .skill-pack-loaded {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--text-xs);
+      color: var(--status-success);
+    }
+    .skill-pack-loaded.not-loaded {
+      color: var(--text-muted);
+    }
+    .skill-pack-btn {
+      padding: 4px 10px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
+      cursor: pointer;
+    }
+    .skill-pack-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .skill-pack-btn.load {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+    }
+
+    .skills-toolbar {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .skills-browser {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: var(--spacing-lg);
+    }
+    .skills-browser-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .skill-row {
+      display: flex;
+      align-items: center;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      transition: all 0.15s ease;
+    }
+    .skill-row:last-child {
+      border-bottom: none;
+    }
+    .skill-row:hover {
+      background: var(--bg-tertiary);
+    }
+    .skill-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      margin-right: var(--spacing-sm);
+      flex-shrink: 0;
+    }
+    .skill-icon.security { background: var(--status-error-bg); color: var(--status-error); }
+    .skill-icon.coding { background: var(--status-info-bg); color: var(--status-info); }
+    .skill-icon.output { background: var(--status-success-bg); color: var(--status-success); }
+    .skill-icon.error { background: var(--status-warning-bg); color: var(--status-warning); }
+    .skill-icon.auth { background: var(--accent-glow); color: var(--accent-primary); }
+    .skill-icon.react { background: rgba(97, 218, 251, 0.15); color: #61dafb; }
+
+    .skill-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .skill-name {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .skill-description {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .skill-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .skill-category {
+      padding: 2px 6px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+    }
+    .skill-agents {
+      color: var(--text-secondary);
+    }
+    .skill-tokens {
+      font-family: var(--font-mono);
+    }
+    .skill-priority {
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+    }
+    .skill-priority.high {
+      background: var(--status-error-bg);
+      color: var(--status-error);
+    }
+    .skill-priority.medium {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+    }
+    .skill-priority.low {
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+    }
+
+    .skill-composer {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+    }
+    .skill-composer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-md);
+    }
+    .skill-composer-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .token-budget {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      font-size: var(--text-sm);
+    }
+    .token-budget-bar {
+      width: 150px;
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .token-budget-fill {
+      height: 100%;
+      background: var(--accent-primary);
+      border-radius: 4px;
+    }
+    .token-budget-fill.warning {
+      background: var(--status-warning);
+    }
+    .token-budget-fill.danger {
+      background: var(--status-error);
+    }
+    .selected-skills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+      margin-bottom: var(--spacing-md);
+    }
+    .selected-skill-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-secondary);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      color: var(--text-primary);
+    }
+    .selected-skill-chip .remove {
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    .selected-skill-chip .remove:hover {
+      color: var(--status-error);
+    }
+    .skill-composer-warning {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      background: var(--status-warning-bg);
+      border-radius: var(--radius-md);
+      font-size: var(--text-xs);
+      color: var(--status-warning);
+      margin-bottom: var(--spacing-md);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>AGENTFLOW</span>
+      </div>
+      <button class="header-btn">LIVE LOG STREAM</button>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        connected
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab">Activity</button>
+        <button class="nav-tab">Planning</button>
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Editor</button>
+        <button class="nav-tab">Viewer</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab active">Skills</button>
+        <button class="nav-tab">Guard Rails</button>
+        <button class="nav-tab">MCP</button>
+        <button class="nav-tab">Database</button>
+        <button class="nav-tab">Git</button>
+      </nav>
+      <div class="header-right">
+        <div class="header-stats">
+          <span class="header-stat">Active: <span class="header-stat-value">0</span></span>
+          <span class="header-stat">Cost: <span class="header-stat-value">$0.00</span></span>
+        </div>
+        <button class="btn-new-project">+ New Project</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- Left Sidebar -->
+      <aside class="left-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">
+            <span class="sidebar-section-title">Categories</span>
+          </div>
+          <div class="branch-list">
+            <div class="branch-item active">
+              <span class="branch-name">All Skills</span>
+              <span class="branch-meta">26</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Coding</span>
+              <span class="branch-meta">8</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Security</span>
+              <span class="branch-meta">5</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Testing</span>
+              <span class="branch-meta">4</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Compliance</span>
+              <span class="branch-meta">3</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Documentation</span>
+              <span class="branch-meta">3</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Performance</span>
+              <span class="branch-meta">3</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="content-header">
+          <h1 class="content-title">Agent Skills</h1>
+          <span class="badge badge-success">26 Available</span>
+          <span class="badge badge-info">20 Loaded</span>
+          <div style="margin-left: auto;">
+            <button class="btn btn-primary btn-sm">+ Create Skill Pack</button>
+          </div>
+        </div>
+
+        <div class="skills-container">
+          <!-- Skill Packs -->
+          <div class="skills-section-title">Skill Packs</div>
+          <div class="skill-packs-grid">
+            <div class="skill-pack-card">
+              <div class="skill-pack-icon">📦</div>
+              <div class="skill-pack-name">Built-in</div>
+              <div class="skill-pack-count">12 skills</div>
+              <div class="skill-pack-status">
+                <span class="skill-pack-loaded">✓ Loaded</span>
+                <button class="skill-pack-btn">Manage</button>
+              </div>
+            </div>
+            <div class="skill-pack-card">
+              <div class="skill-pack-icon security">🛡️</div>
+              <div class="skill-pack-name">Security</div>
+              <div class="skill-pack-count">8 skills</div>
+              <div class="skill-pack-status">
+                <span class="skill-pack-loaded">✓ Loaded</span>
+                <button class="skill-pack-btn">Manage</button>
+              </div>
+            </div>
+            <div class="skill-pack-card">
+              <div class="skill-pack-icon react">⚛</div>
+              <div class="skill-pack-name">React Dev</div>
+              <div class="skill-pack-count">6 skills</div>
+              <div class="skill-pack-status">
+                <span class="skill-pack-loaded not-loaded">Not loaded</span>
+                <button class="skill-pack-btn load">Load</button>
+              </div>
+            </div>
+            <div class="skill-pack-card">
+              <div class="skill-pack-icon testing">🧪</div>
+              <div class="skill-pack-name">Testing</div>
+              <div class="skill-pack-count">5 skills</div>
+              <div class="skill-pack-status">
+                <span class="skill-pack-loaded not-loaded">Not loaded</span>
+                <button class="skill-pack-btn load">Load</button>
+              </div>
+            </div>
+            <div class="skill-pack-card">
+              <div class="skill-pack-icon api">🔌</div>
+              <div class="skill-pack-name">API Design</div>
+              <div class="skill-pack-count">4 skills</div>
+              <div class="skill-pack-status">
+                <span class="skill-pack-loaded not-loaded">Not loaded</span>
+                <button class="skill-pack-btn load">Load</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Skills Browser -->
+          <div class="skills-section-title">Skill Browser</div>
+          <div class="skills-toolbar">
+            <select class="form-input form-select" style="width: auto; padding: 6px 30px 6px 12px; font-size: 12px;">
+              <option>All Categories</option>
+              <option>Coding</option>
+              <option>Security</option>
+              <option>Testing</option>
+            </select>
+            <select class="form-input form-select" style="width: auto; padding: 6px 30px 6px 12px; font-size: 12px;">
+              <option>All Agents</option>
+              <option>Orchestrator</option>
+              <option>Frontend Dev</option>
+              <option>Backend Dev</option>
+            </select>
+            <input type="text" class="form-input" placeholder="Search skills..." style="width: 200px; padding: 6px 12px; font-size: 12px;">
+          </div>
+          <div class="skills-browser">
+            <div class="skill-row">
+              <div class="skill-icon security">🛡️</div>
+              <div class="skill-info">
+                <div class="skill-name">security-awareness</div>
+                <div class="skill-description">Security best practices and vulnerability prevention</div>
+              </div>
+              <div class="skill-meta">
+                <span class="skill-category">coding</span>
+                <span class="skill-agents">All Agents</span>
+                <span class="skill-tokens">2000 tokens</span>
+                <span class="skill-priority high">HIGH</span>
+              </div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-icon output">📝</div>
+              <div class="skill-info">
+                <div class="skill-name">output-format</div>
+                <div class="skill-description">Structured output formatting guidelines</div>
+              </div>
+              <div class="skill-meta">
+                <span class="skill-category">coding</span>
+                <span class="skill-agents">All Agents</span>
+                <span class="skill-tokens">500 tokens</span>
+                <span class="skill-priority medium">MED</span>
+              </div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-icon error">⚠️</div>
+              <div class="skill-info">
+                <div class="skill-name">error-handling</div>
+                <div class="skill-description">Error handling patterns and best practices</div>
+              </div>
+              <div class="skill-meta">
+                <span class="skill-category">coding</span>
+                <span class="skill-agents">All Agents</span>
+                <span class="skill-tokens">1000 tokens</span>
+                <span class="skill-priority high">HIGH</span>
+              </div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-icon auth">🔐</div>
+              <div class="skill-info">
+                <div class="skill-name">auth-patterns</div>
+                <div class="skill-description">Authentication and authorization patterns</div>
+              </div>
+              <div class="skill-meta">
+                <span class="skill-category">security</span>
+                <span class="skill-agents">Backend</span>
+                <span class="skill-tokens">1500 tokens</span>
+                <span class="skill-priority medium">MED</span>
+              </div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-icon react">⚛️</div>
+              <div class="skill-info">
+                <div class="skill-name">react-best-practices</div>
+                <div class="skill-description">React component patterns and hooks usage</div>
+              </div>
+              <div class="skill-meta">
+                <span class="skill-category">coding</span>
+                <span class="skill-agents">Frontend</span>
+                <span class="skill-tokens">2500 tokens</span>
+                <span class="skill-priority medium">MED</span>
+              </div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-icon coding">📊</div>
+              <div class="skill-info">
+                <div class="skill-name">typescript-strict</div>
+                <div class="skill-description">TypeScript strict mode patterns and type safety</div>
+              </div>
+              <div class="skill-meta">
+                <span class="skill-category">coding</span>
+                <span class="skill-agents">All Agents</span>
+                <span class="skill-tokens">1800 tokens</span>
+                <span class="skill-priority high">HIGH</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Skill Composer -->
+          <div class="skills-section-title">Skill Composer</div>
+          <div class="skill-composer">
+            <div class="skill-composer-header">
+              <div class="skill-composer-title">Selected Skills (4)</div>
+              <div class="token-budget">
+                <span>Token Budget:</span>
+                <div class="token-budget-bar">
+                  <div class="token-budget-fill" style="width: 68%;"></div>
+                </div>
+                <span style="font-family: var(--font-mono); font-size: 12px;">5500 / 8000</span>
+              </div>
+            </div>
+            <div class="selected-skills">
+              <div class="selected-skill-chip">
+                <span>🛡️</span>
+                <span>security-awareness</span>
+                <span class="remove">×</span>
+              </div>
+              <div class="selected-skill-chip">
+                <span>📝</span>
+                <span>output-format</span>
+                <span class="remove">×</span>
+              </div>
+              <div class="selected-skill-chip">
+                <span>⚠️</span>
+                <span>error-handling</span>
+                <span class="remove">×</span>
+              </div>
+              <div class="selected-skill-chip">
+                <span>🔐</span>
+                <span>auth-patterns</span>
+                <span class="remove">×</span>
+              </div>
+            </div>
+            <div class="skill-composer-warning">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              auth-patterns conflicts with legacy-auth (not selected)
+            </div>
+            <button class="btn btn-primary">Test Composition</button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Sidebar -->
+      <aside class="right-sidebar">
+        <div class="orchestrator-panel">
+          <div class="orchestrator-header">
+            <span class="orchestrator-title">Skill Manager</span>
+            <span class="orchestrator-status idle">idle</span>
+          </div>
+        </div>
+        <div class="git-status-panel">
+          <div class="git-status-title">SKILL STATS</div>
+          <div class="git-status-row">
+            <span class="git-status-label">Total Skills</span>
+            <span class="git-status-value">26</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Loaded</span>
+            <span class="git-status-value">20</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Custom</span>
+            <span class="git-status-value">3</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Token Usage</span>
+            <span class="git-status-value">~15,000</span>
+          </div>
+        </div>
+        <div class="agent-logs-panel">
+          <div class="agent-logs-header">
+            <span class="agent-logs-title">RECENT USAGE</span>
+          </div>
+          <div class="agent-logs-list">
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:31:45</span>
+              <span class="agent-log-action commit">Used</span>
+              <span class="agent-log-message">security-awareness</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:31:40</span>
+              <span class="agent-log-action commit">Used</span>
+              <span class="agent-log-message">error-handling</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">12:31:35</span>
+              <span class="agent-log-action reading">Loaded</span>
+              <span class="agent-log-message">Built-in pack</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Search skills, load pack, create skill...">
+        <span class="command-shortcut">Ctrl+K</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Import</button>
+        <button class="btn-execute">Apply Skills</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

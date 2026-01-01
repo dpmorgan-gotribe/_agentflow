@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CI/CD - Aigentflow</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <style>
+    /* CI/CD screen specific styles */
+    .cicd-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Pipeline Stats Bar */
+    .pipeline-stats-bar {
+      display: flex;
+      gap: var(--spacing-lg);
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .pipeline-stat-card {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md);
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      min-width: 180px;
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-lg);
+    }
+
+    .stat-icon.success { background: var(--status-success-bg); color: var(--status-success); }
+    .stat-icon.failed { background: var(--status-error-bg); color: var(--status-error); }
+    .stat-icon.running { background: var(--status-info-bg); color: var(--status-info); }
+    .stat-icon.pending { background: var(--status-warning-bg); color: var(--status-warning); }
+
+    .stat-info {
+      flex: 1;
+    }
+
+    .stat-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-value {
+      font-size: var(--text-xl);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Main Content */
+    .cicd-main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Pipeline List */
+    .pipeline-list-panel {
+      width: 360px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .pipeline-list-header {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pipeline-list-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .pipeline-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .pipeline-tab {
+      flex: 1;
+      padding: var(--spacing-sm);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .pipeline-tab:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+    }
+
+    .pipeline-tab.active {
+      color: var(--text-primary);
+      border-bottom: 2px solid var(--accent-primary);
+    }
+
+    .pipeline-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .pipeline-item {
+      display: flex;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .pipeline-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .pipeline-item.selected {
+      background: var(--bg-tertiary);
+      border-left: 3px solid var(--accent-primary);
+    }
+
+    .pipeline-status-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .pipeline-status-icon.success { background: var(--status-success-bg); color: var(--status-success); }
+    .pipeline-status-icon.failed { background: var(--status-error-bg); color: var(--status-error); }
+    .pipeline-status-icon.running { background: var(--status-info-bg); color: var(--status-info); }
+    .pipeline-status-icon.pending { background: var(--bg-tertiary); color: var(--text-muted); }
+    .pipeline-status-icon.cancelled { background: var(--bg-tertiary); color: var(--text-muted); }
+
+    .pipeline-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .pipeline-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .pipeline-id {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-accent);
+    }
+
+    .pipeline-branch {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      padding: 2px 6px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+    }
+
+    .pipeline-title {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pipeline-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: var(--spacing-xs);
+    }
+
+    /* Pipeline Detail */
+    .pipeline-detail-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .pipeline-detail-header {
+      padding: var(--spacing-lg);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .detail-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .detail-info {
+      flex: 1;
+    }
+
+    .detail-title {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .detail-commit {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .detail-commit-hash {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-accent);
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+    }
+
+    .detail-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    .detail-meta {
+      display: flex;
+      gap: var(--spacing-xl);
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .meta-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .meta-value {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* Pipeline Visualization */
+    .pipeline-visualization {
+      flex: 1;
+      overflow: auto;
+      padding: var(--spacing-lg);
+      background: var(--bg-primary);
+    }
+
+    .stage-row {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .stage-label {
+      width: 100px;
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .stage-jobs {
+      display: flex;
+      gap: var(--spacing-sm);
+      flex: 1;
+    }
+
+    .job-card {
+      display: flex;
+      flex-direction: column;
+      min-width: 160px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .job-card:hover {
+      border-color: var(--border-secondary);
+    }
+
+    .job-card.selected {
+      border-color: var(--accent-primary);
+    }
+
+    .job-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .job-status {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .job-status.success { background: var(--status-success); color: white; }
+    .job-status.failed { background: var(--status-error); color: white; }
+    .job-status.running { background: var(--status-info); color: white; }
+    .job-status.pending { background: var(--bg-tertiary); color: var(--text-muted); border: 1px solid var(--border-secondary); }
+    .job-status.skipped { background: var(--bg-tertiary); color: var(--text-muted); }
+
+    .job-name {
+      flex: 1;
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .job-body {
+      padding: var(--spacing-sm);
+    }
+
+    .job-duration {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    .job-progress {
+      margin-top: var(--spacing-xs);
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .job-progress-bar {
+      height: 100%;
+      background: var(--status-info);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .job-progress-bar.success { background: var(--status-success); }
+    .job-progress-bar.failed { background: var(--status-error); }
+
+    /* Stage Connector */
+    .stage-connector {
+      width: 40px;
+      height: 2px;
+      background: var(--border-secondary);
+      position: relative;
+    }
+
+    .stage-connector::after {
+      content: '';
+      position: absolute;
+      right: -4px;
+      top: -3px;
+      width: 0;
+      height: 0;
+      border-left: 6px solid var(--border-secondary);
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+    }
+
+    /* Job Logs Panel */
+    .job-logs-panel {
+      width: 400px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .logs-header {
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--border-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logs-title {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .logs-job-name {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .logs-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-sm);
+      background: var(--bg-input);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.6;
+    }
+
+    .log-line {
+      display: flex;
+      gap: var(--spacing-sm);
+      padding: 2px var(--spacing-sm);
+    }
+
+    .log-line:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .log-line-num {
+      color: var(--text-muted);
+      width: 30px;
+      text-align: right;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .log-line-content {
+      flex: 1;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log-line-content.success { color: var(--status-success); }
+    .log-line-content.error { color: var(--status-error); }
+    .log-line-content.warning { color: var(--status-warning); }
+    .log-line-content.info { color: var(--status-info); }
+
+    /* Deployment Info */
+    .deployment-section {
+      padding: var(--spacing-md);
+      border-top: 1px solid var(--border-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .deployment-title {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .deployment-info {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .deployment-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: var(--text-sm);
+    }
+
+    .deployment-label {
+      color: var(--text-muted);
+    }
+
+    .deployment-value {
+      color: var(--text-primary);
+    }
+
+    .deployment-url {
+      color: var(--text-accent);
+      text-decoration: none;
+    }
+
+    .deployment-url:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>Aigentflow</span>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Activity</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab">Tasks</button>
+        <button class="nav-tab">Logs</button>
+        <button class="nav-tab active">CI/CD</button>
+      </nav>
+
+      <div class="header-right">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>Building</span>
+        </div>
+        <button class="btn-new-project">+ New Pipeline</button>
+      </div>
+    </header>
+
+    <!-- Pipeline Stats -->
+    <div class="cicd-container">
+      <div class="pipeline-stats-bar">
+        <div class="pipeline-stat-card">
+          <div class="stat-icon success">✓</div>
+          <div class="stat-info">
+            <div class="stat-label">Successful</div>
+            <div class="stat-value">47</div>
+          </div>
+        </div>
+        <div class="pipeline-stat-card">
+          <div class="stat-icon failed">✕</div>
+          <div class="stat-info">
+            <div class="stat-label">Failed</div>
+            <div class="stat-value">3</div>
+          </div>
+        </div>
+        <div class="pipeline-stat-card">
+          <div class="stat-icon running">↻</div>
+          <div class="stat-info">
+            <div class="stat-label">Running</div>
+            <div class="stat-value">2</div>
+          </div>
+        </div>
+        <div class="pipeline-stat-card">
+          <div class="stat-icon pending">○</div>
+          <div class="stat-info">
+            <div class="stat-label">Pending</div>
+            <div class="stat-value">5</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="cicd-main">
+        <!-- Pipeline List -->
+        <aside class="pipeline-list-panel">
+          <div class="pipeline-list-header">
+            <span class="pipeline-list-title">Pipelines</span>
+            <button class="btn btn-ghost btn-sm">Filter</button>
+          </div>
+
+          <div class="pipeline-tabs">
+            <button class="pipeline-tab active">All</button>
+            <button class="pipeline-tab">Running</button>
+            <button class="pipeline-tab">Failed</button>
+          </div>
+
+          <div class="pipeline-list">
+            <div class="pipeline-item selected">
+              <div class="pipeline-status-icon running">↻</div>
+              <div class="pipeline-content">
+                <div class="pipeline-header">
+                  <span class="pipeline-id">#1247</span>
+                  <span class="pipeline-branch">master</span>
+                </div>
+                <div class="pipeline-title">feat: implement orchestrator routing</div>
+                <div class="pipeline-meta">
+                  <span>Started 5m ago</span>
+                  <span>Agent: Architect</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pipeline-item">
+              <div class="pipeline-status-icon success">✓</div>
+              <div class="pipeline-content">
+                <div class="pipeline-header">
+                  <span class="pipeline-id">#1246</span>
+                  <span class="pipeline-branch">master</span>
+                </div>
+                <div class="pipeline-title">fix: token budget validation</div>
+                <div class="pipeline-meta">
+                  <span>Completed 12m ago</span>
+                  <span>Duration: 3m 24s</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pipeline-item">
+              <div class="pipeline-status-icon failed">✕</div>
+              <div class="pipeline-content">
+                <div class="pipeline-header">
+                  <span class="pipeline-id">#1245</span>
+                  <span class="pipeline-branch">feature/auth</span>
+                </div>
+                <div class="pipeline-title">feat: add JWT authentication</div>
+                <div class="pipeline-meta">
+                  <span>Failed 25m ago</span>
+                  <span>Stage: Test</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pipeline-item">
+              <div class="pipeline-status-icon success">✓</div>
+              <div class="pipeline-content">
+                <div class="pipeline-header">
+                  <span class="pipeline-id">#1244</span>
+                  <span class="pipeline-branch">master</span>
+                </div>
+                <div class="pipeline-title">chore: update dependencies</div>
+                <div class="pipeline-meta">
+                  <span>Completed 1h ago</span>
+                  <span>Duration: 2m 15s</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pipeline-item">
+              <div class="pipeline-status-icon pending">○</div>
+              <div class="pipeline-content">
+                <div class="pipeline-header">
+                  <span class="pipeline-id">#1248</span>
+                  <span class="pipeline-branch">feature/ui</span>
+                </div>
+                <div class="pipeline-title">feat: dashboard components</div>
+                <div class="pipeline-meta">
+                  <span>Queued</span>
+                  <span>Agent: UI Designer</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Pipeline Detail -->
+        <main class="pipeline-detail-panel">
+          <div class="pipeline-detail-header">
+            <div class="detail-top">
+              <div class="detail-info">
+                <div class="detail-title">feat: implement orchestrator routing</div>
+                <div class="detail-commit">
+                  <span class="detail-commit-hash">a1b2c3d</span>
+                  <span>by Architect Agent on master</span>
+                </div>
+              </div>
+              <div class="detail-actions">
+                <button class="btn btn-secondary btn-sm">Cancel</button>
+                <button class="btn btn-secondary btn-sm">Restart</button>
+                <button class="btn btn-primary btn-sm">View Logs</button>
+              </div>
+            </div>
+            <div class="detail-meta">
+              <div class="meta-item">
+                <span class="meta-label">Status</span>
+                <span class="badge badge-info">Running</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Started</span>
+                <span class="meta-value">5 minutes ago</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Duration</span>
+                <span class="meta-value">2m 34s</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Trigger</span>
+                <span class="meta-value">Agent Push</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pipeline-visualization">
+            <!-- Build Stage -->
+            <div class="stage-row">
+              <div class="stage-label">Build</div>
+              <div class="stage-jobs">
+                <div class="job-card">
+                  <div class="job-header">
+                    <div class="job-status success">✓</div>
+                    <span class="job-name">Install Dependencies</span>
+                  </div>
+                  <div class="job-body">
+                    <div class="job-duration">45s</div>
+                    <div class="job-progress">
+                      <div class="job-progress-bar success" style="width: 100%;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="job-card">
+                  <div class="job-header">
+                    <div class="job-status success">✓</div>
+                    <span class="job-name">TypeScript Build</span>
+                  </div>
+                  <div class="job-body">
+                    <div class="job-duration">1m 12s</div>
+                    <div class="job-progress">
+                      <div class="job-progress-bar success" style="width: 100%;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="stage-connector"></div>
+            </div>
+
+            <!-- Test Stage -->
+            <div class="stage-row">
+              <div class="stage-label">Test</div>
+              <div class="stage-jobs">
+                <div class="job-card selected">
+                  <div class="job-header">
+                    <div class="job-status running">↻</div>
+                    <span class="job-name">Unit Tests</span>
+                  </div>
+                  <div class="job-body">
+                    <div class="job-duration">Running... 37s</div>
+                    <div class="job-progress">
+                      <div class="job-progress-bar" style="width: 65%;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="job-card">
+                  <div class="job-header">
+                    <div class="job-status pending">○</div>
+                    <span class="job-name">Integration Tests</span>
+                  </div>
+                  <div class="job-body">
+                    <div class="job-duration">Pending</div>
+                    <div class="job-progress">
+                      <div class="job-progress-bar" style="width: 0%;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="job-card">
+                  <div class="job-header">
+                    <div class="job-status pending">○</div>
+                    <span class="job-name">E2E Tests</span>
+                  </div>
+                  <div class="job-body">
+                    <div class="job-duration">Pending</div>
+                    <div class="job-progress">
+                      <div class="job-progress-bar" style="width: 0%;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="stage-connector"></div>
+            </div>
+
+            <!-- Lint Stage -->
+            <div class="stage-row">
+              <div class="stage-label">Quality</div>
+              <div class="stage-jobs">
+                <div class="job-card">
+                  <div class="job-header">
+                    <div class="job-status pending">○</div>
+                    <span class="job-name">ESLint</span>
+                  </div>
+                  <div class="job-body">
+                    <div class="job-duration">Pending</div>
+                    <div class="job-progress">
+                      <div class="job-progress-bar" style="width: 0%;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="job-card">
+                  <div class="job-header">
+                    <div class="job-status pending">○</div>
+                    <span class="job-name">Security Scan</span>
+                  </div>
+                  <div class="job-body">
+                    <div class="job-duration">Pending</div>
+                    <div class="job-progress">
+                      <div class="job-progress-bar" style="width: 0%;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="stage-connector"></div>
+            </div>
+
+            <!-- Deploy Stage -->
+            <div class="stage-row">
+              <div class="stage-label">Deploy</div>
+              <div class="stage-jobs">
+                <div class="job-card">
+                  <div class="job-header">
+                    <div class="job-status pending">○</div>
+                    <span class="job-name">Deploy Staging</span>
+                  </div>
+                  <div class="job-body">
+                    <div class="job-duration">Pending</div>
+                    <div class="job-progress">
+                      <div class="job-progress-bar" style="width: 0%;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="job-card">
+                  <div class="job-header">
+                    <div class="job-status pending">○</div>
+                    <span class="job-name">Deploy Production</span>
+                  </div>
+                  <div class="job-body">
+                    <div class="job-duration">Requires Approval</div>
+                    <div class="job-progress">
+                      <div class="job-progress-bar" style="width: 0%;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <!-- Job Logs Panel -->
+        <aside class="job-logs-panel">
+          <div class="logs-header">
+            <div class="logs-title">
+              <div class="job-status running">↻</div>
+              <span class="logs-job-name">Unit Tests</span>
+            </div>
+            <button class="btn btn-ghost btn-sm btn-icon">×</button>
+          </div>
+
+          <div class="logs-content">
+            <div class="log-line">
+              <span class="log-line-num">1</span>
+              <span class="log-line-content info">$ pnpm test:unit</span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">2</span>
+              <span class="log-line-content">PASS src/orchestration/router.test.ts</span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">3</span>
+              <span class="log-line-content success">  ✓ should route to correct agent (12ms)</span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">4</span>
+              <span class="log-line-content success">  ✓ should validate auth context (8ms)</span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">5</span>
+              <span class="log-line-content success">  ✓ should track token usage (5ms)</span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">6</span>
+              <span class="log-line-content"></span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">7</span>
+              <span class="log-line-content">PASS src/orchestration/decision-engine.test.ts</span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">8</span>
+              <span class="log-line-content success">  ✓ should make deterministic decisions (15ms)</span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">9</span>
+              <span class="log-line-content success">  ✓ should fallback to AI for complex cases (234ms)</span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">10</span>
+              <span class="log-line-content"></span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">11</span>
+              <span class="log-line-content">RUNS src/orchestration/orchestrator.test.ts</span>
+            </div>
+            <div class="log-line">
+              <span class="log-line-num">12</span>
+              <span class="log-line-content info">  Running test: should handle parallel execution...</span>
+            </div>
+          </div>
+
+          <div class="deployment-section">
+            <div class="deployment-title">Deployment Info</div>
+            <div class="deployment-info">
+              <div class="deployment-row">
+                <span class="deployment-label">Environment</span>
+                <span class="deployment-value">staging</span>
+              </div>
+              <div class="deployment-row">
+                <span class="deployment-label">Version</span>
+                <span class="deployment-value">2.1.0-beta.47</span>
+              </div>
+              <div class="deployment-row">
+                <span class="deployment-label">Preview URL</span>
+                <a href="#" class="deployment-url">preview-1247.aigentflow.dev</a>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Bottom Command Bar -->
+    <footer class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Search pipelines, trigger build, or view logs...">
+        <span class="command-shortcut">Ctrl+K</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Retry Failed</button>
+        <button class="btn-command">View All Logs</button>
+        <button class="btn-execute">Trigger Build</button>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

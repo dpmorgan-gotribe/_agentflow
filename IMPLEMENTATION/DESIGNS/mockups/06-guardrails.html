@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aigentflow - Guardrails Configuration</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    .guardrails-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-lg);
+    }
+    .guardrails-categories {
+      display: flex;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-lg);
+    }
+    .category-chip {
+      padding: 6px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .category-chip:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .category-chip.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: white;
+    }
+
+    .guardrails-table-wrapper {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: var(--spacing-lg);
+    }
+    .guardrails-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .guardrails-table th {
+      text-align: left;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--bg-tertiary);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .guardrails-table td {
+      padding: var(--spacing-sm) var(--spacing-md);
+      font-size: var(--text-sm);
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .guardrails-table tr:last-child td {
+      border-bottom: none;
+    }
+    .guardrails-table tr:hover td {
+      background: var(--bg-tertiary);
+    }
+
+    .guardrail-name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .guardrail-description {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-weight: 500;
+    }
+    .type-badge.budget {
+      background: var(--status-info-bg);
+      color: var(--status-info);
+    }
+    .type-badge.pattern {
+      background: var(--status-error-bg);
+      color: var(--status-error);
+    }
+    .type-badge.permission {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+    }
+    .type-badge.validation {
+      background: var(--status-success-bg);
+      color: var(--status-success);
+    }
+
+    .action-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-weight: 500;
+    }
+    .action-badge.block {
+      background: var(--status-error-bg);
+      color: var(--status-error);
+    }
+    .action-badge.warn {
+      background: var(--status-warning-bg);
+      color: var(--status-warning);
+    }
+    .action-badge.throttle {
+      background: var(--status-info-bg);
+      color: var(--status-info);
+    }
+    .action-badge.allow {
+      background: var(--status-success-bg);
+      color: var(--status-success);
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .toggle-switch.on {
+      background: var(--status-success);
+    }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+    .toggle-switch.on::after {
+      left: 18px;
+    }
+
+    .blocked-count {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .blocked-count.high {
+      color: var(--status-error);
+    }
+
+    .guardrail-detail {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+    }
+    .guardrail-detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-lg);
+    }
+    .guardrail-detail-title {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .guardrail-detail-meta {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+    .guardrail-detail-section {
+      margin-bottom: var(--spacing-lg);
+    }
+    .guardrail-detail-label {
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-sm);
+    }
+    .condition-editor {
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+    .condition-keyword {
+      color: var(--accent-primary);
+    }
+    .condition-value {
+      color: var(--status-success);
+    }
+    .applied-agents {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+    }
+    .agent-chip {
+      padding: 4px 10px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+    .trigger-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+    .trigger-entry {
+      display: flex;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-xs);
+      font-size: var(--text-sm);
+    }
+    .trigger-time {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      min-width: 80px;
+    }
+    .trigger-message {
+      color: var(--text-secondary);
+    }
+
+    .analytics-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+    .analytics-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+      text-align: center;
+    }
+    .analytics-value {
+      font-size: var(--text-2xl);
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .analytics-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">A</div>
+        <span>AGENTFLOW</span>
+      </div>
+      <button class="header-btn">LIVE LOG STREAM</button>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        connected
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab">Activity</button>
+        <button class="nav-tab">Planning</button>
+        <button class="nav-tab">Kanban</button>
+        <button class="nav-tab">Editor</button>
+        <button class="nav-tab">Viewer</button>
+        <button class="nav-tab">Agents</button>
+        <button class="nav-tab">Skills</button>
+        <button class="nav-tab active">Guard Rails</button>
+        <button class="nav-tab">MCP</button>
+        <button class="nav-tab">Database</button>
+        <button class="nav-tab">Git</button>
+      </nav>
+      <div class="header-right">
+        <div class="header-stats">
+          <span class="header-stat">Active: <span class="header-stat-value">0</span></span>
+          <span class="header-stat">Cost: <span class="header-stat-value">$0.00</span></span>
+        </div>
+        <button class="btn-new-project">+ New Project</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- Left Sidebar -->
+      <aside class="left-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-header">
+            <span class="sidebar-section-title">Guardrail Types</span>
+          </div>
+          <div class="branch-list">
+            <div class="branch-item active">
+              <span class="branch-name">All</span>
+              <span class="branch-meta">12</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Token Budget</span>
+              <span class="branch-meta">3</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Pattern Blocking</span>
+              <span class="branch-meta">4</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Permissions</span>
+              <span class="branch-meta">3</span>
+            </div>
+            <div class="branch-item">
+              <span class="branch-name">Validation</span>
+              <span class="branch-meta">2</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="content-header">
+          <h1 class="content-title">Guardrails</h1>
+          <span class="badge badge-success">12 Active</span>
+          <span class="badge badge-neutral">3 Disabled</span>
+          <div style="margin-left: auto;">
+            <button class="btn btn-primary btn-sm">+ Add Guardrail</button>
+          </div>
+        </div>
+
+        <div class="guardrails-container">
+          <!-- Analytics -->
+          <div class="analytics-cards">
+            <div class="analytics-card">
+              <div class="analytics-value">215</div>
+              <div class="analytics-label">Total Triggers</div>
+            </div>
+            <div class="analytics-card">
+              <div class="analytics-value" style="color: var(--status-error);">42</div>
+              <div class="analytics-label">Blocked</div>
+            </div>
+            <div class="analytics-card">
+              <div class="analytics-value" style="color: var(--status-warning);">128</div>
+              <div class="analytics-label">Warnings</div>
+            </div>
+            <div class="analytics-card">
+              <div class="analytics-value" style="color: var(--status-info);">45</div>
+              <div class="analytics-label">Throttled</div>
+            </div>
+          </div>
+
+          <!-- Categories -->
+          <div class="guardrails-categories">
+            <span class="category-chip active">All</span>
+            <span class="category-chip">Token Budget</span>
+            <span class="category-chip">Pattern Blocking</span>
+            <span class="category-chip">Permissions</span>
+            <span class="category-chip">Validation</span>
+          </div>
+
+          <!-- Guardrails Table -->
+          <div class="guardrails-table-wrapper">
+            <table class="guardrails-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Action</th>
+                  <th>Applies To</th>
+                  <th>Blocked</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="guardrail-name">Max Token Budget</div>
+                    <div class="guardrail-description">Limit tokens per agent per task</div>
+                  </td>
+                  <td><span class="type-badge budget">Budget</span></td>
+                  <td><span class="action-badge block">Block</span></td>
+                  <td>All Agents</td>
+                  <td><span class="blocked-count high">42</span></td>
+                  <td><div class="toggle-switch on"></div></td>
+                  <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="guardrail-name">No rm -rf</div>
+                    <div class="guardrail-description">Block dangerous file deletion commands</div>
+                  </td>
+                  <td><span class="type-badge pattern">Pattern</span></td>
+                  <td><span class="action-badge block">Block</span></td>
+                  <td>All Agents</td>
+                  <td><span class="blocked-count">3</span></td>
+                  <td><div class="toggle-switch on"></div></td>
+                  <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="guardrail-name">No DROP TABLE</div>
+                    <div class="guardrail-description">Block destructive database commands</div>
+                  </td>
+                  <td><span class="type-badge pattern">Pattern</span></td>
+                  <td><span class="action-badge block">Block</span></td>
+                  <td>Backend Dev</td>
+                  <td><span class="blocked-count">1</span></td>
+                  <td><div class="toggle-switch on"></div></td>
+                  <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="guardrail-name">Rate Limit API</div>
+                    <div class="guardrail-description">Limit API calls per minute</div>
+                  </td>
+                  <td><span class="type-badge budget">Budget</span></td>
+                  <td><span class="action-badge throttle">Throttle</span></td>
+                  <td>All Agents</td>
+                  <td><span class="blocked-count">128</span></td>
+                  <td><div class="toggle-switch on"></div></td>
+                  <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="guardrail-name">File Write Perms</div>
+                    <div class="guardrail-description">Warn on file writes outside project</div>
+                  </td>
+                  <td><span class="type-badge permission">Permission</span></td>
+                  <td><span class="action-badge warn">Warn</span></td>
+                  <td>All Agents</td>
+                  <td><span class="blocked-count">0</span></td>
+                  <td><div class="toggle-switch"></div></td>
+                  <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="guardrail-name">Network Access</div>
+                    <div class="guardrail-description">Control external network requests</div>
+                  </td>
+                  <td><span class="type-badge permission">Permission</span></td>
+                  <td><span class="action-badge block">Block</span></td>
+                  <td>All Agents</td>
+                  <td><span class="blocked-count">8</span></td>
+                  <td><div class="toggle-switch on"></div></td>
+                  <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="guardrail-name">Input Validation</div>
+                    <div class="guardrail-description">Validate task inputs against schema</div>
+                  </td>
+                  <td><span class="type-badge validation">Validation</span></td>
+                  <td><span class="action-badge block">Block</span></td>
+                  <td>Orchestrator</td>
+                  <td><span class="blocked-count">5</span></td>
+                  <td><div class="toggle-switch on"></div></td>
+                  <td><button class="btn btn-ghost btn-sm">Edit</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Guardrail Detail -->
+          <div class="guardrail-detail">
+            <div class="guardrail-detail-header">
+              <div>
+                <div class="guardrail-detail-title">Max Token Budget</div>
+                <div class="guardrail-detail-meta">
+                  <span class="type-badge budget">Budget</span>
+                  <span class="action-badge block">Block</span>
+                </div>
+              </div>
+              <button class="btn btn-secondary btn-sm">Edit</button>
+            </div>
+
+            <div class="guardrail-detail-section">
+              <div class="guardrail-detail-label">Condition</div>
+              <div class="condition-editor">
+                <span class="condition-keyword">context</span>.tokens <span class="condition-keyword">></span> <span class="condition-value">100000</span>
+              </div>
+            </div>
+
+            <div class="guardrail-detail-section">
+              <div class="guardrail-detail-label">Applied To</div>
+              <div class="applied-agents">
+                <span class="agent-chip">Orchestrator</span>
+                <span class="agent-chip">PM Agent</span>
+                <span class="agent-chip">Architect</span>
+                <span class="agent-chip">UI Designer</span>
+                <span class="agent-chip">Frontend Dev</span>
+                <span class="agent-chip">Backend Dev</span>
+                <span class="agent-chip">Tester</span>
+                <span class="agent-chip">Reviewer</span>
+              </div>
+            </div>
+
+            <div class="guardrail-detail-section">
+              <div class="guardrail-detail-label">Recent Triggers</div>
+              <div class="trigger-timeline">
+                <div class="trigger-entry">
+                  <span class="trigger-time">14:32:15</span>
+                  <span class="trigger-message">Blocked: UI Designer exceeded 100K tokens on task UI-034</span>
+                </div>
+                <div class="trigger-entry">
+                  <span class="trigger-time">12:15:30</span>
+                  <span class="trigger-message">Blocked: Orchestrator exceeded 100K tokens on task AUTH-01</span>
+                </div>
+                <div class="trigger-entry">
+                  <span class="trigger-time">10:42:05</span>
+                  <span class="trigger-message">Blocked: Frontend Dev exceeded 100K tokens on task FE-022</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Sidebar -->
+      <aside class="right-sidebar">
+        <div class="orchestrator-panel">
+          <div class="orchestrator-header">
+            <span class="orchestrator-title">Guardrail Monitor</span>
+            <span class="orchestrator-status idle">idle</span>
+          </div>
+        </div>
+        <div class="git-status-panel">
+          <div class="git-status-title">THIS SESSION</div>
+          <div class="git-status-row">
+            <span class="git-status-label">Triggers</span>
+            <span class="git-status-value">23</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Blocked</span>
+            <span class="git-status-value" style="color: var(--status-error);">5</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Warnings</span>
+            <span class="git-status-value" style="color: var(--status-warning);">12</span>
+          </div>
+          <div class="git-status-row">
+            <span class="git-status-label">Most Active</span>
+            <span class="git-status-value">Rate Limit</span>
+          </div>
+        </div>
+        <div class="agent-logs-panel">
+          <div class="agent-logs-header">
+            <span class="agent-logs-title">TRIGGER LOG</span>
+          </div>
+          <div class="agent-logs-list">
+            <div class="agent-log-entry">
+              <span class="agent-log-time">14:32:15</span>
+              <span class="agent-log-action error">Block</span>
+              <span class="agent-log-message">Token budget</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">14:32:10</span>
+              <span class="agent-log-action writing">Warn</span>
+              <span class="agent-log-message">File write</span>
+            </div>
+            <div class="agent-log-entry">
+              <span class="agent-log-time">14:32:05</span>
+              <span class="agent-log-action reading">Throttle</span>
+              <span class="agent-log-message">Rate limit</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <div class="command-input-wrapper">
+        <input type="text" class="command-input" placeholder="Add guardrail, configure limits...">
+        <span class="command-shortcut">Ctrl+K</span>
+      </div>
+      <div class="command-actions">
+        <button class="btn-command">Test</button>
+        <button class="btn-execute">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
