@@ -1,5 +1,17 @@
 import { useEffect, useRef, useCallback } from 'react';
-import type { AgentEvent, AgentType, TaskStatus, SelfReviewSummary, ArtifactType, ArtifactRef, ApprovalRequest, SubAgentActivity, ToolUsage, HookExecution } from '../types';
+import type {
+  AgentType,
+  TaskStatus,
+  SelfReviewSummary,
+  ArtifactType,
+  ArtifactRef,
+  ApprovalRequest,
+  SubAgentActivity,
+  ToolUsage,
+  HookExecution,
+  ExtendedAgentEvent,
+  ThinkingStep,
+} from '../types';
 import { getTaskStreamUrl } from '../api';
 
 interface StreamData {
@@ -9,6 +21,7 @@ interface StreamData {
   status?: TaskStatus;
   // Message with detailed reasoning from the workflow
   message?: string;
+  reasoning?: string;
   // Current agent being routed to
   currentAgent?: AgentType;
   // Agent that completed (for agent_completed events)
@@ -79,6 +92,38 @@ interface StreamData {
       output: number;
     };
   };
+
+  // ============================================================================
+  // Thinking Orchestrator Fields (Sprint 6)
+  // ============================================================================
+
+  // Orchestrator thinking
+  thinking?: string;
+  action?: 'dispatch' | 'parallel_dispatch' | 'approval' | 'complete' | 'fail';
+  targets?: string[];
+  step?: number;
+
+  // Parallel execution
+  agents?: string[];
+  agentCount?: number;
+  executionId?: string;
+  stylePackageId?: string;
+  remainingAgents?: number;
+  totalAgents?: number;
+  successfulAgents?: number;
+  failedAgents?: number;
+  isStyleCompetition?: boolean;
+
+  // Style competition
+  styleCount?: number;
+  styleNames?: string[];
+  previewPaths?: string[];
+  selectedStyleId?: string;
+  selectedStyleName?: string;
+  feedback?: string;
+  rejectionCount?: number;
+  maxRejections?: number;
+  rejectedStyleIds?: string[];
 }
 
 /**
@@ -96,13 +141,22 @@ function mapTypeToStatus(type: string | undefined, status: TaskStatus | undefine
     case 'workflow.analyzing':
       return 'analyzing';
     case 'workflow.routing':
+    case 'workflow.orchestrator_thinking':
       return 'orchestrating';
     case 'workflow.agent_started':
     case 'workflow.agent_completed':
+    case 'workflow.parallel_started':
+    case 'workflow.parallel_agent_completed':
+    case 'workflow.parallel_completed':
       return 'agent_working';
     case 'workflow.approval_needed':
+    case 'workflow.style_competition':
     case 'approval_required':
       return 'awaiting_approval';
+    case 'workflow.style_selected':
+      return 'orchestrating';
+    case 'workflow.style_rejected':
+      return 'orchestrating';
     case 'workflow_completed':
     case 'workflow.completed':
       return 'completed';
@@ -141,9 +195,12 @@ function extractAgentName(data: StreamData): AgentType {
  * Format SSE event data into user-friendly message
  */
 function formatEventMessage(data: StreamData): string {
-  // FIRST: If the API sends a message field with reasoning, use it
+  // FIRST: If the API sends a message or reasoning field, use it
   if (data.message) {
     return data.message;
+  }
+  if (data.reasoning) {
+    return data.reasoning;
   }
 
   // Otherwise, construct a message based on the event type/status
@@ -167,14 +224,62 @@ function formatEventMessage(data: StreamData): string {
       }
       return 'Determining next agent...';
 
+    case 'workflow.orchestrator_thinking':
+      if (data.thinking) {
+        const action = data.action || 'dispatch';
+        const targets = data.targets?.join(', ') || '';
+        return `🧠 Orchestrator thinking...\n${data.thinking}\n→ Action: ${action}${targets ? ` (${targets})` : ''}`;
+      }
+      return '🧠 Orchestrator is reasoning about next steps...';
+
     case 'workflow.agent_started':
       return `Starting agent: ${data.agentId || data.agent || 'unknown'}`;
 
-    case 'workflow.agent_completed':
+    case 'workflow.agent_completed': {
       const success = data.success !== false;
       const artifactCount = data.artifactCount || 0;
       const agentName = data.agentId || data.agent || 'Agent';
       return `${agentName} ${success ? 'completed successfully' : 'failed'}${artifactCount > 0 ? `\nCreated ${artifactCount} artifact(s)` : ''}`;
+    }
+
+    // Parallel execution events
+    case 'workflow.parallel_started': {
+      const agents = data.agents || [];
+      const isStyle = data.isStyleCompetition;
+      return isStyle
+        ? `🎨 Starting style competition with ${agents.length} designers...`
+        : `⚡ Starting parallel execution: ${agents.join(', ')}`;
+    }
+
+    case 'workflow.parallel_agent_completed': {
+      const remaining = data.remainingAgents ?? 0;
+      const agentId = data.agentId || 'Agent';
+      const success = data.success !== false;
+      return `${success ? '✓' : '✗'} ${agentId} completed${remaining > 0 ? ` (${remaining} remaining)` : ''}`;
+    }
+
+    case 'workflow.parallel_completed': {
+      const total = data.totalAgents ?? 0;
+      const successful = data.successfulAgents ?? 0;
+      const failed = data.failedAgents ?? 0;
+      return `⚡ Parallel execution complete: ${successful}/${total} succeeded${failed > 0 ? `, ${failed} failed` : ''}`;
+    }
+
+    // Style competition events
+    case 'workflow.style_competition': {
+      const count = data.styleCount ?? 0;
+      const names = data.styleNames?.join(', ') || '';
+      return `🎨 Style competition ready!\n${count} styles to choose from${names ? `:\n${names}` : ''}`;
+    }
+
+    case 'workflow.style_selected':
+      return `✓ Style selected: ${data.selectedStyleName || data.selectedStyleId || 'Unknown'}`;
+
+    case 'workflow.style_rejected': {
+      const rejectCount = data.rejectionCount ?? 0;
+      const maxReject = data.maxRejections ?? 5;
+      return `✗ Styles rejected (${rejectCount}/${maxReject})\nGenerating new style options...`;
+    }
 
     case 'workflow.approval_needed':
     case 'approval_required':
@@ -198,7 +303,7 @@ function formatEventMessage(data: StreamData): string {
       }
       return 'Artifact created';
 
-    default:
+    default: {
       // Fallback to checking agentOutputs
       const lastOutput = agentOutputs?.[agentOutputs.length - 1];
       if (lastOutput) {
@@ -210,6 +315,7 @@ function formatEventMessage(data: StreamData): string {
         }
       }
       return eventType || data.status || 'Processing...';
+    }
   }
 }
 
@@ -234,10 +340,11 @@ function extractSelfReview(data: StreamData): SelfReviewSummary | undefined {
 
 /**
  * Hook for connecting to task SSE stream
+ * Supports extended events for thinking orchestrator, parallel execution, and style competition
  */
 export function useTaskStream(
   taskId: string | undefined,
-  onEvent: (event: AgentEvent) => void
+  onEvent: (event: ExtendedAgentEvent) => void
 ): void {
   const eventSourceRef = useRef<EventSource | null>(null);
   const onEventRef = useRef(onEvent);
@@ -296,7 +403,52 @@ export function useTaskStream(
           }
         : undefined;
 
-      const agentEvent: AgentEvent = {
+      // Extract thinking orchestrator data
+      const thinking: ThinkingStep | undefined = data.type === 'workflow.orchestrator_thinking'
+        ? {
+            step: data.step ?? 1,
+            thinking: data.thinking ?? '',
+            action: data.action ?? 'dispatch',
+            targets: data.targets,
+            timestamp,
+          }
+        : undefined;
+
+      // Extract parallel execution data
+      const parallelExecution = data.type?.startsWith('workflow.parallel')
+        ? {
+            type: data.type === 'workflow.parallel_started' ? 'started' as const
+              : data.type === 'workflow.parallel_agent_completed' ? 'agent_completed' as const
+              : 'completed' as const,
+            agents: data.agents,
+            agentId: data.agentId,
+            success: data.success,
+            remainingAgents: data.remainingAgents,
+            totalAgents: data.totalAgents,
+            successfulAgents: data.successfulAgents,
+            failedAgents: data.failedAgents,
+            isStyleCompetition: data.isStyleCompetition,
+          }
+        : undefined;
+
+      // Extract style competition data
+      const styleCompetition = data.type?.startsWith('workflow.style')
+        ? {
+            type: data.type === 'workflow.style_competition' ? 'competition' as const
+              : data.type === 'workflow.style_selected' ? 'selected' as const
+              : 'rejected' as const,
+            styleCount: data.styleCount,
+            styleNames: data.styleNames,
+            previewPaths: data.previewPaths,
+            selectedStyleId: data.selectedStyleId,
+            selectedStyleName: data.selectedStyleName,
+            rejectionCount: data.rejectionCount,
+            maxRejections: data.maxRejections,
+            feedback: data.feedback,
+          }
+        : undefined;
+
+      const agentEvent: ExtendedAgentEvent = {
         agent: extractAgentName(data),
         status: mapTypeToStatus(data.type, data.status),
         message: formatEventMessage(data),
@@ -305,6 +457,9 @@ export function useTaskStream(
         approvalRequest,
         selfReview: extractSelfReview(data),
         activity,
+        thinking,
+        parallelExecution,
+        styleCompetition,
       };
 
       console.log('SSE Event received:', { type: data.type, message: agentEvent.message, agent: agentEvent.agent });

@@ -238,3 +238,114 @@ export interface ActiveAgent {
   message?: string;
   artifactCount?: number;
 }
+
+// ============================================================================
+// Thinking Orchestrator Types (Sprint 6)
+// ============================================================================
+
+/** Orchestrator thinking step */
+export interface ThinkingStep {
+  step: number;
+  thinking: string;
+  action: 'dispatch' | 'parallel_dispatch' | 'approval' | 'complete' | 'fail';
+  targets?: string[];
+  timestamp: string;
+}
+
+/** Parallel agent execution status */
+export interface ParallelAgent {
+  agentId: string;
+  stylePackageId?: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  startedAt?: string;
+  completedAt?: string;
+  artifactCount?: number;
+  error?: string;
+}
+
+/** Parallel execution state */
+export interface ParallelExecution {
+  isActive: boolean;
+  agents: ParallelAgent[];
+  isStyleCompetition: boolean;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+/** Style package for competition */
+export interface StylePackage {
+  id: string;
+  name: string;
+  description: string;
+  previewPath?: string;
+  thumbnailPath?: string;
+}
+
+/** Style competition state */
+export interface StyleCompetitionState {
+  isActive: boolean;
+  stylePackages: StylePackage[];
+  iteration: number;
+  maxIterations: number;
+  rejectedStyleIds: string[];
+  selectedStyleId?: string;
+}
+
+/** Screen mockup for design review */
+export interface ScreenMockup {
+  id: string;
+  name: string;
+  category?: string;
+  path: string;
+  states: string[];
+  responsiveBreakpoints: string[];
+}
+
+/** User flow for design review */
+export interface UserFlow {
+  id: string;
+  name: string;
+  userGoal: string;
+  stepCount: number;
+  mermaidPath?: string;
+}
+
+/** Full design state for review */
+export interface FullDesignState {
+  stylePackageId: string;
+  stylePackageName: string;
+  screens: ScreenMockup[];
+  userFlows: UserFlow[];
+  globalCssPath?: string;
+  handoffNotesPath?: string;
+}
+
+/** Extended agent event with thinking orchestrator data */
+export interface ExtendedAgentEvent extends AgentEvent {
+  /** Orchestrator thinking data */
+  thinking?: ThinkingStep;
+  /** Parallel execution data */
+  parallelExecution?: {
+    type: 'started' | 'agent_completed' | 'completed';
+    agents?: string[];
+    agentId?: string;
+    success?: boolean;
+    remainingAgents?: number;
+    totalAgents?: number;
+    successfulAgents?: number;
+    failedAgents?: number;
+    isStyleCompetition?: boolean;
+  };
+  /** Style competition data */
+  styleCompetition?: {
+    type: 'competition' | 'selected' | 'rejected';
+    styleCount?: number;
+    styleNames?: string[];
+    previewPaths?: string[];
+    selectedStyleId?: string;
+    selectedStyleName?: string;
+    rejectionCount?: number;
+    maxRejections?: number;
+    feedback?: string;
+  };
+}
