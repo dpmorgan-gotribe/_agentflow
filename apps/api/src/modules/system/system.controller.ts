@@ -6,9 +6,12 @@
 
 import { Controller, Post, Body, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
 import { SystemService } from './system.service';
 
 class ShutdownDto {
+  @IsOptional()
+  @IsString()
   reason?: string;
 }
 

@@ -17,14 +17,17 @@ const NAV_TABS = [
 export function Header({ activeTab, onTabChange, isExecuting, currentBranch }: HeaderProps) {
   const [showKillConfirm, setShowKillConfirm] = useState(false);
   const [isKilling, setIsKilling] = useState(false);
+  const [serverStopped, setServerStopped] = useState(false);
 
   const handleKillAll = async () => {
     setIsKilling(true);
     try {
       await triggerShutdown('User clicked Kill All button in Header');
-      // The server will shut down, so this might not execute
+      // Server is shutting down
+      setServerStopped(true);
     } catch {
-      // Server is shutting down or already dead
+      // Server is shutting down or already dead - either way, show stopped state
+      setServerStopped(true);
     }
     setIsKilling(false);
     setShowKillConfirm(false);
@@ -141,6 +144,36 @@ export function Header({ activeTab, onTabChange, isExecuting, currentBranch }: H
           + New Project
         </button>
       </div>
+
+      {/* Server Stopped Overlay */}
+      {serverStopped && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
+          <div className="bg-bg-secondary border border-border-primary rounded-lg p-8 max-w-md w-full mx-4 shadow-xl text-center">
+            <div className="w-16 h-16 bg-status-success/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="text-status-success"
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-text-primary mb-2">Server Stopped</h3>
+            <p className="text-sm text-text-secondary mb-4">
+              The API server has been shut down. All workflows and connections have been closed.
+            </p>
+            <div className="bg-bg-tertiary rounded p-3 text-xs text-text-secondary">
+              <p className="mb-2">To restart the application, run:</p>
+              <code className="bg-bg-card px-2 py-1 rounded text-text-accent block">pnpm dev</code>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Kill Confirmation Dialog */}
       {showKillConfirm && (
