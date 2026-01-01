@@ -68,6 +68,33 @@ export const RiskSchema = z.object({
 export type Risk = z.infer<typeof RiskSchema>;
 
 /**
+ * Design reference for a task (Sprint 5)
+ * Links tasks to approved design mockups for implementation guidance
+ */
+export const TaskDesignReferenceSchema = z.object({
+  /** Screen ID from the approved design */
+  screenId: z.string().min(1).max(100).optional(),
+  /** Path to the mockup file */
+  mockupPath: z.string().max(200).optional(),
+  /** Specific component IDs to implement */
+  componentIds: z.array(z.string().max(100)).optional(),
+  /** Component names for quick reference */
+  componentNames: z.array(z.string().max(100)).optional(),
+  /** Path to the design spec JSON */
+  designSpecPath: z.string().max(200).optional(),
+  /** Specific CSS classes to use */
+  cssClasses: z.array(z.string().max(100)).optional(),
+  /** Implementation notes from the designer */
+  implementationNotes: z.string().max(1000).optional(),
+  /** Responsive breakpoints to implement */
+  responsiveBreakpoints: z.array(z.enum(['mobile', 'tablet', 'desktop', 'wide'])).optional(),
+  /** States to implement (loading, empty, error, etc.) */
+  statesToImplement: z.array(z.string().max(50)).optional(),
+});
+
+export type TaskDesignReference = z.infer<typeof TaskDesignReferenceSchema>;
+
+/**
  * Task definition - atomic work unit
  *
  * Each task represents a single deliverable that can be
@@ -90,6 +117,8 @@ export const TaskSchema = z.object({
   complianceNotes: z.string().max(1000).optional(),
   estimatedTokens: z.number().int().min(0).max(1000000).optional(),
   tags: z.array(z.string().min(1).max(50)),
+  /** Design reference - links to approved mockups (Sprint 5) */
+  designReference: TaskDesignReferenceSchema.optional(),
 });
 
 export type Task = z.infer<typeof TaskSchema>;

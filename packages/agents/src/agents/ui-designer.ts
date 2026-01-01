@@ -35,6 +35,9 @@ import type {
   MegaPage,
   ComponentShowcase,
   AssetManifest,
+  FullDesignOutput,
+  ScreenMockup,
+  UserFlowDiagram,
 } from '../schemas/ui-designer-output.js';
 import {
   UIDesignerOutputSchema,
@@ -51,6 +54,37 @@ import {
   generateComponentDoc,
   slugify,
 } from '../design/index.js';
+
+/**
+ * Screen definition from analyst for full design mode
+ */
+interface ScreenDefinition {
+  id: string;
+  name: string;
+  category?: string;
+  description: string;
+  userFlowIds: string[];
+  componentsNeeded: string[];
+  statesNeeded?: string[];
+  responsiveRequired?: boolean;
+}
+
+/**
+ * User flow definition from analyst
+ */
+interface UserFlowDefinition {
+  id: string;
+  name: string;
+  description: string;
+  userGoal: string;
+  actor: string;
+  steps: Array<{
+    screenId: string;
+    action: string;
+    nextScreenId?: string;
+    alternativePaths?: Array<{ condition: string; screenId: string }>;
+  }>;
+}
 
 /**
  * Extended request for UI design
@@ -78,6 +112,23 @@ interface UIDesignerRequest extends AgentRequest {
    * Whether this is a mega page generation request
    */
   isMegaPageRequest?: boolean;
+  /**
+   * Full design mode: create ALL screens with approved style
+   * Sprint 5 addition
+   */
+  isFullDesignRequest?: boolean;
+  /**
+   * Approved style package from style competition
+   */
+  approvedStylePackage?: StylePackage;
+  /**
+   * All screens to design (from analyst)
+   */
+  screens?: ScreenDefinition[];
+  /**
+   * User flows for navigation mapping (from analyst)
+   */
+  userFlows?: UserFlowDefinition[];
 }
 
 /**
@@ -115,6 +166,12 @@ export class UIDesignerAgent extends BaseAgent {
           inputTypes: ['style_package', 'component_inventory'],
           outputTypes: ['mega_page', 'css', 'component_showcase'],
         },
+        {
+          name: 'full_design_generation',
+          description: 'Generate all screen mockups with approved style after style competition',
+          inputTypes: ['approved_style', 'screens', 'user_flows', 'component_inventory'],
+          outputTypes: ['screen_mockups', 'user_flow_diagrams', 'global_css', 'handoff_notes'],
+        },
       ],
       requiredContext: [
         { type: ContextTypeEnum.CURRENT_TASK, required: true },
@@ -129,9 +186,16 @@ export class UIDesignerAgent extends BaseAgent {
 
   /**
    * Build system prompt for UI design
-   * Overridden to support both regular mockups and mega page generation
+   * Overridden to support regular mockups, mega page, and full design generation
    */
   protected buildSystemPrompt(context: AgentContext, request?: AgentRequest): string {
+    const uiRequest = request as UIDesignerRequest | undefined;
+
+    // Check for full design mode (Sprint 5)
+    if (uiRequest?.isFullDesignRequest && uiRequest.approvedStylePackage) {
+      return this.buildFullDesignSystemPrompt(uiRequest.approvedStylePackage);
+    }
+
     // Check if we have stylePackage in context for mega page mode
     const stylePackageContext = context.items.find(
       (i) => i.type === 'style_package' as never
@@ -212,11 +276,22 @@ Each component must have:
 
   /**
    * Build user prompt with requirements
-   * Overridden to support both regular mockups and mega page generation
+   * Overridden to support regular mockups, mega page, and full design generation
    */
   protected buildUserPrompt(request: AgentRequest): string {
-    // Check if this is a mega page request
     const uiRequest = request as UIDesignerRequest;
+
+    // Check for full design mode (Sprint 5)
+    if (uiRequest.isFullDesignRequest && uiRequest.approvedStylePackage && uiRequest.screens) {
+      return this.buildFullDesignUserPrompt(
+        uiRequest.screens,
+        uiRequest.userFlows || [],
+        uiRequest.approvedStylePackage,
+        uiRequest.componentInventory
+      );
+    }
+
+    // Check if this is a mega page request
     if (uiRequest.stylePackage && uiRequest.componentInventory) {
       return this.buildMegaPageUserPrompt(
         uiRequest.componentInventory,
@@ -326,14 +401,20 @@ Output valid JSON only matching the UIDesignerOutput schema.`;
 
   /**
    * Process result and generate artifacts
-   * Overridden to support both regular mockups and mega page generation
+   * Overridden to support regular mockups, mega page, and full design generation
    */
   protected async processResult(
     parsed: UIDesignerOutput,
     request: AgentRequest
   ): Promise<{ result: UIDesignerOutput; artifacts: Artifact[] }> {
-    // Check if this is a mega page request
     const uiRequest = request as UIDesignerRequest;
+
+    // Check for full design mode (Sprint 5)
+    if (uiRequest.isFullDesignRequest || parsed.fullDesign) {
+      return this.processFullDesignResult(parsed, uiRequest);
+    }
+
+    // Check if this is a mega page request
     if (uiRequest.stylePackage || parsed.megaPage) {
       return this.processMegaPageResult(parsed, uiRequest);
     }
@@ -406,10 +487,25 @@ Output valid JSON only matching the UIDesignerOutput schema.`;
   ): RoutingHints {
     const hasPages = result.pages.length > 0;
     const hasMegaPage = result.megaPage !== undefined;
+    const hasFullDesign = result.fullDesign !== undefined;
     const totalComponents = result.pages.reduce(
       (sum, page) => sum + countComponents(page.components),
       0
     );
+
+    // If this is a full design generation, route to PM for task references
+    if (hasFullDesign) {
+      const screenCount = result.fullDesign?.screens.length ?? 0;
+      const flowCount = result.fullDesign?.userFlows.length ?? 0;
+      return {
+        suggestNext: [AgentTypeEnum.PROJECT_MANAGER], // PM will reference designs in tasks
+        skipAgents: [],
+        needsApproval: true, // Full designs need review before handoff to PM
+        hasFailures: screenCount === 0,
+        isComplete: false,
+        notes: `Generated full design with ${screenCount} screen(s) and ${flowCount} user flow(s)`,
+      };
+    }
 
     // If this is a mega page generation, route to approval for style selection
     if (hasMegaPage) {
@@ -698,5 +794,557 @@ ${megaPage.html}
       document.documentElement.classList.toggle('dark');
     });
   </script>`;
+  }
+
+  // ============================================================================
+  // Full Design Mode Methods (Sprint 5)
+  // ============================================================================
+
+  /**
+   * Build system prompt for full design mode
+   * Generates ALL screens with the approved style after style competition
+   */
+  protected buildFullDesignSystemPrompt(approvedStyle: StylePackage): string {
+    return `You are an expert UI/UX designer creating a complete set of screen mockups.
+
+## Your Task
+Create ALL screen mockups for the application using the APPROVED style package.
+This is the FULL DESIGN PHASE after the style has been selected from the competition.
+
+## Approved Style Package: "${approvedStyle.name}"
+Mood: ${approvedStyle.moodDescription}
+
+### Typography
+- Heading Font: ${approvedStyle.typography.headingFont}
+- Body Font: ${approvedStyle.typography.bodyFont}
+- Weights: ${approvedStyle.typography.weights.join(', ')}
+
+### Colors
+- Primary: ${approvedStyle.colors.primary}
+- Secondary: ${approvedStyle.colors.secondary}
+- Accent: ${approvedStyle.colors.accent}
+- Background: ${approvedStyle.colors.background}
+- Text: ${approvedStyle.colors.text}
+${approvedStyle.colors.palette ? `- Full Palette: ${JSON.stringify(approvedStyle.colors.palette)}` : ''}
+
+### Visual Style
+- Border Radius: ${approvedStyle.visual.borderRadius}
+- Shadows: ${approvedStyle.visual.shadows ? 'Enabled' : 'Minimal'}
+- Gradients: ${approvedStyle.visual.gradients ? 'Enabled' : 'None'}
+${approvedStyle.visual.animations ? `- Animations: ${approvedStyle.visual.animations}` : ''}
+
+### Icon Library
+${approvedStyle.icons.library} (${approvedStyle.icons.style} style)
+
+### CSS Framework
+${approvedStyle.css.framework}${approvedStyle.css.darkMode ? ' with Dark Mode' : ''}
+
+## Requirements
+
+1. **Screen Coverage**: Generate a mockup for EVERY screen in the screen list
+2. **State Variations**: Include all screen states (loading, empty, error, success)
+3. **Responsive Variants**: Create mobile, tablet, desktop layouts for each screen
+4. **Navigation**: Ensure screens link correctly according to user flows
+5. **Consistency**: Use the same design tokens across all screens
+6. **Accessibility**: Include ARIA labels and semantic HTML
+7. **Interactive CSS**: Real CSS for hover/focus states
+
+## Output Format
+Output valid JSON with:
+- fullDesign: Complete full design output with:
+  - stylePackageId: "${approvedStyle.id}"
+  - stylePackageName: "${approvedStyle.name}"
+  - screens: Array of ScreenMockup objects with states and responsive variants
+  - userFlows: Array of UserFlowDiagram objects with Mermaid diagrams
+  - globalCss: Shared CSS with design tokens as CSS variables
+  - sharedComponents: Reusable component HTML snippets
+  - handoffNotes: Implementation notes for developers
+
+## Screen Mockup Structure
+Each screen must have:
+- id: Unique identifier matching the screen list
+- name: Human-readable name
+- category: Screen category (auth, dashboard, settings, etc.)
+- description: What the screen does
+- path: URL path
+- html: Complete HTML content
+- css: Screen-specific CSS (if any)
+- states: Array of state variations (loading, empty, error, success)
+- responsiveVariants: Array with mobile, tablet, desktop HTML
+- componentsUsed: List of component IDs used
+- connectedScreens: IDs of screens linked from this one
+- userFlows: IDs of user flows this screen participates in
+
+## User Flow Diagram Structure
+Each user flow must have:
+- id: Unique identifier
+- name: Flow name (e.g., "User Login")
+- description: What the flow accomplishes
+- userGoal: The user's objective
+- steps: Array of flow steps with screenIds and actions
+- mermaidDiagram: Mermaid flowchart syntax for visualization
+
+## Design Principles
+1. Mobile-first responsive design
+2. Consistent spacing using the design system
+3. Clear visual hierarchy
+4. Accessible color contrast
+5. Intuitive navigation patterns
+6. Loading and error state handling
+7. Empty state with helpful guidance
+`;
+  }
+
+  /**
+   * Build user prompt for full design mode
+   */
+  protected buildFullDesignUserPrompt(
+    screens: ScreenDefinition[],
+    userFlows: UserFlowDefinition[],
+    approvedStyle: StylePackage,
+    componentInventory?: ComponentInventory
+  ): string {
+    let prompt = `Generate complete mockups for ALL screens using the "${approvedStyle.name}" style.\n\n`;
+
+    prompt += `## Screens to Design (${screens.length} total)\n\n`;
+
+    for (const screen of screens) {
+      prompt += `### ${screen.name} (id: ${screen.id})\n`;
+      prompt += `- Category: ${screen.category || 'general'}\n`;
+      prompt += `- Description: ${screen.description}\n`;
+      prompt += `- Components: ${screen.componentsNeeded.join(', ')}\n`;
+      if (screen.statesNeeded && screen.statesNeeded.length > 0) {
+        prompt += `- States needed: ${screen.statesNeeded.join(', ')}\n`;
+      }
+      if (screen.userFlowIds.length > 0) {
+        prompt += `- Part of flows: ${screen.userFlowIds.join(', ')}\n`;
+      }
+      prompt += '\n';
+    }
+
+    if (userFlows.length > 0) {
+      prompt += `## User Flows (${userFlows.length} total)\n\n`;
+
+      for (const flow of userFlows) {
+        prompt += `### ${flow.name} (id: ${flow.id})\n`;
+        prompt += `- Goal: ${flow.userGoal}\n`;
+        prompt += `- Actor: ${flow.actor}\n`;
+        prompt += `- Steps:\n`;
+        flow.steps.forEach((step, i) => {
+          prompt += `  ${i + 1}. Screen "${step.screenId}": ${step.action}`;
+          if (step.nextScreenId) {
+            prompt += ` → ${step.nextScreenId}`;
+          }
+          prompt += '\n';
+          if (step.alternativePaths && step.alternativePaths.length > 0) {
+            for (const alt of step.alternativePaths) {
+              prompt += `     - If ${alt.condition}: → ${alt.screenId}\n`;
+            }
+          }
+        });
+        prompt += '\n';
+      }
+    }
+
+    if (componentInventory) {
+      prompt += `## Available Components\n`;
+      const allComponents = [
+        ...(componentInventory.navigation?.map(c => c.name) || []),
+        ...(componentInventory.dataDisplay?.map(c => c.name) || []),
+        ...(componentInventory.forms?.map(c => c.name) || []),
+        ...(componentInventory.feedback?.map(c => c.name) || []),
+        ...(componentInventory.media?.map(c => c.name) || []),
+      ];
+      prompt += allComponents.join(', ') + '\n\n';
+    }
+
+    prompt += `Generate complete HTML mockups for each screen with:
+1. All required states (loading, empty, error, success as applicable)
+2. Responsive variants for mobile (< 768px), tablet (768-1024px), desktop (> 1024px)
+3. Mermaid diagrams for each user flow
+4. Global CSS with design tokens as CSS variables
+5. Shared component snippets that are reused
+
+Output valid JSON matching the UIDesignerOutput schema with fullDesign populated.`;
+
+    return prompt;
+  }
+
+  /**
+   * Process full design result and generate artifacts
+   */
+  protected async processFullDesignResult(
+    parsed: UIDesignerOutput,
+    request: UIDesignerRequest
+  ): Promise<{ result: UIDesignerOutput; artifacts: Artifact[] }> {
+    const artifacts: Artifact[] = [];
+    const projectId = request.context.projectId || 'default';
+    const styleId = request.approvedStylePackage?.id || 'approved';
+    const outputDir = `${projectId}/designs/full-design/${styleId}`;
+
+    const fullDesign = parsed.fullDesign;
+    if (!fullDesign) {
+      return { result: parsed, artifacts };
+    }
+
+    // Escape HTML helper
+    const escapeHtml = (str: string): string => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    // Generate global CSS file
+    artifacts.push({
+      id: this.generateArtifactId(),
+      type: ArtifactTypeEnum.STYLESHEET,
+      path: `${outputDir}/global.css`,
+      content: fullDesign.globalCss,
+      metadata: {
+        stylePackageId: fullDesign.stylePackageId,
+        generatedAt: fullDesign.generatedAt,
+      },
+    });
+
+    // Generate HTML for each screen
+    for (const screen of fullDesign.screens) {
+      const screenDir = `${outputDir}/screens/${screen.id}`;
+
+      // Main screen HTML
+      const screenHtml = this.buildScreenHTML(screen, fullDesign);
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: ArtifactTypeEnum.MOCKUP,
+        path: `${screenDir}/${slugify(screen.name)}.html`,
+        content: screenHtml,
+        metadata: {
+          screenId: screen.id,
+          screenName: screen.name,
+          category: screen.category,
+          stateCount: screen.states.length,
+          responsiveVariantCount: screen.responsiveVariants.length,
+          componentsUsed: screen.componentsUsed,
+          connectedScreens: screen.connectedScreens,
+        },
+      });
+
+      // State variant HTML files
+      for (const state of screen.states) {
+        artifacts.push({
+          id: this.generateArtifactId(),
+          type: ArtifactTypeEnum.MOCKUP,
+          path: `${screenDir}/states/${state.name}.html`,
+          content: this.buildStateHTML(state, screen, fullDesign),
+          metadata: {
+            screenId: screen.id,
+            stateName: state.name,
+            conditions: state.conditions,
+          },
+        });
+      }
+
+      // Responsive variant HTML files
+      for (const variant of screen.responsiveVariants) {
+        artifacts.push({
+          id: this.generateArtifactId(),
+          type: ArtifactTypeEnum.MOCKUP,
+          path: `${screenDir}/responsive/${variant.breakpoint}.html`,
+          content: this.buildResponsiveHTML(variant, screen, fullDesign),
+          metadata: {
+            screenId: screen.id,
+            breakpoint: variant.breakpoint,
+            minWidth: variant.minWidth,
+          },
+        });
+      }
+    }
+
+    // Generate user flow diagrams
+    for (const flow of fullDesign.userFlows) {
+      // Mermaid diagram file
+      if (flow.mermaidDiagram) {
+        artifacts.push({
+          id: this.generateArtifactId(),
+          type: ArtifactTypeEnum.DOCUMENTATION,
+          path: `${outputDir}/flows/${flow.id}.md`,
+          content: this.buildFlowMarkdown(flow),
+          metadata: {
+            flowId: flow.id,
+            flowName: flow.name,
+            stepCount: flow.steps.length,
+          },
+        });
+      }
+
+      // Flow JSON for programmatic access
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: ArtifactTypeEnum.CONFIG_FILE,
+        path: `${outputDir}/flows/${flow.id}.json`,
+        content: JSON.stringify(flow, null, 2),
+        metadata: {
+          flowId: flow.id,
+          flowName: flow.name,
+        },
+      });
+    }
+
+    // Generate shared components documentation
+    if (fullDesign.sharedComponents.length > 0) {
+      let componentDoc = `# Shared Components\n\n`;
+      for (const comp of fullDesign.sharedComponents) {
+        componentDoc += `## ${comp.name}\n\n`;
+        componentDoc += `ID: \`${comp.id}\`\n\n`;
+        if (comp.usage) {
+          componentDoc += `Usage: ${comp.usage}\n\n`;
+        }
+        componentDoc += `\`\`\`html\n${comp.html}\n\`\`\`\n\n`;
+      }
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: ArtifactTypeEnum.DOCUMENTATION,
+        path: `${outputDir}/shared-components.md`,
+        content: componentDoc,
+        metadata: {
+          componentCount: fullDesign.sharedComponents.length,
+        },
+      });
+    }
+
+    // Generate handoff notes
+    if (fullDesign.handoffNotes.length > 0) {
+      let handoffDoc = `# Design Handoff Notes\n\n`;
+      handoffDoc += `Style Package: ${fullDesign.stylePackageName}\n`;
+      handoffDoc += `Generated: ${fullDesign.generatedAt}\n\n`;
+      handoffDoc += `## Implementation Notes\n\n`;
+      for (const note of fullDesign.handoffNotes) {
+        handoffDoc += `- ${note}\n`;
+      }
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: ArtifactTypeEnum.DOCUMENTATION,
+        path: `${outputDir}/handoff-notes.md`,
+        content: handoffDoc,
+        metadata: {
+          noteCount: fullDesign.handoffNotes.length,
+        },
+      });
+    }
+
+    // Generate design spec JSON
+    artifacts.push({
+      id: this.generateArtifactId(),
+      type: ArtifactTypeEnum.CONFIG_FILE,
+      path: `${outputDir}/design-spec.json`,
+      content: JSON.stringify(fullDesign, null, 2),
+      metadata: {
+        screenCount: fullDesign.screens.length,
+        flowCount: fullDesign.userFlows.length,
+        sharedComponentCount: fullDesign.sharedComponents.length,
+        stylePackageId: fullDesign.stylePackageId,
+      },
+    });
+
+    return { result: parsed, artifacts };
+  }
+
+  /**
+   * Build complete HTML for a screen mockup
+   */
+  private buildScreenHTML(screen: ScreenMockup, fullDesign: FullDesignOutput): string {
+    const escapeHtml = (str: string): string => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(screen.name)} - ${escapeHtml(fullDesign.stylePackageName)}</title>
+  <style>
+${fullDesign.globalCss}
+${screen.css || ''}
+  </style>
+</head>
+<body>
+  <div class="screen-mockup" data-screen-id="${escapeHtml(screen.id)}" data-category="${escapeHtml(screen.category || '')}">
+${screen.html}
+  </div>
+  <footer class="mockup-meta">
+    <p>Screen: ${escapeHtml(screen.name)} | Path: ${escapeHtml(screen.path)}</p>
+    <p>Components: ${screen.componentsUsed.map(c => escapeHtml(c)).join(', ')}</p>
+  </footer>
+</body>
+</html>`;
+  }
+
+  /**
+   * Build HTML for a screen state variant
+   */
+  private buildStateHTML(
+    state: { name: string; description: string; html: string; conditions?: string },
+    screen: ScreenMockup,
+    fullDesign: FullDesignOutput
+  ): string {
+    const escapeHtml = (str: string): string => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(screen.name)} (${escapeHtml(state.name)}) - ${escapeHtml(fullDesign.stylePackageName)}</title>
+  <style>
+${fullDesign.globalCss}
+${screen.css || ''}
+  </style>
+</head>
+<body>
+  <div class="screen-mockup state-${escapeHtml(state.name)}" data-screen-id="${escapeHtml(screen.id)}" data-state="${escapeHtml(state.name)}">
+    <header class="state-indicator">
+      <span class="state-badge">${escapeHtml(state.name)}</span>
+      <span class="state-desc">${escapeHtml(state.description)}</span>
+    </header>
+${state.html}
+  </div>
+  <footer class="mockup-meta">
+    <p>Screen: ${escapeHtml(screen.name)} | State: ${escapeHtml(state.name)}</p>
+    ${state.conditions ? `<p>Conditions: ${escapeHtml(state.conditions)}</p>` : ''}
+  </footer>
+</body>
+</html>`;
+  }
+
+  /**
+   * Build HTML for a responsive variant
+   */
+  private buildResponsiveHTML(
+    variant: { breakpoint: string; minWidth?: number; html: string; layoutChanges?: string },
+    screen: ScreenMockup,
+    fullDesign: FullDesignOutput
+  ): string {
+    const escapeHtml = (str: string): string => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    const viewportWidth = variant.minWidth || (variant.breakpoint === 'mobile' ? 375 : variant.breakpoint === 'tablet' ? 768 : 1280);
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=${viewportWidth}, initial-scale=1.0">
+  <title>${escapeHtml(screen.name)} (${escapeHtml(variant.breakpoint)}) - ${escapeHtml(fullDesign.stylePackageName)}</title>
+  <style>
+${fullDesign.globalCss}
+${screen.css || ''}
+  </style>
+</head>
+<body class="responsive-preview responsive-${escapeHtml(variant.breakpoint)}" style="max-width: ${viewportWidth}px;">
+  <header class="responsive-indicator">
+    <span class="breakpoint-badge">${escapeHtml(variant.breakpoint)}</span>
+    <span class="viewport-width">${viewportWidth}px</span>
+  </header>
+  <div class="screen-mockup" data-screen-id="${escapeHtml(screen.id)}" data-breakpoint="${escapeHtml(variant.breakpoint)}">
+${variant.html}
+  </div>
+  <footer class="mockup-meta">
+    <p>Screen: ${escapeHtml(screen.name)} | Breakpoint: ${escapeHtml(variant.breakpoint)}</p>
+    ${variant.layoutChanges ? `<p>Layout changes: ${escapeHtml(variant.layoutChanges)}</p>` : ''}
+  </footer>
+</body>
+</html>`;
+  }
+
+  /**
+   * Build markdown documentation for a user flow with Mermaid diagram
+   */
+  private buildFlowMarkdown(flow: UserFlowDiagram): string {
+    let md = `# ${flow.name}\n\n`;
+    md += `${flow.description}\n\n`;
+    md += `**User Goal:** ${flow.userGoal}\n\n`;
+    md += `**Actor:** ${flow.actor}\n\n`;
+
+    md += `## Flow Diagram\n\n`;
+    md += `\`\`\`mermaid\n${flow.mermaidDiagram || this.generateMermaidFromSteps(flow)}\n\`\`\`\n\n`;
+
+    md += `## Steps\n\n`;
+    for (const step of flow.steps) {
+      md += `### ${step.id}: ${step.label}\n`;
+      md += `- **Type:** ${step.type}\n`;
+      md += `- **Screen:** ${step.screenId}\n`;
+      if (step.action) {
+        md += `- **Action:** ${step.action}\n`;
+      }
+      if (step.nextSteps.length > 0) {
+        md += `- **Next Steps:**\n`;
+        for (const next of step.nextSteps) {
+          md += `  - ${next.stepId}${next.condition ? ` (if ${next.condition})` : ''}\n`;
+        }
+      }
+      md += '\n';
+    }
+
+    return md;
+  }
+
+  /**
+   * Generate Mermaid flowchart from flow steps (fallback if not provided)
+   */
+  private generateMermaidFromSteps(flow: UserFlowDiagram): string {
+    const lines: string[] = ['flowchart TD'];
+
+    for (const step of flow.steps) {
+      // Define node shape based on type
+      let nodeShape: string;
+      switch (step.type) {
+        case 'start':
+          nodeShape = `${step.id}([${step.label}])`;
+          break;
+        case 'end':
+          nodeShape = `${step.id}([${step.label}])`;
+          break;
+        case 'decision':
+          nodeShape = `${step.id}{${step.label}}`;
+          break;
+        case 'action':
+          nodeShape = `${step.id}[/${step.label}/]`;
+          break;
+        default:
+          nodeShape = `${step.id}[${step.label}]`;
+      }
+      lines.push(`    ${nodeShape}`);
+    }
+
+    // Add edges
+    for (const step of flow.steps) {
+      for (const next of step.nextSteps) {
+        const label = next.condition ? `|${next.condition}|` : '';
+        lines.push(`    ${step.id} -->${label} ${next.stepId}`);
+      }
+    }
+
+    return lines.join('\n');
   }
 }

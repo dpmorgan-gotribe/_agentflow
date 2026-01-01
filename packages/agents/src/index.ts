@@ -140,6 +140,7 @@ export {
   PrioritySchema,
   RiskSeveritySchema,
   RiskSchema,
+  TaskDesignReferenceSchema,
   TaskSchema,
   FeatureSchema,
   EpicSchema,
@@ -156,6 +157,7 @@ export {
   type Priority,
   type RiskSeverity,
   type Risk,
+  type TaskDesignReference,
   type Task,
   type Feature,
   type Epic,
@@ -599,6 +601,19 @@ export {
   type ComponentShowcase,
   type AssetManifest,
   type MegaPage,
+  // Full design mode types (Sprint 5)
+  ScreenStateSchema,
+  ResponsiveVariantSchema,
+  ScreenMockupSchema,
+  UserFlowStepSchema,
+  UserFlowDiagramSchema,
+  FullDesignOutputSchema,
+  type ScreenState,
+  type ResponsiveVariant,
+  type ScreenMockup,
+  type UserFlowStep,
+  type UserFlowDiagram,
+  type FullDesignOutput,
 } from './schemas/ui-designer-output.js';
 
 // Competitive design schemas

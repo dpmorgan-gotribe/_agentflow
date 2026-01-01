@@ -491,6 +491,158 @@ export const MegaPageSchema = z.object({
 export type MegaPage = z.infer<typeof MegaPageSchema>;
 
 // ============================================================================
+// Full Design Mode Schemas (Sprint 5)
+// ============================================================================
+
+/**
+ * Screen state variants (empty, loading, error, success)
+ */
+export const ScreenStateSchema = z.object({
+  name: z.enum(['default', 'loading', 'empty', 'error', 'success', 'partial']),
+  description: z.string().max(200),
+  html: z.string().max(100000),
+  conditions: z.string().max(200).optional(), // When this state appears
+});
+
+export type ScreenState = z.infer<typeof ScreenStateSchema>;
+
+/**
+ * Responsive variant of a screen
+ */
+export const ResponsiveVariantSchema = z.object({
+  breakpoint: z.enum(['mobile', 'tablet', 'desktop', 'wide']),
+  minWidth: z.number().int().min(0).max(3840).optional(), // e.g., 320, 768, 1024, 1440
+  html: z.string().max(100000),
+  layoutChanges: z.string().max(500).optional(), // Description of layout differences
+});
+
+export type ResponsiveVariant = z.infer<typeof ResponsiveVariantSchema>;
+
+/**
+ * Complete screen mockup for full design mode
+ * Each screen has all states and responsive variants
+ */
+export const ScreenMockupSchema = z.object({
+  /** Screen ID from analyst's screen definitions */
+  id: z.string().min(1).max(100),
+  /** Human-readable name */
+  name: z.string().min(1).max(100),
+  /** Screen category (auth, dashboard, settings, etc.) */
+  category: z.string().max(50).optional(),
+  /** Description of the screen's purpose */
+  description: z.string().max(500),
+  /** URL path for the screen */
+  path: z.string().max(200),
+  /** Default HTML (desktop view, default state) */
+  html: z.string().max(100000),
+  /** CSS specific to this screen */
+  css: z.string().max(50000).optional(),
+  /** State variants (loading, empty, error) */
+  states: z.array(ScreenStateSchema).default([]),
+  /** Responsive variants */
+  responsiveVariants: z.array(ResponsiveVariantSchema).default([]),
+  /** Components used on this screen */
+  componentsUsed: z.array(z.string().max(100)).default([]),
+  /** Connected screens (navigation targets) */
+  connectedScreens: z.array(z.string().max(100)).default([]),
+  /** User flow(s) this screen belongs to */
+  userFlows: z.array(z.string().max(100)).default([]),
+  /** Accessibility notes */
+  accessibilityNotes: z.string().max(500).optional(),
+});
+
+export type ScreenMockup = z.infer<typeof ScreenMockupSchema>;
+
+/**
+ * Step in a user flow diagram
+ */
+export const UserFlowStepSchema = z.object({
+  /** Step ID (unique within the flow) */
+  id: z.string().min(1).max(50),
+  /** Screen ID this step represents */
+  screenId: z.string().min(1).max(100),
+  /** Label shown in the diagram */
+  label: z.string().max(100),
+  /** Step type */
+  type: z.enum(['start', 'screen', 'decision', 'action', 'end']),
+  /** Action user takes (button click, form submit, etc.) */
+  action: z.string().max(200).optional(),
+  /** Next step ID(s) - multiple for decision nodes */
+  nextSteps: z.array(
+    z.object({
+      stepId: z.string().max(50),
+      condition: z.string().max(100).optional(), // "Yes", "Login success", etc.
+    })
+  ).default([]),
+  /** Position hint for diagram layout */
+  position: z.object({
+    x: z.number().int(),
+    y: z.number().int(),
+  }).optional(),
+});
+
+export type UserFlowStep = z.infer<typeof UserFlowStepSchema>;
+
+/**
+ * Complete user flow diagram
+ */
+export const UserFlowDiagramSchema = z.object({
+  /** Flow ID from analyst */
+  id: z.string().min(1).max(100),
+  /** Flow name (e.g., "User Registration", "Checkout") */
+  name: z.string().min(1).max(100),
+  /** Description of what this flow accomplishes */
+  description: z.string().max(500),
+  /** Goal of the user in this flow */
+  userGoal: z.string().max(200),
+  /** Actor performing the flow (guest, member, admin) */
+  actor: z.string().max(50).default('user'),
+  /** Steps in the flow */
+  steps: z.array(UserFlowStepSchema),
+  /** Start step ID */
+  startStepId: z.string().max(50),
+  /** End step ID(s) */
+  endStepIds: z.array(z.string().max(50)),
+  /** Happy path step IDs in order */
+  happyPath: z.array(z.string().max(50)).default([]),
+  /** Mermaid diagram source code */
+  mermaidDiagram: z.string().max(10000).optional(),
+});
+
+export type UserFlowDiagram = z.infer<typeof UserFlowDiagramSchema>;
+
+/**
+ * Full design output - all screens with an approved style
+ */
+export const FullDesignOutputSchema = z.object({
+  /** Selected style package ID */
+  stylePackageId: z.string().min(1).max(100),
+  /** Style package name */
+  stylePackageName: z.string().min(1).max(100),
+  /** All screen mockups */
+  screens: z.array(ScreenMockupSchema),
+  /** User flow diagrams */
+  userFlows: z.array(UserFlowDiagramSchema),
+  /** Global CSS (design tokens + shared styles) */
+  globalCss: z.string().max(100000),
+  /** Shared component HTML templates */
+  sharedComponents: z.array(
+    z.object({
+      id: z.string().min(1).max(100),
+      name: z.string().min(1).max(100),
+      html: z.string().max(20000),
+      usage: z.string().max(200).optional(),
+    })
+  ).default([]),
+  /** Design handoff notes for developers */
+  handoffNotes: z.array(z.string().max(500)).default([]),
+  /** Generated at timestamp */
+  generatedAt: z.string().max(50),
+});
+
+export type FullDesignOutput = z.infer<typeof FullDesignOutputSchema>;
+
+// ============================================================================
 // Routing Hints
 // ============================================================================
 
@@ -539,6 +691,9 @@ export const UIDesignerOutputSchema = z.object({
 
   // Mega page for style competition (optional)
   megaPage: MegaPageSchema.optional(),
+
+  // Full design output - all screens with approved style (optional)
+  fullDesign: FullDesignOutputSchema.optional(),
 
   // Routing hints - use default() to apply all nested defaults
   routingHints: UIDesignerRoutingHintsSchema.default({}),
