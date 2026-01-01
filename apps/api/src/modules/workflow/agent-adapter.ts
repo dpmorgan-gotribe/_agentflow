@@ -336,6 +336,15 @@ const SUPPORTED_AGENTS: AgentType[] = [
 ];
 
 /**
+ * Agent type aliases - map common names to their canonical enum values
+ */
+const AGENT_ALIASES: Record<string, AgentType> = {
+  'analyst': AgentTypeEnum.ANALYZER,
+  'project_analyzer': AgentTypeEnum.PROJECT_ANALYZER,
+  'compliance_agent': AgentTypeEnum.COMPLIANCE_AGENT,
+};
+
+/**
  * Adapter that implements LangGraph's AgentRegistry interface
  * by creating agents directly (bypassing the registry's parameterless
  * constructor requirement)
@@ -354,16 +363,20 @@ export class LangGraphAgentAdapter implements LangGraphAgentRegistry {
    * Get an agent by type - implements LangGraphAgentRegistry interface
    */
   getAgent(type: string): LangGraphAgent | undefined {
-    // Check cache first
+    // Resolve alias first (e.g., 'analyst' -> 'analyzer')
+    const resolvedType = AGENT_ALIASES[type] ?? type;
+
+    // Check cache first (use original type as key for consistency)
     if (this.wrappers.has(type)) {
       return this.wrappers.get(type);
     }
 
-    // Check if the agent type is supported
-    const agentType = type as AgentType;
+    // Check if the resolved agent type is supported
+    const agentType = resolvedType as AgentType;
     if (SUPPORTED_AGENTS.includes(agentType)) {
       const wrapper = new AgentWrapper(agentType, this.logger);
-      this.wrappers.set(type, wrapper);
+      this.wrappers.set(type, wrapper); // Cache with original type
+      this.logger.debug(`Created agent: ${type} (resolved to ${resolvedType})`);
       return wrapper;
     }
 

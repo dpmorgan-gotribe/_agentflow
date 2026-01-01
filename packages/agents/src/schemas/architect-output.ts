@@ -18,9 +18,9 @@ import { AgentTypeSchema } from '../types.js';
 export const TechnologySchema = z.object({
   name: z.string().min(1).max(100),
   version: z.string().max(50).optional(),
-  purpose: z.string().min(1).max(500),
-  alternatives: z.array(z.string().min(1).max(100)),
-  reasoning: z.string().min(1).max(1000),
+  purpose: z.string().max(500).default(''),
+  alternatives: z.array(z.string().min(1).max(100)).default([]),
+  reasoning: z.string().max(1000).default(''),
 });
 
 export type Technology = z.infer<typeof TechnologySchema>;
@@ -29,9 +29,9 @@ export type Technology = z.infer<typeof TechnologySchema>;
  * Frontend tech stack
  */
 export const FrontendStackSchema = z.object({
-  framework: TechnologySchema,
-  language: TechnologySchema,
-  styling: TechnologySchema,
+  framework: TechnologySchema.optional(),
+  language: TechnologySchema.optional(),
+  styling: TechnologySchema.optional(),
   stateManagement: TechnologySchema.optional(),
   routing: TechnologySchema.optional(),
 });
@@ -42,8 +42,8 @@ export type FrontendStack = z.infer<typeof FrontendStackSchema>;
  * Backend tech stack
  */
 export const BackendStackSchema = z.object({
-  framework: TechnologySchema,
-  language: TechnologySchema,
+  framework: TechnologySchema.optional(),
+  language: TechnologySchema.optional(),
   runtime: TechnologySchema.optional(),
 });
 
@@ -53,7 +53,7 @@ export type BackendStack = z.infer<typeof BackendStackSchema>;
  * Database tech stack
  */
 export const DatabaseStackSchema = z.object({
-  primary: TechnologySchema,
+  primary: TechnologySchema.optional(),
   cache: TechnologySchema.optional(),
   search: TechnologySchema.optional(),
 });
@@ -75,7 +75,7 @@ export type InfrastructureStack = z.infer<typeof InfrastructureStackSchema>;
  * Testing tech stack
  */
 export const TestingStackSchema = z.object({
-  unit: TechnologySchema,
+  unit: TechnologySchema.optional(),
   integration: TechnologySchema.optional(),
   e2e: TechnologySchema.optional(),
 });
@@ -90,7 +90,7 @@ export const TechStackSchema = z.object({
   backend: BackendStackSchema.optional(),
   database: DatabaseStackSchema.optional(),
   infrastructure: InfrastructureStackSchema.optional(),
-  testing: TestingStackSchema,
+  testing: TestingStackSchema.optional(),
 });
 
 export type TechStack = z.infer<typeof TechStackSchema>;
@@ -171,8 +171,8 @@ export type InterfaceType = z.infer<typeof InterfaceTypeSchema>;
  */
 export const ComponentInterfaceSchema = z.object({
   name: z.string().min(1).max(100),
-  type: InterfaceTypeSchema,
-  description: z.string().min(1).max(500),
+  type: InterfaceTypeSchema.default('function'),
+  description: z.string().max(500).default(''),
 });
 
 export type ComponentInterface = z.infer<typeof ComponentInterfaceSchema>;
@@ -182,16 +182,16 @@ export type ComponentInterface = z.infer<typeof ComponentInterfaceSchema>;
  */
 export const ComponentSchema = z.object({
   name: z.string().min(1).max(100),
-  type: ComponentTypeSchema,
-  description: z.string().min(1).max(1000),
-  responsibilities: z.array(z.string().min(1).max(500)),
-  dependencies: z.array(z.string().min(1).max(100)),
-  interfaces: z.array(ComponentInterfaceSchema),
+  type: ComponentTypeSchema.default('component'),
+  description: z.string().max(1000).default(''),
+  responsibilities: z.array(z.string().min(1).max(500)).default([]),
+  dependencies: z.array(z.string().min(1).max(100)).default([]),
+  interfaces: z.array(ComponentInterfaceSchema).default([]),
   location: z
     .string()
-    .min(1)
     .max(500)
-    .regex(/^[a-zA-Z0-9/_.-]+$/, 'Invalid path characters'),
+    .regex(/^[a-zA-Z0-9/_.-]*$/, 'Invalid path characters')
+    .default(''),
 });
 
 export type Component = z.infer<typeof ComponentSchema>;
@@ -237,10 +237,10 @@ export type APIEndpoint = z.infer<typeof APIEndpointSchema>;
  */
 export const DataFieldSchema = z.object({
   name: z.string().min(1).max(100),
-  type: z.string().min(1).max(100),
-  required: z.boolean(),
-  description: z.string().min(1).max(500),
-  constraints: z.array(z.string().min(1).max(200)).optional(),
+  type: z.string().max(100).default('string'),
+  required: z.boolean().default(false),
+  description: z.string().max(500).default(''),
+  constraints: z.array(z.string().min(1).max(200)).default([]),
 });
 
 export type DataField = z.infer<typeof DataFieldSchema>;
@@ -257,8 +257,8 @@ export type RelationshipType = z.infer<typeof RelationshipTypeSchema>;
  */
 export const RelationshipSchema = z.object({
   target: z.string().min(1).max(100),
-  type: RelationshipTypeSchema,
-  description: z.string().min(1).max(500),
+  type: RelationshipTypeSchema.default('one-to-many'),
+  description: z.string().max(500).default(''),
 });
 
 export type Relationship = z.infer<typeof RelationshipSchema>;
@@ -268,10 +268,10 @@ export type Relationship = z.infer<typeof RelationshipSchema>;
  */
 export const DataModelSchema = z.object({
   name: z.string().min(1).max(100),
-  description: z.string().min(1).max(1000),
-  fields: z.array(DataFieldSchema),
-  relationships: z.array(RelationshipSchema),
-  indexes: z.array(z.string().min(1).max(200)).optional(),
+  description: z.string().max(1000).default(''),
+  fields: z.array(DataFieldSchema).default([]),
+  relationships: z.array(RelationshipSchema).default([]),
+  indexes: z.array(z.string().min(1).max(200)).default([]),
 });
 
 export type DataModel = z.infer<typeof DataModelSchema>;
@@ -299,13 +299,13 @@ export const DirectoryStructureSchema: z.ZodType<DirectoryStructure> = z.object(
  * Naming conventions
  */
 export const NamingConventionsSchema = z.object({
-  files: z.string().min(1).max(200),
-  directories: z.string().min(1).max(200),
-  components: z.string().min(1).max(200),
-  functions: z.string().min(1).max(200),
-  variables: z.string().min(1).max(200),
-  constants: z.string().min(1).max(200),
-  types: z.string().min(1).max(200),
+  files: z.string().max(200).default('kebab-case'),
+  directories: z.string().max(200).default('kebab-case'),
+  components: z.string().max(200).default('PascalCase'),
+  functions: z.string().max(200).default('camelCase'),
+  variables: z.string().max(200).default('camelCase'),
+  constants: z.string().max(200).default('SCREAMING_SNAKE_CASE'),
+  types: z.string().max(200).default('PascalCase'),
 });
 
 export type NamingConventions = z.infer<typeof NamingConventionsSchema>;
@@ -314,10 +314,10 @@ export type NamingConventions = z.infer<typeof NamingConventionsSchema>;
  * Formatting conventions
  */
 export const FormattingConventionsSchema = z.object({
-  indentation: z.string().min(1).max(50),
-  lineLength: z.number().int().min(40).max(200),
-  quotes: z.enum(['single', 'double']),
-  semicolons: z.boolean(),
+  indentation: z.string().max(50).default('2 spaces'),
+  lineLength: z.number().int().min(40).max(200).default(100),
+  quotes: z.enum(['single', 'double']).default('single'),
+  semicolons: z.boolean().default(true),
 });
 
 export type FormattingConventions = z.infer<typeof FormattingConventionsSchema>;
@@ -327,8 +327,8 @@ export type FormattingConventions = z.infer<typeof FormattingConventionsSchema>;
  */
 export const PatternSchema = z.object({
   name: z.string().min(1).max(100),
-  description: z.string().min(1).max(1000),
-  example: z.string().min(1).max(5000),
+  description: z.string().max(1000).default(''),
+  example: z.string().max(5000).default(''),
 });
 
 export type Pattern = z.infer<typeof PatternSchema>;
@@ -338,8 +338,8 @@ export type Pattern = z.infer<typeof PatternSchema>;
  */
 export const AntiPatternSchema = z.object({
   name: z.string().min(1).max(100),
-  description: z.string().min(1).max(1000),
-  alternative: z.string().min(1).max(1000),
+  description: z.string().max(1000).default(''),
+  alternative: z.string().max(1000).default(''),
 });
 
 export type AntiPattern = z.infer<typeof AntiPatternSchema>;
@@ -348,10 +348,10 @@ export type AntiPattern = z.infer<typeof AntiPatternSchema>;
  * Coding conventions
  */
 export const CodingConventionsSchema = z.object({
-  naming: NamingConventionsSchema,
-  formatting: FormattingConventionsSchema,
-  patterns: z.array(PatternSchema),
-  antiPatterns: z.array(AntiPatternSchema),
+  naming: NamingConventionsSchema.default({}),
+  formatting: FormattingConventionsSchema.default({}),
+  patterns: z.array(PatternSchema).default([]),
+  antiPatterns: z.array(AntiPatternSchema).default([]),
 });
 
 export type CodingConventions = z.infer<typeof CodingConventionsSchema>;
