@@ -39,19 +39,35 @@ const databaseUrlSchema = z
 
 /**
  * JWT Secret validation - minimum 32 characters for security
+ * Optional in development (uses a default development secret)
  */
 const jwtSecretSchema = z
   .string()
-  .min(32, 'JWT_SECRET must be at least 32 characters for security');
+  .min(32, 'JWT_SECRET must be at least 32 characters for security')
+  .optional()
+  .transform((val) => {
+    if (!val && process.env.NODE_ENV !== 'production') {
+      return 'development-secret-key-do-not-use-in-production-32chars';
+    }
+    return val;
+  });
 
 /**
  * CORS origins validation - no wildcards in production
+ * Defaults to localhost in development
  */
 const corsOriginsSchema = z
   .string()
-  .min(1, 'CORS_ORIGINS is required')
+  .optional()
+  .transform((val) => {
+    if (!val && process.env.NODE_ENV !== 'production') {
+      return 'http://localhost:5173,http://localhost:3000';
+    }
+    return val;
+  })
   .refine(
     (origins) => {
+      if (!origins) return false;
       const nodeEnv = process.env.NODE_ENV;
       if (nodeEnv === 'production' && origins.includes('*')) {
         return false;

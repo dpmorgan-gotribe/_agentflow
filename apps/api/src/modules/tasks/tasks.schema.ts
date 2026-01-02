@@ -83,12 +83,17 @@ export type ApproveTaskInput = z.infer<typeof approveTaskSchema>;
 
 /**
  * Task status enum
+ *
+ * Matches database task_status enum for 1:1 mapping.
+ * More granular states provide better visibility to frontend.
  */
 export const TaskStatus = {
   PENDING: 'pending',
   ANALYZING: 'analyzing',
-  EXECUTING: 'executing',
+  ORCHESTRATING: 'orchestrating',
+  AGENT_WORKING: 'agent_working',
   AWAITING_APPROVAL: 'awaiting_approval',
+  COMPLETING: 'completing',
   COMPLETED: 'completed',
   FAILED: 'failed',
   ABORTED: 'aborted',
@@ -107,8 +112,10 @@ export const taskResponseSchema = z.object({
   status: z.enum([
     'pending',
     'analyzing',
-    'executing',
+    'orchestrating',
+    'agent_working',
     'awaiting_approval',
+    'completing',
     'completed',
     'failed',
     'aborted',
@@ -125,15 +132,23 @@ export type TaskResponse = z.infer<typeof taskResponseSchema>;
 
 /**
  * Artifact type enum
+ *
+ * Extended to match database artifact_type enum.
+ * Legacy aliases: STYLESHEET → ASSET, CONFIG → CONFIG_FILE
  */
 export const ArtifactType = {
   MOCKUP: 'mockup',
-  STYLESHEET: 'stylesheet',
-  FLOW: 'flow',
   SOURCE_FILE: 'source_file',
   TEST_FILE: 'test_file',
-  CONFIG: 'config',
+  CONFIG_FILE: 'config_file',
   DOCUMENTATION: 'documentation',
+  SCHEMA: 'schema',
+  MIGRATION: 'migration',
+  ASSET: 'asset',
+  // Legacy aliases for backward compatibility
+  STYLESHEET: 'asset',
+  FLOW: 'documentation',
+  CONFIG: 'config_file',
 } as const;
 
 export type ArtifactType = (typeof ArtifactType)[keyof typeof ArtifactType];
@@ -146,12 +161,13 @@ export const artifactResponseSchema = z.object({
   taskId: z.string().uuid(),
   type: z.enum([
     'mockup',
-    'stylesheet',
-    'flow',
     'source_file',
     'test_file',
-    'config',
+    'config_file',
     'documentation',
+    'schema',
+    'migration',
+    'asset',
   ]),
   name: z.string(),
   path: z.string(),

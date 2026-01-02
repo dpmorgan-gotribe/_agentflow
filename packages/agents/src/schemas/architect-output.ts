@@ -324,12 +324,20 @@ export type FormattingConventions = z.infer<typeof FormattingConventionsSchema>;
 
 /**
  * Code pattern example
+ * Accepts either a structured object or a simple string
  */
-export const PatternSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(1000).default(''),
-  example: z.string().max(5000).default(''),
-});
+export const PatternSchema = z.union([
+  z.object({
+    name: z.string().min(1).max(100),
+    description: z.string().max(1000).default(''),
+    example: z.string().max(5000).default(''),
+  }),
+  z.string().transform((val) => ({
+    name: val.substring(0, 100),
+    description: '',
+    example: '',
+  })),
+]);
 
 export type Pattern = z.infer<typeof PatternSchema>;
 
@@ -345,12 +353,36 @@ export const AntiPatternSchema = z.object({
 export type AntiPattern = z.infer<typeof AntiPatternSchema>;
 
 /**
+ * Helper to convert object to array of patterns
+ */
+const patternsCoercion = z.union([
+  z.array(PatternSchema),
+  z.record(z.unknown()).transform((obj): Array<{ name: string; description: string; example: string }> => {
+    // Convert object with named keys to array
+    return Object.entries(obj).map(([key, value]) => {
+      if (typeof value === 'string') {
+        return { name: key, description: value, example: '' };
+      } else if (typeof value === 'object' && value !== null) {
+        const v = value as Record<string, unknown>;
+        const name = typeof v['name'] === 'string' ? v['name'] : key;
+        return {
+          name,
+          description: String(v['description'] ?? ''),
+          example: String(v['example'] ?? ''),
+        };
+      }
+      return { name: key, description: '', example: '' };
+    });
+  }),
+]).default([]);
+
+/**
  * Coding conventions
  */
 export const CodingConventionsSchema = z.object({
   naming: NamingConventionsSchema.default({}),
   formatting: FormattingConventionsSchema.default({}),
-  patterns: z.array(PatternSchema).default([]),
+  patterns: patternsCoercion,
   antiPatterns: z.array(AntiPatternSchema).default([]),
 });
 
@@ -371,6 +403,27 @@ export const ArchitectRoutingHintsSchema = z.object({
 export type ArchitectRoutingHints = z.infer<typeof ArchitectRoutingHintsSchema>;
 
 /**
+ * Helper to coerce considerations/notes arrays
+ * Accepts strings, objects with description fields, or any value (converted to string)
+ */
+const stringArrayCoercion = z.array(
+  z.union([
+    z.string(),
+    z.object({ description: z.string() }).transform((obj) => obj.description),
+    z.object({ name: z.string(), description: z.string().optional() }).transform(
+      (obj) => obj.description || obj.name
+    ),
+    z.unknown().transform((val) => {
+      if (typeof val === 'object' && val !== null) {
+        const v = val as Record<string, unknown>;
+        return String(v['description'] || v['name'] || v['title'] || JSON.stringify(val));
+      }
+      return String(val);
+    }),
+  ])
+).default([]);
+
+/**
  * Complete Architect output
  */
 export const ArchitectOutputSchema = z.object({
@@ -381,8 +434,8 @@ export const ArchitectOutputSchema = z.object({
   apiEndpoints: z.array(APIEndpointSchema).default([]),
   dataModels: z.array(DataModelSchema).default([]),
   codingConventions: CodingConventionsSchema.optional(),
-  securityConsiderations: z.array(z.string().min(1).max(500)).default([]),
-  scalabilityNotes: z.array(z.string().min(1).max(500)).default([]),
+  securityConsiderations: stringArrayCoercion,
+  scalabilityNotes: stringArrayCoercion,
   routingHints: ArchitectRoutingHintsSchema.default({}),
 });
 

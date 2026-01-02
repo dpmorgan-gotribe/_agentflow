@@ -17,8 +17,10 @@ export type TaskStatus =
   | 'orchestrating'
   | 'agent_working'
   | 'awaiting_approval'
+  | 'completing'
   | 'completed'
-  | 'failed';
+  | 'failed'
+  | 'aborted';
 
 export interface TaskAnalysis {
   taskType: string;
@@ -36,8 +38,10 @@ export type AgentType =
   | 'project_manager'
   | 'architect'
   | 'analyst'
+  | 'analyzer'
   | 'project_analyzer'
   | 'compliance'
+  | 'compliance_agent'
   | 'ui_designer'
   | 'frontend_developer'
   | 'backend_developer'
@@ -104,12 +108,13 @@ export interface Artifact {
 
 export type ArtifactType =
   | 'mockup'
-  | 'stylesheet'
-  | 'flow'
   | 'source_file'
   | 'test_file'
-  | 'config'
-  | 'documentation';
+  | 'config_file'
+  | 'documentation'
+  | 'schema'
+  | 'migration'
+  | 'asset';
 
 /** Approval option for style competition */
 export interface ApprovalOption {

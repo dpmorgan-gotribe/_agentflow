@@ -52,10 +52,10 @@ export class TasksController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  create(
+  async create(
     @Tenant() tenant: TenantContext,
     @Body() dto: CreateTaskDto
-  ): TaskResponseDto {
+  ): Promise<TaskResponseDto> {
     return this.tasksService.create(tenant, dto);
   }
 
@@ -71,10 +71,10 @@ export class TasksController {
     description: 'List of tasks',
     type: [TaskResponseDto],
   })
-  findAll(
+  async findAll(
     @Tenant() tenant: TenantContext,
     @Query('projectId') projectId?: string
-  ): TaskResponseDto[] {
+  ): Promise<TaskResponseDto[]> {
     return this.tasksService.findAll(tenant.tenantId, projectId);
   }
 
@@ -87,10 +87,10 @@ export class TasksController {
     type: TaskResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  findOne(
+  async findOne(
     @Tenant() tenant: TenantContext,
     @Param('id', ParseUUIDPipe) id: string
-  ): TaskResponseDto {
+  ): Promise<TaskResponseDto> {
     return this.tasksService.findOne(tenant.tenantId, id);
   }
 
@@ -103,10 +103,10 @@ export class TasksController {
     type: TaskStatusResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  getStatus(
+  async getStatus(
     @Tenant() tenant: TenantContext,
     @Param('id', ParseUUIDPipe) id: string
-  ): TaskStatusResponseDto {
+  ): Promise<TaskStatusResponseDto> {
     return this.tasksService.getStatus(tenant.tenantId, id);
   }
 
@@ -133,10 +133,10 @@ export class TasksController {
     type: [ArtifactResponseDto],
   })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  getArtifacts(
+  async getArtifacts(
     @Tenant() tenant: TenantContext,
     @Param('id', ParseUUIDPipe) id: string
-  ): ArtifactResponseDto[] {
+  ): Promise<ArtifactResponseDto[]> {
     return this.tasksService.getArtifacts(tenant.tenantId, id);
   }
 
@@ -149,11 +149,11 @@ export class TasksController {
   })
   @ApiResponse({ status: 400, description: 'Task not pending approval' })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  approve(
+  async approve(
     @Tenant() tenant: TenantContext,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ApproveTaskDto
-  ): { success: boolean } {
+  ): Promise<{ success: boolean }> {
     return this.tasksService.handleApproval(tenant.tenantId, id, dto);
   }
 
@@ -166,10 +166,10 @@ export class TasksController {
   })
   @ApiResponse({ status: 400, description: 'Task cannot be aborted' })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  abort(
+  async abort(
     @Tenant() tenant: TenantContext,
     @Param('id', ParseUUIDPipe) id: string
-  ): { success: boolean } {
+  ): Promise<{ success: boolean }> {
     return this.tasksService.abort(tenant.tenantId, id);
   }
 }

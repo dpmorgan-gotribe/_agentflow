@@ -48,3 +48,15 @@ export {
   type AuditLogFilter,
   type AuditStats,
 } from './audit.repository.js';
+
+// User repository
+export { UserRepository } from './user.repository.js';
+
+// Artifact repository
+export { ArtifactRepository } from './artifact.repository.js';
+
+// Approval repository
+export { ApprovalRepository } from './approval.repository.js';
+
+// Task execution repository
+export { TaskExecutionRepository } from './task-execution.repository.js';

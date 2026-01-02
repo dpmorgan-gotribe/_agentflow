@@ -11,6 +11,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { GlobalExceptionFilter } from './common/filters';
 import { AuditInterceptor } from './common/interceptors';
 import { ConfigModule, ConfigService } from './config';
+import { DatabaseModule } from './modules/database';
 import { HealthModule } from './modules/health';
 import { TasksModule } from './modules/tasks';
 import { ProjectsModule } from './modules/projects';
@@ -20,6 +21,9 @@ import { SystemModule } from './modules/system';
   imports: [
     // Configuration (global)
     ConfigModule,
+
+    // Database (global)
+    DatabaseModule,
 
     // Rate limiting
     ThrottlerModule.forRootAsync({

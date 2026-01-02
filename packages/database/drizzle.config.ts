@@ -7,7 +7,7 @@ import { defineConfig } from 'drizzle-kit';
  * Requires DATABASE_URL environment variable.
  */
 export default defineConfig({
-  schema: './src/schema/index.ts',
+  schema: './src/schema/*.ts',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {

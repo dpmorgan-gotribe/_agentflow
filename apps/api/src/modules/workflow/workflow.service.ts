@@ -7,7 +7,7 @@
 
 import { Injectable, Logger, OnModuleInit, OnApplicationShutdown } from '@nestjs/common';
 import { MemorySaver } from '@langchain/langgraph';
-import { Observable, Subject } from 'rxjs';
+import { Observable, ReplaySubject } from 'rxjs';
 
 import {
   createOrchestratorGraph,
@@ -55,7 +55,8 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(WorkflowService.name);
   private graph: OrchestratorGraph | null = null;
   private checkpointer: MemorySaver | null = null;
-  private readonly eventStreams = new Map<string, Subject<StreamEvent>>();
+  // Use ReplaySubject to buffer events for late subscribers (race condition fix)
+  private readonly eventStreams = new Map<string, ReplaySubject<StreamEvent>>();
 
   constructor(
     private readonly projectDir: ProjectDirectoryService,
@@ -128,8 +129,8 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
     const { tenantId, projectId, taskId, prompt } = input;
     this.logger.log(`Starting workflow for task: ${taskId}`);
 
-    // Create event stream for this task
-    const eventSubject = new Subject<StreamEvent>();
+    // Create event stream for this task with replay buffer for late subscribers
+    const eventSubject = new ReplaySubject<StreamEvent>(50);
     this.eventStreams.set(taskId, eventSubject);
 
     try {
@@ -180,6 +181,22 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
               );
               break;
 
+            case 'think':
+              // Orchestrator thinking step - check for thinking/reasoning in state
+              const thinking = (stateUpdate as Record<string, unknown>).thinking ||
+                               (stateUpdate as Record<string, unknown>).reasoning ||
+                               'Orchestrator is planning next steps...';
+              eventSubject.next(
+                createStreamEvent('workflow.orchestrator_thinking', {
+                  taskId,
+                  thinking: String(thinking),
+                  agentQueue: stateUpdate.agentQueue,
+                  reasoning: String(thinking),
+                })
+              );
+              break;
+
+            case 'dispatch':
             case 'route_to_agent':
               eventSubject.next(
                 createStreamEvent('workflow.routing', {
@@ -190,6 +207,16 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
                     `Remaining queue: ${(stateUpdate.agentQueue || []).join(' → ') || 'empty'}`,
                 })
               );
+              // Also emit agent_started event so UI shows agent as working
+              if (stateUpdate.currentAgent) {
+                eventSubject.next(
+                  createStreamEvent('workflow.agent_started', {
+                    taskId,
+                    agentId: stateUpdate.currentAgent,
+                    reasoning: `Starting agent: ${stateUpdate.currentAgent}`,
+                  })
+                );
+              }
               break;
 
             case 'execute_agent':
@@ -338,7 +365,7 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
     // Get or create event stream
     let eventSubject = this.eventStreams.get(taskId);
     if (!eventSubject) {
-      eventSubject = new Subject<StreamEvent>();
+      eventSubject = new ReplaySubject<StreamEvent>(50);
       this.eventStreams.set(taskId, eventSubject);
     }
 

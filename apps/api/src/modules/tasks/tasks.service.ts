@@ -3,9 +3,10 @@
  *
  * Core orchestration service for task management.
  * Integrates with LangGraph for workflow execution.
+ * Uses PostgreSQL when DATABASE_URL is configured, falls back to file storage.
  */
 
-import { Injectable, Logger, OnModuleInit, OnApplicationShutdown, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnApplicationShutdown, Inject, forwardRef, Optional } from '@nestjs/common';
 import { Observable, Subject } from 'rxjs';
 
 import {
@@ -22,6 +23,7 @@ import type { TenantContext } from '../../common/guards';
 import { ConfigService } from '../../config';
 import { NotFoundError, TaskStateError, ValidationError } from '../../errors';
 import { WorkflowService } from '../workflow';
+import { DATABASE_TOKEN } from '../database';
 import {
   initStorage,
   loadTasks,
@@ -31,6 +33,15 @@ import {
   type PersistedTask,
   type PersistedArtifact,
 } from './file-storage';
+import {
+  TaskRepository,
+  ArtifactRepository,
+  type Database,
+  type Task as DbTask,
+  type NewTask as DbNewTask,
+  type Artifact as DbArtifact,
+  type NewArtifact as DbNewArtifact,
+} from '@aigentflow/database';
 
 /**
  * In-memory task storage (will be replaced with database in production)
@@ -75,19 +86,29 @@ interface EventHistoryEntry {
 @Injectable()
 export class TasksService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(TasksService.name);
+
+  // In-memory storage (used when database is not available)
   private readonly tasks = new Map<string, StoredTask>();
   private readonly artifacts = new Map<string, StoredArtifact[]>();
+
+  // SSE event streams (always in-memory for real-time updates)
   private readonly eventStreams = new Map<string, Subject<MessageEvent>>();
   private readonly eventHistory = new Map<string, EventHistoryEntry[]>();
 
   // Keep event history for 5 minutes for replay
   private readonly EVENT_HISTORY_TTL_MS = 5 * 60 * 1000;
 
+  // Database mode flag
+  private readonly useDatabase: boolean;
+
   constructor(
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => WorkflowService))
-    private readonly workflowService: WorkflowService
-  ) {}
+    private readonly workflowService: WorkflowService,
+    @Optional() @Inject(DATABASE_TOKEN) private readonly db: Database | null
+  ) {
+    this.useDatabase = this.db !== null;
+  }
 
   /**
    * Cleanup on application shutdown
@@ -103,12 +124,14 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
     this.eventStreams.clear();
     this.eventHistory.clear();
 
-    // Persist any pending tasks
-    try {
-      await this.persistTasks();
-      this.logger.log('Tasks persisted successfully');
-    } catch (error) {
-      this.logger.error('Failed to persist tasks on shutdown:', error);
+    // Persist any pending tasks (only in file mode - database persists immediately)
+    if (!this.useDatabase) {
+      try {
+        await this.persistTasks();
+        this.logger.log('Tasks persisted successfully');
+      } catch (error) {
+        this.logger.error('Failed to persist tasks on shutdown:', error);
+      }
     }
 
     this.logger.log('TasksService shutdown complete');
@@ -117,9 +140,14 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   async onModuleInit(): Promise<void> {
     this.logger.log('TasksService initializing...');
 
-    // Initialize file storage and load persisted data
-    await initStorage();
-    await this.loadPersistedData();
+    if (this.useDatabase) {
+      this.logger.log('Using PostgreSQL database for task persistence');
+    } else {
+      // Initialize file storage and load persisted data only in file mode
+      this.logger.log('Using file-based storage (DATABASE_URL not configured)');
+      await initStorage();
+      await this.loadPersistedData();
+    }
 
     if (this.workflowService.isReady()) {
       this.logger.log('WorkflowService is ready');
@@ -223,7 +251,7 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   /**
    * Create and start a new task
    */
-  create(tenant: TenantContext, input: CreateTaskInput): TaskResponse {
+  async create(tenant: TenantContext, input: CreateTaskInput): Promise<TaskResponse> {
     // Validate input with Zod
     const validationResult = createTaskSchema.safeParse(input);
     if (!validationResult.success) {
@@ -237,26 +265,46 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
     const taskId = crypto.randomUUID();
     const now = new Date();
 
-    const task: StoredTask = {
-      id: taskId,
-      projectId: validated.projectId,
-      tenantId: tenant.tenantId,
-      prompt: validated.prompt,
-      status: TaskStatus.PENDING,
-      priority: validated.priority ?? 'normal',
-      completedAgents: [],
-      metadata: validated.metadata,
-      createdAt: now,
-      updatedAt: now,
-    };
+    let response: TaskResponse;
 
-    // Store task
-    this.tasks.set(taskId, task);
+    if (this.useDatabase) {
+      // Database mode: create task in PostgreSQL
+      const repo = this.getTaskRepository(tenant.tenantId);
+      const dbTask = await repo.create({
+        id: taskId,
+        tenantId: tenant.tenantId,
+        projectId: validated.projectId,
+        prompt: validated.prompt,
+        type: 'feature', // Default type - could be inferred from analysis later
+        status: 'pending',
+        completedAgents: [],
+        agentQueue: [],
+      });
+      response = this.mapDbTaskToResponse(dbTask);
+    } else {
+      // File mode: store in memory + persist to disk
+      const task: StoredTask = {
+        id: taskId,
+        projectId: validated.projectId,
+        tenantId: tenant.tenantId,
+        prompt: validated.prompt,
+        status: TaskStatus.PENDING,
+        priority: validated.priority ?? 'normal',
+        completedAgents: [],
+        metadata: validated.metadata,
+        createdAt: now,
+        updatedAt: now,
+      };
 
-    // Persist to disk
-    this.persistTasks().catch((err) => {
-      this.logger.error(`Failed to persist task ${taskId}:`, err);
-    });
+      this.tasks.set(taskId, task);
+      // Persist with error notification (can't use SSE yet since task just created)
+      this.persistTasks().catch((err) => {
+        this.logger.error(`Failed to persist task ${taskId}:`, err);
+        // Note: SSE stream doesn't exist yet for this task, so we can't emit.
+        // The task will still work in-memory but won't survive a restart.
+      });
+      response = this.mapToResponse(task);
+    }
 
     this.logger.log(`Task created: ${taskId} for tenant: ${tenant.tenantId}`);
 
@@ -268,13 +316,25 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
       });
     });
 
-    return this.mapToResponse(task);
+    return response;
   }
 
   /**
    * Get task by ID
    */
-  findOne(tenantId: string, taskId: string): TaskResponse {
+  async findOne(tenantId: string, taskId: string): Promise<TaskResponse> {
+    if (this.useDatabase) {
+      const repo = this.getTaskRepository(tenantId);
+      const task = await repo.findById(taskId);
+
+      if (!task) {
+        throw new NotFoundError(`Task not found: ${taskId}`);
+      }
+
+      return this.mapDbTaskToResponse(task);
+    }
+
+    // File mode
     const task = this.tasks.get(taskId);
 
     if (!task) {
@@ -292,14 +352,14 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   /**
    * Get task status with checkpoint info
    */
-  getStatus(
+  async getStatus(
     tenantId: string,
     taskId: string
-  ): TaskResponse & {
+  ): Promise<TaskResponse & {
     pendingApproval: boolean;
     checkpoint?: Record<string, unknown>;
-  } {
-    const task = this.findOne(tenantId, taskId);
+  }> {
+    const task = await this.findOne(tenantId, taskId);
 
     return {
       ...task,
@@ -312,70 +372,80 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
    * Stream task execution events
    */
   streamEvents(tenantId: string, taskId: string): Observable<MessageEvent> {
-    // First verify task belongs to tenant
-    const task = this.tasks.get(taskId);
-    if (!task || task.tenantId !== tenantId) {
-      // Return completed observable for non-existent or unauthorized tasks
-      return new Observable((subscriber) => subscriber.complete());
-    }
-
     return new Observable((subscriber) => {
-      // Replay historical events first
-      const history = this.eventHistory.get(taskId) || [];
-      const now = Date.now();
-      for (const entry of history) {
-        // Only replay events within TTL
-        if (now - entry.timestamp < this.EVENT_HISTORY_TTL_MS) {
-          subscriber.next(entry.event);
+      // Verify task belongs to tenant (async in database mode)
+      const verifyAndStream = async () => {
+        try {
+          if (this.useDatabase) {
+            const repo = this.getTaskRepository(tenantId);
+            const task = await repo.findById(taskId);
+            if (!task) {
+              subscriber.complete();
+              return;
+            }
+          } else {
+            const task = this.tasks.get(taskId);
+            if (!task || task.tenantId !== tenantId) {
+              subscriber.complete();
+              return;
+            }
+          }
+
+          // Replay historical events first
+          const history = this.eventHistory.get(taskId) || [];
+          const now = Date.now();
+          for (const entry of history) {
+            // Only replay events within TTL
+            if (now - entry.timestamp < this.EVENT_HISTORY_TTL_MS) {
+              subscriber.next(entry.event);
+            }
+          }
+
+          // Subscribe to live events if stream is still active
+          const subject = this.eventStreams.get(taskId);
+          if (subject) {
+            const subscription = subject.subscribe({
+              next: (event) => subscriber.next(event),
+              error: (err) => subscriber.error(err),
+              complete: () => subscriber.complete(),
+            });
+
+            // Return cleanup function
+            return () => subscription.unsubscribe();
+          } else {
+            // No active stream, complete after replaying history
+            subscriber.complete();
+          }
+        } catch (error) {
+          subscriber.error(error);
         }
-      }
+      };
 
-      // Subscribe to live events if stream is still active
-      const subject = this.eventStreams.get(taskId);
-      if (subject) {
-        const subscription = subject.subscribe({
-          next: (event) => subscriber.next(event),
-          error: (err) => subscriber.error(err),
-          complete: () => subscriber.complete(),
-        });
-
-        return () => subscription.unsubscribe();
-      } else {
-        // No active stream, complete after replaying history
-        subscriber.complete();
-        return () => {};
-      }
+      verifyAndStream();
     });
   }
 
   /**
    * Handle approval/rejection for pending checkpoint
    */
-  handleApproval(
+  async handleApproval(
     tenantId: string,
     taskId: string,
     input: ApproveTaskInput
-  ): { success: boolean } {
+  ): Promise<{ success: boolean }> {
     // Validate input
     const validationResult = approveTaskSchema.safeParse(input);
     if (!validationResult.success) {
       throw new ValidationError('Invalid approval input');
     }
 
-    const task = this.tasks.get(taskId);
+    // Get task and verify status
+    const taskResponse = await this.findOne(tenantId, taskId);
 
-    if (!task) {
-      throw new NotFoundError(`Task not found: ${taskId}`);
-    }
-
-    if (task.tenantId !== tenantId) {
-      throw new NotFoundError(`Task not found: ${taskId}`);
-    }
-
-    if (task.status !== TaskStatus.AWAITING_APPROVAL) {
+    if (taskResponse.status !== TaskStatus.AWAITING_APPROVAL) {
       throw new TaskStateError(
         taskId,
-        task.status,
+        taskResponse.status,
         TaskStatus.AWAITING_APPROVAL
       );
     }
@@ -384,7 +454,7 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
 
     if (validated.approved) {
       this.logger.log(`Task ${taskId} approved, resuming workflow`);
-      this.updateTaskStatus(taskId, TaskStatus.EXECUTING);
+      this.updateTaskStatus(taskId, TaskStatus.AGENT_WORKING);
       // Resume the LangGraph workflow
       this.resumeWorkflowAfterApproval(taskId, true, validated.feedback).catch(
         (error) => {
@@ -404,27 +474,22 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   /**
    * Abort a running task
    */
-  abort(tenantId: string, taskId: string): { success: boolean } {
-    const task = this.tasks.get(taskId);
-
-    if (!task) {
-      throw new NotFoundError(`Task not found: ${taskId}`);
-    }
-
-    if (task.tenantId !== tenantId) {
-      throw new NotFoundError(`Task not found: ${taskId}`);
-    }
+  async abort(tenantId: string, taskId: string): Promise<{ success: boolean }> {
+    // Get task and verify tenant ownership
+    const taskResponse = await this.findOne(tenantId, taskId);
 
     // Only allow aborting active tasks
     const abortableStatuses: TaskStatus[] = [
       TaskStatus.PENDING,
       TaskStatus.ANALYZING,
-      TaskStatus.EXECUTING,
+      TaskStatus.ORCHESTRATING,
+      TaskStatus.AGENT_WORKING,
+      TaskStatus.COMPLETING,
       TaskStatus.AWAITING_APPROVAL,
     ];
 
-    if (!abortableStatuses.includes(task.status)) {
-      throw new TaskStateError(taskId, task.status, 'an abortable state');
+    if (!abortableStatuses.includes(taskResponse.status)) {
+      throw new TaskStateError(taskId, taskResponse.status, 'an abortable state');
     }
 
     this.updateTaskStatus(taskId, TaskStatus.ABORTED);
@@ -444,7 +509,28 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   /**
    * List tasks for tenant
    */
-  findAll(tenantId: string, projectId?: string): TaskResponse[] {
+  async findAll(tenantId: string, projectId?: string): Promise<TaskResponse[]> {
+    if (this.useDatabase) {
+      const repo = this.getTaskRepository(tenantId);
+      let dbTasks: DbTask[];
+
+      if (projectId) {
+        dbTasks = await repo.findByProject(projectId);
+      } else {
+        dbTasks = await repo.findByState('pending');
+        // Get all tasks by getting each state
+        const states: DbTask['status'][] = ['analyzing', 'orchestrating', 'agent_working',
+          'awaiting_approval', 'completing', 'completed', 'failed', 'aborted'];
+        for (const state of states) {
+          const stateTasks = await repo.findByState(state);
+          dbTasks.push(...stateTasks);
+        }
+      }
+
+      return dbTasks.map(t => this.mapDbTaskToResponse(t));
+    }
+
+    // File mode
     const tasks: TaskResponse[] = [];
 
     for (const task of this.tasks.values()) {
@@ -463,8 +549,17 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   /**
    * Get artifacts for a task
    */
-  getArtifacts(tenantId: string, taskId: string): ArtifactResponse[] {
-    // First verify task belongs to tenant
+  async getArtifacts(tenantId: string, taskId: string): Promise<ArtifactResponse[]> {
+    if (this.useDatabase) {
+      // Verify task belongs to tenant
+      await this.findOne(tenantId, taskId);
+
+      const repo = this.getArtifactRepository(tenantId);
+      const dbArtifacts = await repo.findByTaskId(taskId);
+      return dbArtifacts.map(a => this.mapDbArtifactToResponse(a));
+    }
+
+    // File mode: first verify task belongs to tenant
     const task = this.tasks.get(taskId);
     if (!task || task.tenantId !== tenantId) {
       throw new NotFoundError(`Task not found: ${taskId}`);
@@ -485,7 +580,7 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   /**
    * Add an artifact to a task (called by workflow)
    */
-  addArtifact(
+  async addArtifact(
     taskId: string,
     artifact: {
       type: ArtifactType;
@@ -493,32 +588,64 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
       path: string;
       content?: string;
     }
-  ): ArtifactResponse {
-    const task = this.tasks.get(taskId);
-    if (!task) {
-      throw new NotFoundError(`Task not found: ${taskId}`);
+  ): Promise<ArtifactResponse> {
+    const artifactId = crypto.randomUUID();
+    let response: ArtifactResponse;
+
+    if (this.useDatabase) {
+      // Database mode
+      const repo = new ArtifactRepository(this.db!);
+      const dbArtifact = await repo.create({
+        id: artifactId,
+        taskId,
+        type: this.mapApiArtifactTypeToDb(artifact.type),
+        filename: artifact.name,
+        path: artifact.path,
+        content: artifact.content,
+        contentSize: artifact.content?.length ?? 0,
+        status: 'generated',
+      });
+
+      response = this.mapDbArtifactToResponse(dbArtifact);
+    } else {
+      // File mode
+      const task = this.tasks.get(taskId);
+      if (!task) {
+        throw new NotFoundError(`Task not found: ${taskId}`);
+      }
+
+      const stored: StoredArtifact = {
+        id: artifactId,
+        taskId,
+        type: artifact.type,
+        name: artifact.name,
+        path: artifact.path,
+        content: artifact.content,
+        createdAt: new Date(),
+      };
+
+      const existing = this.artifacts.get(taskId) || [];
+      existing.push(stored);
+      this.artifacts.set(taskId, existing);
+
+      // Persist artifacts to disk with error notification
+      this.persistArtifacts(taskId).catch((err) => {
+        this.logger.error(`Failed to persist artifacts for task ${taskId}:`, err);
+        this.emitPersistenceError(taskId, 'artifact', err);
+      });
+
+      response = {
+        id: stored.id,
+        taskId: stored.taskId,
+        type: stored.type,
+        name: stored.name,
+        path: stored.path,
+        content: stored.content,
+        createdAt: stored.createdAt.toISOString(),
+      };
     }
 
-    const stored: StoredArtifact = {
-      id: crypto.randomUUID(),
-      taskId,
-      type: artifact.type,
-      name: artifact.name,
-      path: artifact.path,
-      content: artifact.content,
-      createdAt: new Date(),
-    };
-
-    const existing = this.artifacts.get(taskId) || [];
-    existing.push(stored);
-    this.artifacts.set(taskId, existing);
-
-    // Persist artifacts to disk
-    this.persistArtifacts(taskId).catch((err) => {
-      this.logger.error(`Failed to persist artifacts for task ${taskId}:`, err);
-    });
-
-    this.logger.log(`Artifact added: ${stored.id} (${artifact.type}) to task ${taskId}`);
+    this.logger.log(`Artifact added: ${artifactId} (${artifact.type}) to task ${taskId}`);
 
     // Emit event for artifact
     const eventSubject = this.eventStreams.get(taskId);
@@ -527,22 +654,14 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
         type: 'artifact_created',
         taskId,
         artifact: {
-          id: stored.id,
-          type: stored.type,
-          name: stored.name,
+          id: artifactId,
+          type: artifact.type,
+          name: artifact.name,
         },
       });
     }
 
-    return {
-      id: stored.id,
-      taskId: stored.taskId,
-      type: stored.type,
-      name: stored.name,
-      path: stored.path,
-      content: stored.content,
-      createdAt: stored.createdAt.toISOString(),
-    };
+    return response;
   }
 
   /**
@@ -555,10 +674,27 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
     const eventSubject = new Subject<MessageEvent>();
     this.eventStreams.set(taskId, eventSubject);
 
-    const task = this.tasks.get(taskId);
-    if (!task) {
-      this.logger.error(`Task not found for workflow: ${taskId}`);
-      return;
+    // Get task info (for projectId and prompt)
+    let projectId: string;
+    let prompt: string;
+
+    if (this.useDatabase) {
+      const repo = this.getTaskRepository(tenantId);
+      const dbTask = await repo.findById(taskId);
+      if (!dbTask) {
+        this.logger.error(`Task not found for workflow: ${taskId}`);
+        return;
+      }
+      projectId = dbTask.projectId;
+      prompt = dbTask.prompt;
+    } else {
+      const task = this.tasks.get(taskId);
+      if (!task) {
+        this.logger.error(`Task not found for workflow: ${taskId}`);
+        return;
+      }
+      projectId = task.projectId;
+      prompt = task.prompt;
     }
 
     try {
@@ -566,7 +702,17 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
       this.updateTaskStatus(taskId, TaskStatus.ANALYZING);
       this.emitEvent(eventSubject, { type: 'workflow_started', taskId });
 
-      // Subscribe to WorkflowService events and forward to our SSE stream
+      // Start workflow (async) - this creates the event stream synchronously at the start
+      // Don't await yet - we subscribe to the stream first
+      const resultPromise = this.workflowService.startWorkflow({
+        tenantId,
+        projectId,
+        taskId,
+        prompt,
+      });
+
+      // Subscribe to WorkflowService events (stream exists after startWorkflow call begins)
+      // ReplaySubject buffers events, so we won't miss any even with slight timing differences
       const workflowStream = this.workflowService.getEventStream(taskId);
       if (workflowStream) {
         workflowStream.subscribe({
@@ -586,19 +732,16 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
             this.logger.debug(`Workflow stream completed for task ${taskId}`);
           },
         });
+      } else {
+        this.logger.warn(`Workflow stream not found for task ${taskId}`);
       }
 
-      // Execute the real LangGraph workflow
-      const result = await this.workflowService.startWorkflow({
-        tenantId,
-        projectId: task.projectId,
-        taskId,
-        prompt: task.prompt,
-      });
+      // Now await the workflow result
+      const result = await resultPromise;
 
       // Check if aborted during execution
-      const currentTask = this.tasks.get(taskId);
-      if (!currentTask || currentTask.status === TaskStatus.ABORTED) {
+      const isAborted = await this.isTaskAborted(tenantId, taskId);
+      if (isAborted) {
         return;
       }
 
@@ -646,6 +789,33 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
     } finally {
       this.eventStreams.delete(taskId);
     }
+  }
+
+  /**
+   * Check if a task has been aborted
+   */
+  private async isTaskAborted(tenantId: string, taskId: string): Promise<boolean> {
+    if (this.useDatabase) {
+      const repo = this.getTaskRepository(tenantId);
+      const task = await repo.findById(taskId);
+      return !task || task.status === 'aborted';
+    }
+    const task = this.tasks.get(taskId);
+    return !task || task.status === TaskStatus.ABORTED;
+  }
+
+  /**
+   * Check if a task has been aborted (internal, without tenant check)
+   */
+  private async isTaskAbortedInternal(taskId: string): Promise<boolean> {
+    if (this.useDatabase) {
+      // Use repository without tenant filter
+      const repo = new TaskRepository(this.db!);
+      const task = await repo.findById(taskId);
+      return !task || task.status === 'aborted';
+    }
+    const task = this.tasks.get(taskId);
+    return !task || task.status === TaskStatus.ABORTED;
   }
 
   /**
@@ -721,12 +891,36 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
 
   /**
    * Update task status
+   *
+   * Performs database/file updates asynchronously but notifies the client
+   * via SSE if persistence fails. This ensures the client knows about
+   * state inconsistencies rather than failing silently.
    */
   private updateTaskStatus(
     taskId: string,
     status: TaskStatus,
     updates: Partial<StoredTask> = {}
   ): void {
+    if (this.useDatabase) {
+      // Database mode: async update with error notification
+      const repo = new TaskRepository(this.db!);
+      const dbStatus = this.mapApiStatusToDb(status);
+      const extra: Parameters<TaskRepository['updateState']>[2] = {
+        currentAgent: updates.currentAgent ?? null,
+        completedAgents: updates.completedAgents,
+      };
+      if (updates.error) {
+        extra.error = { code: 'WORKFLOW_ERROR', message: updates.error };
+      }
+      repo.updateState(taskId, dbStatus, extra).catch((err) => {
+        this.logger.error(`Failed to update task status in database for ${taskId}:`, err);
+        // Notify connected clients about the persistence failure
+        this.emitPersistenceError(taskId, 'task_status', err);
+      });
+      return;
+    }
+
+    // File mode
     const task = this.tasks.get(taskId);
     if (!task) return;
 
@@ -734,10 +928,30 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
     task.updatedAt = new Date();
     Object.assign(task, updates);
 
-    // Persist to disk
+    // Persist to disk with error notification
     this.persistTasks().catch((err) => {
       this.logger.error(`Failed to persist task status update for ${taskId}:`, err);
+      this.emitPersistenceError(taskId, 'task_status', err);
     });
+  }
+
+  /**
+   * Emit persistence error to SSE stream
+   *
+   * Notifies connected clients that a database/file operation failed.
+   * This allows the UI to show a warning or trigger a refresh.
+   */
+  private emitPersistenceError(taskId: string, operation: string, error: unknown): void {
+    const eventSubject = this.eventStreams.get(taskId);
+    if (eventSubject) {
+      this.emitEvent(eventSubject, {
+        type: 'persistence_error',
+        taskId,
+        operation,
+        error: error instanceof Error ? error.message : String(error),
+        message: `Failed to persist ${operation}. State may be inconsistent. Consider refreshing.`,
+      });
+    }
   }
 
   /**
@@ -783,6 +997,106 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   }
 
   /**
+   * Map database task to API response
+   */
+  private mapDbTaskToResponse(task: DbTask): TaskResponse {
+    return {
+      id: task.id,
+      projectId: task.projectId,
+      tenantId: task.tenantId,
+      prompt: task.prompt,
+      status: this.mapDbStatusToApi(task.status),
+      analysis: task.analysis as unknown as Record<string, unknown> | undefined,
+      currentAgent: task.currentAgent ?? undefined,
+      completedAgents: task.completedAgents ?? [],
+      error: task.error?.message,
+      createdAt: task.createdAt.toISOString(),
+      updatedAt: task.updatedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Map database status to API status (1:1 mapping)
+   */
+  private mapDbStatusToApi(dbStatus: DbTask['status']): TaskStatus {
+    const statusMap: Record<DbTask['status'], TaskStatus> = {
+      pending: TaskStatus.PENDING,
+      analyzing: TaskStatus.ANALYZING,
+      orchestrating: TaskStatus.ORCHESTRATING,
+      agent_working: TaskStatus.AGENT_WORKING,
+      awaiting_approval: TaskStatus.AWAITING_APPROVAL,
+      completing: TaskStatus.COMPLETING,
+      completed: TaskStatus.COMPLETED,
+      failed: TaskStatus.FAILED,
+      aborted: TaskStatus.ABORTED,
+    };
+    return statusMap[dbStatus];
+  }
+
+  /**
+   * Map API status to database status (1:1 mapping)
+   */
+  private mapApiStatusToDb(apiStatus: TaskStatus): DbTask['status'] {
+    const statusMap: Record<TaskStatus, DbTask['status']> = {
+      [TaskStatus.PENDING]: 'pending',
+      [TaskStatus.ANALYZING]: 'analyzing',
+      [TaskStatus.ORCHESTRATING]: 'orchestrating',
+      [TaskStatus.AGENT_WORKING]: 'agent_working',
+      [TaskStatus.AWAITING_APPROVAL]: 'awaiting_approval',
+      [TaskStatus.COMPLETING]: 'completing',
+      [TaskStatus.COMPLETED]: 'completed',
+      [TaskStatus.FAILED]: 'failed',
+      [TaskStatus.ABORTED]: 'aborted',
+    };
+    return statusMap[apiStatus];
+  }
+
+  /**
+   * Map API artifact type to database artifact type (1:1 mapping)
+   * Legacy aliases are resolved to their canonical forms.
+   */
+  private mapApiArtifactTypeToDb(apiType: ArtifactType): DbArtifact['type'] {
+    // API types now match DB types directly
+    // Legacy aliases (STYLESHEET, FLOW, CONFIG) resolve to their canonical values
+    return apiType as DbArtifact['type'];
+  }
+
+  /**
+   * Map database artifact to API response (1:1 mapping)
+   */
+  private mapDbArtifactToResponse(artifact: DbArtifact): ArtifactResponse {
+    return {
+      id: artifact.id,
+      taskId: artifact.taskId,
+      type: artifact.type as ArtifactType,
+      name: artifact.filename,
+      path: artifact.path,
+      content: artifact.content ?? undefined,
+      createdAt: artifact.createdAt.toISOString(),
+    };
+  }
+
+  /**
+   * Get TaskRepository for a tenant
+   */
+  private getTaskRepository(tenantId: string): TaskRepository {
+    if (!this.db) {
+      throw new Error('Database not configured');
+    }
+    return new TaskRepository(this.db, tenantId);
+  }
+
+  /**
+   * Get ArtifactRepository for a tenant
+   */
+  private getArtifactRepository(tenantId: string): ArtifactRepository {
+    if (!this.db) {
+      throw new Error('Database not configured');
+    }
+    return new ArtifactRepository(this.db, tenantId);
+  }
+
+  /**
    * Resume workflow after approval decision
    */
   private async resumeWorkflowAfterApproval(
@@ -802,9 +1116,9 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
         feedback
       );
 
-      // Check if aborted
-      const currentTask = this.tasks.get(taskId);
-      if (!currentTask || currentTask.status === TaskStatus.ABORTED) {
+      // Check if aborted (use internal method without tenant check)
+      const isAborted = await this.isTaskAbortedInternal(taskId);
+      if (isAborted) {
         return;
       }
 

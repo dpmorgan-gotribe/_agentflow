@@ -8,12 +8,12 @@ interface DesignPreviewProps {
   fullWidth?: boolean;
 }
 
-type TabType = 'mockups' | 'stylesheets' | 'flows';
+type TabType = 'mockups' | 'assets' | 'docs';
 
 const TAB_CONFIG: Record<TabType, { label: string; icon: string; types: ArtifactType[] }> = {
   mockups: { label: 'Mockups', icon: '🎨', types: ['mockup'] },
-  stylesheets: { label: 'Styles', icon: '📝', types: ['stylesheet'] },
-  flows: { label: 'Flows', icon: '📊', types: ['flow'] },
+  assets: { label: 'Styles', icon: '📝', types: ['asset'] },
+  docs: { label: 'Docs', icon: '📊', types: ['documentation'] },
 };
 
 export function DesignPreview({ taskId, fullWidth }: DesignPreviewProps) {
@@ -51,8 +51,8 @@ export function DesignPreview({ taskId, fullWidth }: DesignPreviewProps) {
   // Filter artifacts by tab
   const filteredArtifacts: Record<TabType, Artifact[]> = {
     mockups: artifacts.filter((a) => TAB_CONFIG.mockups.types.includes(a.type)),
-    stylesheets: artifacts.filter((a) => TAB_CONFIG.stylesheets.types.includes(a.type)),
-    flows: artifacts.filter((a) => TAB_CONFIG.flows.types.includes(a.type)),
+    assets: artifacts.filter((a) => TAB_CONFIG.assets.types.includes(a.type)),
+    docs: artifacts.filter((a) => TAB_CONFIG.docs.types.includes(a.type)),
   };
 
   const currentArtifacts = filteredArtifacts[activeTab];

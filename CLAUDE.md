@@ -31,6 +31,7 @@ src/                    # Application code
 
 ## 🔧 Commands Available
 
+### Development Workflow
 - `/status` — Check current phase, progress, and context
 - `/start-phase [n]` — Begin working on phase n
 - `/implement [task]` — Implement a feature/task
@@ -39,6 +40,16 @@ src/                    # Application code
 - `/review [scope]` — Code review
 - `/checkpoint` — Save progress and verify state
 - `/capture-lesson` — Extract and save a learning
+
+### Dev Environment Control
+- `/dev` — Start dev server (in-memory mode, fast)
+- `/dev db` — Start PostgreSQL container only
+- `/dev full` — Start full stack (PostgreSQL + API + Web)
+- `/stop` — Stop all services (Docker + dev servers)
+- `/restart` — Restart development environment
+- `/docker-status` — Check Docker container status and health
+- `/db push` — Push schema changes to database
+- `/db reset` — Reset database (fresh start)
 
 ## 📋 Current Phase
 

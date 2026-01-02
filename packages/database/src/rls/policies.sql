@@ -6,6 +6,24 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
+-- Create roles first (must exist before policies reference them)
+-- -----------------------------------------------------------------------------
+
+DO $$
+BEGIN
+  -- Application role (normal users)
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'app_user') THEN
+    CREATE ROLE app_user NOLOGIN;
+  END IF;
+
+  -- Service role (bypasses RLS for system operations)
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+    CREATE ROLE service_role NOLOGIN;
+  END IF;
+END
+$$;
+
+-- -----------------------------------------------------------------------------
 -- Helper function to get current tenant ID from session context
 -- -----------------------------------------------------------------------------
 
@@ -29,6 +47,10 @@ ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE artifacts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approvals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE task_executions ENABLE ROW LEVEL SECURITY;
 
 -- -----------------------------------------------------------------------------
 -- Tenants Table Policies
@@ -135,24 +157,91 @@ CREATE POLICY audit_service_role ON audit_logs
   USING (true);
 
 -- -----------------------------------------------------------------------------
--- Create roles if they don't exist
+-- Users Table Policies
+-- Users are scoped to tenant
 -- -----------------------------------------------------------------------------
 
-DO $$
-BEGIN
-  -- Application role (normal users)
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'app_user') THEN
-    CREATE ROLE app_user NOLOGIN;
-  END IF;
+DROP POLICY IF EXISTS user_tenant_isolation ON users;
+CREATE POLICY user_tenant_isolation ON users
+  FOR ALL
+  USING (tenant_id = current_tenant_id());
 
-  -- Service role (bypasses RLS for system operations)
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
-    CREATE ROLE service_role NOLOGIN;
-  END IF;
-END
-$$;
+DROP POLICY IF EXISTS user_service_role ON users;
+CREATE POLICY user_service_role ON users
+  FOR ALL
+  TO service_role
+  USING (true);
 
+-- -----------------------------------------------------------------------------
+-- Artifacts Table Policies
+-- Artifacts are scoped to tenant via tasks
+-- -----------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS artifact_tenant_isolation ON artifacts;
+CREATE POLICY artifact_tenant_isolation ON artifacts
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM tasks
+      WHERE tasks.id = artifacts.task_id
+      AND tasks.tenant_id = current_tenant_id()
+    )
+  );
+
+DROP POLICY IF EXISTS artifact_service_role ON artifacts;
+CREATE POLICY artifact_service_role ON artifacts
+  FOR ALL
+  TO service_role
+  USING (true);
+
+-- -----------------------------------------------------------------------------
+-- Approvals Table Policies
+-- Approvals are scoped to tenant via tasks
+-- -----------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS approval_tenant_isolation ON approvals;
+CREATE POLICY approval_tenant_isolation ON approvals
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM tasks
+      WHERE tasks.id = approvals.task_id
+      AND tasks.tenant_id = current_tenant_id()
+    )
+  );
+
+DROP POLICY IF EXISTS approval_service_role ON approvals;
+CREATE POLICY approval_service_role ON approvals
+  FOR ALL
+  TO service_role
+  USING (true);
+
+-- -----------------------------------------------------------------------------
+-- Task Executions Table Policies
+-- Task executions are scoped to tenant via tasks
+-- -----------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS task_execution_tenant_isolation ON task_executions;
+CREATE POLICY task_execution_tenant_isolation ON task_executions
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM tasks
+      WHERE tasks.id = task_executions.task_id
+      AND tasks.tenant_id = current_tenant_id()
+    )
+  );
+
+DROP POLICY IF EXISTS task_execution_service_role ON task_executions;
+CREATE POLICY task_execution_service_role ON task_executions
+  FOR ALL
+  TO service_role
+  USING (true);
+
+-- -----------------------------------------------------------------------------
 -- Grant appropriate permissions
+-- -----------------------------------------------------------------------------
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO app_user;
@@ -169,3 +258,37 @@ ALTER TABLE tasks FORCE ROW LEVEL SECURITY;
 ALTER TABLE agents FORCE ROW LEVEL SECURITY;
 ALTER TABLE lessons FORCE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
+ALTER TABLE artifacts FORCE ROW LEVEL SECURITY;
+ALTER TABLE approvals FORCE ROW LEVEL SECURITY;
+ALTER TABLE task_executions FORCE ROW LEVEL SECURITY;
+
+-- -----------------------------------------------------------------------------
+-- Development Seed Data
+-- Creates a dev tenant for local development with dev-token-12345
+-- -----------------------------------------------------------------------------
+
+INSERT INTO tenants (id, name, slug, type, status, owner_user_id, owner_email, owner_name, quotas)
+VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  'Development Tenant',
+  'dev',
+  'professional',
+  'active',
+  '00000000-0000-0000-0000-000000000001',
+  'dev@localhost',
+  'Dev User',
+  '{"maxUsers": 100, "maxProjects": 100, "maxTokensPerMonth": 10000000, "maxStorageGB": 100, "maxConcurrentAgents": 10}'::jsonb
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Dev project for local development
+INSERT INTO projects (id, tenant_id, name, description, status)
+VALUES (
+  '123e4567-e89b-12d3-a456-426614174000',
+  '00000000-0000-0000-0000-000000000001',
+  'Dev Project',
+  'Development testing project',
+  'active'
+)
+ON CONFLICT (id) DO NOTHING;

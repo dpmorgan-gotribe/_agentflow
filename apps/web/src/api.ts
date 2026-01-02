@@ -101,11 +101,18 @@ export function getTaskStreamUrl(taskId: string): string {
 
 /**
  * Trigger server shutdown
+ * Also passes the frontend port so the API can kill the Vite dev server
  */
 export async function triggerShutdown(reason?: string): Promise<{ message: string; shuttingDown: boolean }> {
+  // Get the current port from the browser's URL (e.g., 5173 for Vite)
+  const frontendPort = window.location.port ? parseInt(window.location.port, 10) : undefined;
+
   return fetchApi<{ message: string; shuttingDown: boolean }>('/system/shutdown', {
     method: 'POST',
-    body: JSON.stringify({ reason: reason ?? 'User clicked Kill All button' }),
+    body: JSON.stringify({
+      reason: reason ?? 'User clicked Kill All button',
+      frontendPort,
+    }),
   });
 }
 

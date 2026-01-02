@@ -9,15 +9,17 @@ export function ArtifactViewer({ artifact }: ArtifactViewerProps) {
     case 'mockup':
       return <MockupViewer artifact={artifact} />;
 
-    case 'stylesheet':
+    case 'asset':
       return <CodeViewer artifact={artifact} language="css" />;
 
-    case 'flow':
+    case 'documentation':
       return <MarkdownViewer artifact={artifact} />;
 
     case 'source_file':
     case 'test_file':
-    case 'config':
+    case 'config_file':
+    case 'schema':
+    case 'migration':
       return <CodeViewer artifact={artifact} />;
 
     default:

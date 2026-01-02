@@ -6,13 +6,19 @@
 
 import { Controller, Post, Body, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsNumber, Min, Max } from 'class-validator';
 import { SystemService } from './system.service';
 
 class ShutdownDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(65535)
+  frontendPort?: number;
 }
 
 @Controller('system')
@@ -33,6 +39,7 @@ export class SystemController {
       type: 'object',
       properties: {
         reason: { type: 'string', description: 'Reason for shutdown' },
+        frontendPort: { type: 'number', description: 'Frontend port to also kill (e.g., 5173 for Vite)' },
       },
     },
     required: false,
@@ -50,11 +57,12 @@ export class SystemController {
   })
   async shutdown(@Body() body: ShutdownDto): Promise<{ message: string; shuttingDown: boolean }> {
     const reason = body?.reason ?? 'User requested shutdown from UI';
-    this.logger.warn(`Shutdown requested: ${reason}`);
+    const frontendPort = body?.frontendPort;
+    this.logger.warn(`Shutdown requested: ${reason}${frontendPort ? ` (frontend port: ${frontendPort})` : ''}`);
 
     // Trigger shutdown asynchronously so we can send response first
     setImmediate(() => {
-      this.systemService.triggerShutdown(reason).catch((err) => {
+      this.systemService.triggerShutdown(reason, frontendPort).catch((err) => {
         this.logger.error('Shutdown failed:', err);
       });
     });

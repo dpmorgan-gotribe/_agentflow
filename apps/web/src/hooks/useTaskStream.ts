@@ -178,15 +178,21 @@ function extractAgentName(data: StreamData): AgentType {
   // Try various fields that might contain the agent name
   const agent = data.currentAgent || data.agent || data.agentId;
   if (agent) {
+    // Normalize agent names (backend uses 'analyzer', frontend uses 'analyst')
+    const normalizedAgent = agent === 'analyzer' ? 'analyst' : agent;
+
     // Validate it's a known agent type
     const knownAgents: AgentType[] = [
-      'orchestrator', 'project_manager', 'architect', 'analyst',
-      'project_analyzer', 'compliance', 'ui_designer', 'frontend_developer',
-      'backend_developer', 'tester', 'bug_fixer', 'reviewer', 'git_agent'
+      'orchestrator', 'project_manager', 'architect', 'analyst', 'analyzer',
+      'project_analyzer', 'compliance', 'compliance_agent', 'ui_designer',
+      'frontend_developer', 'backend_developer', 'tester', 'bug_fixer',
+      'reviewer', 'git_agent'
     ];
-    if (knownAgents.includes(agent as AgentType)) {
-      return agent as AgentType;
+    if (knownAgents.includes(normalizedAgent as AgentType)) {
+      return normalizedAgent as AgentType;
     }
+    // Return raw agent name if not in known list (better than defaulting to orchestrator)
+    return agent as AgentType;
   }
   return 'orchestrator';
 }

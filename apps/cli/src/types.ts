@@ -32,23 +32,32 @@ export const OutputFormatSchema = z.enum(['pretty', 'json']);
 
 /**
  * Task states from the API
+ * Matches database task_status enum for 1:1 mapping.
  */
 export const TaskStates = {
   PENDING: 'pending',
-  RUNNING: 'running',
+  ANALYZING: 'analyzing',
+  ORCHESTRATING: 'orchestrating',
+  AGENT_WORKING: 'agent_working',
   AWAITING_APPROVAL: 'awaiting_approval',
+  COMPLETING: 'completing',
   COMPLETED: 'completed',
   FAILED: 'failed',
+  ABORTED: 'aborted',
 } as const;
 
 export type TaskState = (typeof TaskStates)[keyof typeof TaskStates];
 
 export const TaskStateSchema = z.enum([
   'pending',
-  'running',
+  'analyzing',
+  'orchestrating',
+  'agent_working',
   'awaiting_approval',
+  'completing',
   'completed',
   'failed',
+  'aborted',
 ]);
 
 /**

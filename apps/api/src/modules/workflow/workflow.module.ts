@@ -7,8 +7,10 @@
 import { Module } from '@nestjs/common';
 
 import { WorkflowService } from './workflow.service';
+import { ProjectsModule } from '../projects';
 
 @Module({
+  imports: [ProjectsModule],
   providers: [WorkflowService],
   exports: [WorkflowService],
 })

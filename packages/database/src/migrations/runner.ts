@@ -8,11 +8,15 @@
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createDatabase, closeDatabase, type Database } from '../client.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Get __dirname for migration folder resolution
+// Since this is compiled to CJS, we use a simple approach that works in both modes
+const __dirname = (() => {
+  // In CJS mode, use process.cwd() as base (users typically override migrationsFolder anyway)
+  // This avoids issues with import.meta.url being undefined in CJS
+  return process.cwd();
+})();
 
 /**
  * Migration options
@@ -316,7 +320,7 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run if called directly (ESM only - import.meta is undefined in CJS)
+if (typeof import.meta !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
   main();
 }

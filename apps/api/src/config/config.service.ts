@@ -33,20 +33,18 @@ export class ConfigService {
     return this.configService.get('PORT', { infer: true }) ?? 3000;
   }
 
-  get databaseUrl(): string {
-    const url = this.configService.get('DATABASE_URL', { infer: true });
-    if (!url) {
-      throw new Error('DATABASE_URL is not configured');
-    }
-    return url;
+  get databaseUrl(): string | undefined {
+    return this.configService.get('DATABASE_URL', { infer: true });
+  }
+
+  get hasDatabaseUrl(): boolean {
+    return !!this.databaseUrl;
   }
 
   get jwtSecret(): string {
     const secret = this.configService.get('JWT_SECRET', { infer: true });
-    if (!secret) {
-      throw new Error('JWT_SECRET is not configured');
-    }
-    return secret;
+    // Default for development only
+    return secret ?? 'development-secret-key-do-not-use-in-production-32chars';
   }
 
   get jwtExpiresIn(): string {
@@ -55,10 +53,9 @@ export class ConfigService {
 
   get corsOrigins(): string[] {
     const origins = this.configService.get('CORS_ORIGINS', { infer: true });
-    if (!origins) {
-      throw new Error('CORS_ORIGINS is not configured');
-    }
-    return origins.split(',').map((o) => o.trim());
+    // Default for development only
+    const defaultOrigins = 'http://localhost:5173,http://localhost:3000';
+    return (origins ?? defaultOrigins).split(',').map((o) => o.trim());
   }
 
   get rateLimitMax(): number {

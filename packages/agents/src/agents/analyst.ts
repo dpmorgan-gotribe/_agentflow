@@ -97,11 +97,11 @@ export class AnalystAgent extends BaseAgent {
    * Build system prompt for research
    */
   protected buildSystemPrompt(context: AgentContext): string {
-    // Check if this is a style research task
+    // Check if this is a style research task by looking at the prompt in context
     const currentTask = context.items.find((i) => i.type === ContextTypeEnum.CURRENT_TASK);
     if (currentTask) {
       const taskDescription = this.extractTaskDescription(currentTask.content);
-      const reportType = this.determineReportType({ description: taskDescription } as unknown as TaskAnalysis);
+      const reportType = this.determineReportTypeFromPrompt(taskDescription);
       if (reportType === 'style_research') {
         return this.buildStyleResearchSystemPrompt();
       }
@@ -169,21 +169,20 @@ Output must be valid JSON matching this structure:
    * Build user prompt with request details
    */
   protected buildUserPrompt(request: AgentRequest): string {
-    const task = request.task;
     const contextItems = request.context.items;
 
-    // Determine report type from task
-    const reportType = this.determineReportType(task);
+    // Get the original user prompt from context (not the TaskAnalysis)
+    const userPrompt = this.getPromptFromContext(request);
+
+    // Determine report type from the user prompt
+    const reportType = this.determineReportTypeFromPrompt(userPrompt);
 
     // Use style research prompt if appropriate
     if (reportType === 'style_research') {
       return this.buildStyleResearchUserPrompt(request);
     }
 
-    // Get task description
-    const description = this.getTaskDescription(task);
-
-    let prompt = `Research Question: ${description}\n\n`;
+    let prompt = `Research Question: ${userPrompt}\n\n`;
     prompt += `Report Type: ${reportType}\n\n`;
 
     // Include project context if available
@@ -372,11 +371,25 @@ Output must be valid JSON matching this structure:
   }
 
   /**
-   * Determine report type from task
+   * Determine report type from user prompt string
+   */
+  private determineReportTypeFromPrompt(promptText: string): ReportType {
+    const description = promptText.toLowerCase();
+    return this.determineReportTypeFromDescription(description);
+  }
+
+  /**
+   * Determine report type from task (legacy, uses TaskAnalysis)
    */
   private determineReportType(task: TaskAnalysis): ReportType {
     const description = this.getTaskDescription(task).toLowerCase();
+    return this.determineReportTypeFromDescription(description);
+  }
 
+  /**
+   * Determine report type from description text
+   */
+  private determineReportTypeFromDescription(description: string): ReportType {
     // Style research detection (design workflow)
     if (
       description.includes('design') ||
@@ -448,13 +461,39 @@ Output must be valid JSON matching this structure:
   }
 
   /**
-   * Get task description string
+   * Get task description string from TaskAnalysis (fallback method)
    */
   private getTaskDescription(task: TaskAnalysis): string {
     if (typeof task === 'object' && 'description' in task) {
       return (task as { description?: string }).description || JSON.stringify(task);
     }
     return JSON.stringify(task);
+  }
+
+  /**
+   * Get the original user prompt from context items
+   *
+   * This is the correct way to get the user's prompt - from the CURRENT_TASK
+   * context item, not from the TaskAnalysis object.
+   */
+  private getPromptFromContext(request: AgentRequest): string {
+    // Look for CURRENT_TASK context item which contains the original prompt
+    const currentTask = request.context.items.find(
+      (item) => item.type === ContextTypeEnum.CURRENT_TASK
+    );
+
+    if (currentTask?.content) {
+      const content = currentTask.content as Record<string, unknown>;
+      // The prompt is stored in the content['prompt'] field by the agent-adapter
+      const promptValue = content['prompt'];
+      if (typeof promptValue === 'string' && promptValue.length > 0) {
+        return promptValue;
+      }
+    }
+
+    // Fallback to getTaskDescription if no prompt found (should not happen)
+    this.log('warn', 'No prompt found in CURRENT_TASK context, falling back to task description');
+    return this.getTaskDescription(request.task);
   }
 
   /**
@@ -850,7 +889,8 @@ Respond with valid JSON matching the StyleResearchOutput schema:
    * Build user prompt for style research
    */
   protected buildStyleResearchUserPrompt(request: AgentRequest): string {
-    const description = this.getTaskDescription(request.task);
+    // Get the original user prompt from context (not the TaskAnalysis)
+    const description = this.getPromptFromContext(request);
 
     // Extract style hints from the prompt
     const hints = extractStyleHintsFromPrompt(description);
