@@ -170,4 +170,10 @@ export const AI_PROVIDER_LIMITS = {
   MAX_TIMEOUT_MS: 900_000, // 15 minutes
   /** Default timeout in milliseconds */
   DEFAULT_TIMEOUT_MS: 900_000, // 15 minutes
+  /**
+   * Maximum total prompt length (chars) for Claude CLI
+   * Claude CLI can fail silently with "Execution error" for very long prompts.
+   * 80k chars is ~20k tokens which leaves headroom for response.
+   */
+  MAX_PROMPT_LENGTH: 80_000,
 } as const;

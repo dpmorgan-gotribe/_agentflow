@@ -311,7 +311,17 @@ export class ClaudeCliProvider implements AIProvider {
             this.sanitizeStderr(error)
           ));
         } else {
-          resolve({ content: output.trim() });
+          // Check for known error responses from Claude CLI
+          const trimmedOutput = output.trim();
+          if (trimmedOutput === 'Execution error' || trimmedOutput.startsWith('Error:')) {
+            reject(new CLIExecutionError(
+              `Claude CLI returned an error: ${trimmedOutput}. This may indicate the prompt was too long or there was a service issue.`,
+              0,
+              trimmedOutput
+            ));
+          } else {
+            resolve({ content: trimmedOutput });
+          }
         }
       });
     });
@@ -425,6 +435,9 @@ export class ClaudeCliProvider implements AIProvider {
 
   /**
    * Build prompt from request
+   *
+   * Enforces MAX_PROMPT_LENGTH to prevent "Execution error" from Claude CLI.
+   * If prompt is too long, truncates the user message content with a notice.
    */
   private buildPrompt(request: AIProviderRequest): string {
     let prompt = '';
@@ -434,6 +447,19 @@ export class ClaudeCliProvider implements AIProvider {
     for (const msg of request.messages) {
       prompt += `<${msg.role}>\n${msg.content}\n</${msg.role}>\n\n`;
     }
+
+    // Check if prompt exceeds limit
+    const maxLength = AI_PROVIDER_LIMITS.MAX_PROMPT_LENGTH;
+    if (prompt.length > maxLength) {
+      console.warn(
+        `[ClaudeCliProvider] Prompt too long (${prompt.length} chars), truncating to ${maxLength} chars`
+      );
+      // Truncate and add a notice
+      const truncationNotice = '\n\n[NOTE: Content was truncated due to length limits. Focus on the most important aspects.]';
+      const truncatedLength = maxLength - truncationNotice.length - 100; // Leave buffer
+      prompt = prompt.slice(0, truncatedLength) + truncationNotice;
+    }
+
     return prompt;
   }
 
