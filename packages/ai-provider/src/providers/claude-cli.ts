@@ -233,8 +233,9 @@ export class ClaudeCliProvider implements AIProvider {
       // Spawn bash directly and run cat | claude -p
       // Using bash as shell (not cmd) to preserve subscription mode
       const safePath = promptFilePath.replace(/\\/g, '/');
-      // Simple command - matches working test-claude.js pattern
-      const bashCommand = `cat '${safePath}' | claude -p`;
+      // Export CLAUDE_CODE_MAX_OUTPUT_TOKENS in bash to ensure it's available to claude
+      // On Windows with Git Bash, env vars passed via spawn() may not propagate correctly
+      const bashCommand = `export CLAUDE_CODE_MAX_OUTPUT_TOKENS=200000; cat '${safePath}' | claude -p`;
       console.log(`[ClaudeCliProvider] Executing via bash: ${bashCommand}`);
 
       // Remove ANTHROPIC_API_KEY from env to force subscription mode
