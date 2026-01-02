@@ -88,6 +88,19 @@ export class SystemService implements OnApplicationShutdown {
   }
 
   /**
+   * Kill all Vite dev server ports (5173-5178)
+   * Vite increments ports when previous ones are in use
+   */
+  private killAllVitePorts(): void {
+    const vitePorts = [5173, 5174, 5175, 5176, 5177, 5178];
+    this.logger.log(`Killing all Vite dev servers on ports ${vitePorts.join(', ')}...`);
+
+    for (const port of vitePorts) {
+      this.killByPort(port);
+    }
+  }
+
+  /**
    * Kill the entire process tree (API + frontend + all children)
    * This ensures the Kill All button actually stops everything
    */
@@ -95,9 +108,12 @@ export class SystemService implements OnApplicationShutdown {
     const ppid = process.ppid;
     const isWindows = process.platform === 'win32';
 
-    // First, kill the frontend if port is provided (runs as sibling process under turbo)
-    if (frontendPort) {
-      this.logger.log(`Killing frontend on port ${frontendPort}...`);
+    // Kill all Vite dev server instances (they can spawn on multiple ports)
+    this.killAllVitePorts();
+
+    // Also kill specific frontend port if provided
+    if (frontendPort && ![5173, 5174, 5175, 5176, 5177, 5178].includes(frontendPort)) {
+      this.logger.log(`Killing additional frontend on port ${frontendPort}...`);
       this.killByPort(frontendPort);
     }
 
