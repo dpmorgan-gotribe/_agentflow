@@ -21,9 +21,11 @@ import { getAgentRegistry } from './execute.js';
 export const MAX_PARALLEL_AGENTS = 15;
 
 /**
- * Style competition always uses exactly 5 designers
+ * Style competition designers count
+ * NOTE: Set to 1 for development/testing to reduce token usage
+ * Production should use 5 for proper style competition
  */
-export const STYLE_COMPETITION_DESIGNERS = 5;
+export const STYLE_COMPETITION_DESIGNERS = 1;
 
 /**
  * Execute a single agent as part of parallel dispatch

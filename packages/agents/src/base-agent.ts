@@ -24,6 +24,7 @@ import type {
 } from '@aigentflow/ai-provider';
 import { getAIProvider } from '@aigentflow/ai-provider';
 import { extractJSON, STRUCTURED_OUTPUT_INSTRUCTION } from './utils/structured-output.js';
+import { sanitizeLLMJson } from './utils/json-sanitizer.js';
 import type {
   AgentMetadata,
   AgentContext,
@@ -539,7 +540,13 @@ export abstract class BaseAgent {
     const jsonStr = extractJSON(text);
 
     try {
-      return JSON.parse(jsonStr) as T;
+      const parsed = JSON.parse(jsonStr);
+      // Sanitize to fix common LLM output issues:
+      // - String booleans ("true" -> true)
+      // - Nested objects where strings expected
+      // - Objects where arrays expected
+      const sanitized = sanitizeLLMJson(parsed);
+      return sanitized as T;
     } catch (error) {
       // Log the extraction attempt for debugging
       this.log('debug', 'JSON parse failed', {
