@@ -10,6 +10,7 @@
  */
 
 import { z } from 'zod';
+
 import { LenientAgentTypeArraySchema } from '../types.js';
 
 /**
@@ -257,6 +258,48 @@ export const DataFieldSchema = z.object({
 export type DataField = z.infer<typeof DataFieldSchema>;
 
 /**
+ * Helper to coerce constraints from object to array
+ * Claude might return { unique: true, notNull: true } instead of ['unique', 'notNull']
+ */
+const _constraintsCoercion = z.union([
+  z.array(z.string().min(1).max(200)),
+  z.record(z.unknown()).transform((obj): string[] => {
+    // Convert { unique: true, notNull: true } to ['unique', 'notNull']
+    return Object.entries(obj)
+      .filter(([, value]) => Boolean(value))
+      .map(([key]) => key);
+  }),
+]).default([]);
+
+/**
+ * Helper to coerce fields from object to array
+ * Claude often returns { id: {...}, name: {...} } instead of an array
+ */
+const fieldsCoercion = z.union([
+  z.array(DataFieldSchema),
+  z.record(z.unknown()).transform((obj): DataField[] => {
+    return Object.entries(obj).map(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        const v = value as Record<string, unknown>;
+        return {
+          name: typeof v['name'] === 'string' ? v['name'] : key,
+          type: String(v['type'] ?? 'string'),
+          required: Boolean(v['required'] ?? false),
+          description: String(v['description'] ?? ''),
+          constraints: Array.isArray(v['constraints'])
+            ? v['constraints'].map(String)
+            : typeof v['constraints'] === 'object' && v['constraints'] !== null
+              ? Object.keys(v['constraints']).filter(k => Boolean((v['constraints'] as Record<string, unknown>)[k]))
+              : [],
+        };
+      }
+      // Simple string value - treat as type
+      return { name: key, type: String(value ?? 'string'), required: false, description: '', constraints: [] };
+    });
+  }),
+]).default([]);
+
+/**
  * Relationship type
  */
 export const RelationshipTypeSchema = z.enum(['one-to-one', 'one-to-many', 'many-to-many']);
@@ -275,14 +318,57 @@ export const RelationshipSchema = z.object({
 export type Relationship = z.infer<typeof RelationshipSchema>;
 
 /**
+ * Helper to coerce relationships from object to array
+ * Claude might return { users: {...}, bookings: {...} } instead of an array
+ */
+const relationshipsCoercion = z.union([
+  z.array(RelationshipSchema),
+  z.record(z.unknown()).transform((obj): Relationship[] => {
+    return Object.entries(obj).map(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        const v = value as Record<string, unknown>;
+        return {
+          target: typeof v['target'] === 'string' ? v['target'] : key,
+          type: (['one-to-one', 'one-to-many', 'many-to-many'].includes(String(v['type'] ?? ''))
+            ? v['type'] as 'one-to-one' | 'one-to-many' | 'many-to-many'
+            : 'one-to-many'),
+          description: String(v['description'] ?? ''),
+        };
+      }
+      // Simple string value - treat as target
+      return { target: typeof value === 'string' ? value : key, type: 'one-to-many' as const, description: '' };
+    });
+  }),
+]).default([]);
+
+/**
+ * Helper to coerce indexes from object to array
+ * Claude might return { idx_user_id: "user_id", idx_created: "created_at" }
+ */
+const indexesCoercion = z.union([
+  z.array(z.string().min(1).max(200)),
+  z.record(z.unknown()).transform((obj): string[] => {
+    // Convert { idx_name: "column" } to ["idx_name", "column"] or just the values
+    return Object.entries(obj).flatMap(([key, value]) => {
+      if (typeof value === 'string') {
+        // Return both the index name and the column if they're different
+        return value === key ? [key] : [key, value];
+      }
+      return [key];
+    });
+  }),
+]).default([]);
+
+/**
  * Data model definition
+ * Uses coercion helpers to handle Claude returning objects instead of arrays
  */
 export const DataModelSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(1000).default(''),
-  fields: z.array(DataFieldSchema).default([]),
-  relationships: z.array(RelationshipSchema).default([]),
-  indexes: z.array(z.string().min(1).max(200)).default([]),
+  fields: fieldsCoercion,
+  relationships: relationshipsCoercion,
+  indexes: indexesCoercion,
 });
 
 export type DataModel = z.infer<typeof DataModelSchema>;
@@ -476,15 +562,92 @@ const stringArrayCoercion = z.array(
 ).default([]);
 
 /**
+ * Helper to coerce dataModels from object to array
+ * Claude often returns { users: {...}, bookings: {...} } instead of an array
+ */
+const dataModelsCoercion = z.union([
+  z.array(DataModelSchema),
+  z.record(z.unknown()).transform((obj): DataModel[] => {
+    // Convert object with named keys to array
+    return Object.entries(obj).map(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        const v = value as Record<string, unknown>;
+        return DataModelSchema.parse({
+          name: typeof v['name'] === 'string' ? v['name'] : key,
+          description: String(v['description'] ?? ''),
+          fields: Array.isArray(v['fields']) ? v['fields'] : [],
+          relationships: Array.isArray(v['relationships']) ? v['relationships'] : [],
+          indexes: Array.isArray(v['indexes']) ? v['indexes'] : [],
+        });
+      }
+      // If it's not an object, create a minimal model
+      return { name: key, description: String(value ?? ''), fields: [], relationships: [], indexes: [] };
+    });
+  }),
+]).default([]);
+
+/**
+ * Helper to coerce components from object to array
+ * Claude sometimes returns { service1: {...}, service2: {...} } instead of an array
+ */
+const componentsCoercion = z.union([
+  z.array(ComponentSchema),
+  z.record(z.unknown()).transform((obj): Component[] => {
+    return Object.entries(obj).map(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        const v = value as Record<string, unknown>;
+        return ComponentSchema.parse({
+          name: typeof v['name'] === 'string' ? v['name'] : key,
+          type: v['type'] ?? 'component',
+          description: String(v['description'] ?? ''),
+          responsibilities: Array.isArray(v['responsibilities']) ? v['responsibilities'] : [],
+          dependencies: Array.isArray(v['dependencies']) ? v['dependencies'] : [],
+          interfaces: Array.isArray(v['interfaces']) ? v['interfaces'] : [],
+          location: String(v['location'] ?? ''),
+        });
+      }
+      return { name: key, type: 'component' as const, description: '', responsibilities: [], dependencies: [], interfaces: [], location: '' };
+    });
+  }),
+]).default([]);
+
+/**
+ * Helper to coerce apiEndpoints from object to array
+ * Claude sometimes returns { "/api/users": {...} } instead of an array
+ */
+const apiEndpointsCoercion = z.union([
+  z.array(APIEndpointSchema),
+  z.record(z.unknown()).transform((obj): APIEndpoint[] => {
+    return Object.entries(obj).map(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        const v = value as Record<string, unknown>;
+        // Use key as path if it looks like a path, otherwise look for path in value
+        const path = key.startsWith('/') ? key : (typeof v['path'] === 'string' ? v['path'] : `/${key}`);
+        return APIEndpointSchema.parse({
+          path,
+          method: v['method'] ?? 'GET',
+          description: String(v['description'] ?? ''),
+          requestBody: v['requestBody'],
+          responseBody: v['responseBody'],
+          authentication: v['authentication'] ?? v['auth'] ?? false,
+          rateLimit: v['rateLimit'],
+        });
+      }
+      return { path: key.startsWith('/') ? key : `/${key}`, method: 'GET' as const, description: '', responseBody: { contentType: 'application/json', schema: {} }, authentication: false };
+    });
+  }),
+]).default([]);
+
+/**
  * Complete Architect output
  */
 export const ArchitectOutputSchema = z.object({
   techStack: TechStackSchema.optional(),
   adrs: z.array(ADRSchema).default([]),
-  components: z.array(ComponentSchema).default([]),
+  components: componentsCoercion,
   directoryStructure: DirectoryStructureSchema.optional(),
-  apiEndpoints: z.array(APIEndpointSchema).default([]),
-  dataModels: z.array(DataModelSchema).default([]),
+  apiEndpoints: apiEndpointsCoercion,
+  dataModels: dataModelsCoercion,
   codingConventions: CodingConventionsSchema.optional(),
   securityConsiderations: stringArrayCoercion,
   scalabilityNotes: stringArrayCoercion,

@@ -839,3 +839,17 @@ export {
   findCommonMissedRequirements,
   calculateReviewMetrics,
 } from './review/index.js';
+
+// Lenient schema utilities for handling Claude's varied output formats
+export {
+  lenientEnum,
+  lenientArray,
+  lenientArrayFilter,
+  objectToArrayCoercion,
+  stringArrayFromObject,
+  lenientObjectOrString,
+  lenientBoolean,
+  lenientNumber,
+  lenientString,
+  lenientUrl,
+} from './schemas/lenient-utils.js';

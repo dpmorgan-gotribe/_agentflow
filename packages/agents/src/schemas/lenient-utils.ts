@@ -75,12 +75,12 @@ export function lenientEnumWithPassthrough<T extends string>(
  */
 export function lenientArray<T extends z.ZodTypeAny>(
   schema: T
-): z.ZodCatch<z.ZodArray<T>> {
-  return z.preprocess((val) => {
+): z.ZodType<T['_output'][]> {
+  return z.preprocess((val: unknown): unknown[] => {
     if (val === null || val === undefined) return [];
-    if (Array.isArray(val)) return val;
+    if (Array.isArray(val)) return val as unknown[];
     return [val];
-  }, z.array(schema)).catch([]);
+  }, z.array(schema)).catch([]) as z.ZodType<T['_output'][]>;
 }
 
 /**
@@ -98,11 +98,87 @@ export function lenientArrayFilter<T extends z.ZodTypeAny>(
     for (const item of arr) {
       const parsed = schema.safeParse(item);
       if (parsed.success) {
-        results.push(parsed.data);
+        results.push(parsed.data as z.infer<T>);
       }
     }
     return results;
   });
+}
+
+/**
+ * Coerces an object with named keys to an array
+ *
+ * Claude often returns objects like { users: {...}, bookings: {...} }
+ * instead of arrays like [{ name: 'users', ... }, { name: 'bookings', ... }]
+ *
+ * This utility creates a schema that accepts both formats.
+ *
+ * @param itemSchema - The Zod schema for array items
+ * @param keyField - The field name to use for the object key (default: 'name')
+ *
+ * @example
+ * const DataFieldSchema = z.object({
+ *   name: z.string(),
+ *   type: z.string().default('string'),
+ * });
+ * const FieldsSchema = objectToArrayCoercion(DataFieldSchema);
+ *
+ * // Both work:
+ * FieldsSchema.parse([{ name: 'id', type: 'uuid' }])
+ * FieldsSchema.parse({ id: { type: 'uuid' }, name: { type: 'string' } })
+ * // -> [{ name: 'id', type: 'uuid' }, { name: 'name', type: 'string' }]
+ */
+export function objectToArrayCoercion<T extends z.ZodTypeAny>(
+  itemSchema: T,
+  keyField: string = 'name'
+): z.ZodType<z.infer<T>[]> {
+  return z.union([
+    z.array(itemSchema),
+    z.record(z.unknown()).transform((obj): z.infer<T>[] => {
+      const result: z.infer<T>[] = Object.entries(obj).map(([key, value]): z.infer<T> => {
+        if (typeof value === 'object' && value !== null) {
+          // Merge the key as the keyField if not already present
+          const v = value as Record<string, unknown>;
+          const merged = { [keyField]: key, ...v };
+          // If the value already has the keyField, prefer its value
+          if (typeof v[keyField] === 'string') {
+            merged[keyField] = v[keyField];
+          }
+          // Zod parse returns the correct type at runtime
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          return itemSchema.parse(merged) as z.infer<T>;
+        }
+        // If value is a primitive, create minimal object with key
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return itemSchema.parse({ [keyField]: key }) as z.infer<T>;
+      });
+      return result;
+    }),
+  ]).default([]) as z.ZodType<z.infer<T>[]>;
+}
+
+/**
+ * Coerces a string array from an object with boolean/truthy values
+ *
+ * Claude might return { unique: true, notNull: true } instead of ['unique', 'notNull']
+ *
+ * @example
+ * const ConstraintsSchema = stringArrayFromObject();
+ * ConstraintsSchema.parse(['unique', 'notNull']) // ['unique', 'notNull']
+ * ConstraintsSchema.parse({ unique: true, notNull: true }) // ['unique', 'notNull']
+ * ConstraintsSchema.parse({ unique: true, notNull: false }) // ['unique']
+ */
+export function stringArrayFromObject(
+  maxItemLength = 200
+): z.ZodType<string[]> {
+  return z.union([
+    z.array(z.string().min(1).max(maxItemLength)),
+    z.record(z.unknown()).transform((obj): string[] => {
+      return Object.entries(obj)
+        .filter(([, value]) => Boolean(value))
+        .map(([key]) => key.slice(0, maxItemLength));
+    }),
+  ]).default([]) as z.ZodType<string[]>;
 }
 
 /**
@@ -259,14 +335,14 @@ export const lenientConfidence = z.union([
  * lenientString().parse(42) // '42'
  * lenientString().parse(null) // ''
  */
-export function lenientString(maxLength = 10000): z.ZodCatch<z.ZodEffects<z.ZodUnion<[z.ZodString, z.ZodNumber, z.ZodBoolean, z.ZodNull, z.ZodUndefined]>, string, string | number | boolean | null | undefined>> {
+export function lenientString(maxLength = 10000): z.ZodType<string> {
   return z.union([
     z.string(),
     z.number().transform(String),
     z.boolean().transform(String),
     z.null().transform(() => ''),
     z.undefined().transform(() => ''),
-  ]).transform((s) => s.slice(0, maxLength)).catch('');
+  ]).transform((s) => s.slice(0, maxLength)).catch('') as z.ZodType<string>;
 }
 
 /**

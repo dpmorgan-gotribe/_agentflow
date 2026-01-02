@@ -13,6 +13,8 @@
 
 import { z } from 'zod';
 
+import { objectToArrayCoercion, stringArrayFromObject } from './lenient-utils.js';
+
 // Re-export style package types from langgraph for consistency
 // These are the core types used in the workflow state
 export {
@@ -249,6 +251,144 @@ export const StyleConstraintsSchema = z.object({
 export type StyleConstraints = z.infer<typeof StyleConstraintsSchema>;
 
 /**
+ * Screen definition schema (used in style research)
+ */
+export const ScreenSchema = z.object({
+  id: z.string().default(''),
+  name: z.string().default(''),
+  description: z.string().default(''),
+  purpose: z.string().default(''),
+  type: z.enum([
+    'landing', 'dashboard', 'list', 'detail', 'form', 'settings', 'profile',
+    'auth', 'onboarding', 'error', 'empty', 'search', 'checkout', 'confirmation',
+    'home', 'content', 'wiki', 'article', 'about', 'contact', 'pricing',
+    'booking', 'calendar', 'chat', 'other',
+  ]).catch('other'),
+  components: z.union([
+    z.array(z.string()),
+    z.record(z.unknown()).transform((obj): string[] => Object.keys(obj)),
+  ]).default([]),
+  flows: z.union([
+    z.array(z.string()),
+    z.record(z.unknown()).transform((obj): string[] => Object.keys(obj)),
+  ]).default([]),
+  navigatesTo: z.union([
+    z.array(z.string()),
+    z.record(z.unknown()).transform((obj): string[] => Object.keys(obj)),
+  ]).default([]),
+  priority: z.enum(['critical', 'high', 'medium', 'low']).catch('medium'),
+});
+
+export type Screen = z.infer<typeof ScreenSchema>;
+
+/**
+ * User flow step schema
+ */
+export const UserFlowStepSchema = z.object({
+  stepNumber: z.number().default(0),
+  screen: z.string().default(''),
+  action: z.string().default(''),
+  outcome: z.string().default(''),
+  componentsUsed: z.union([
+    z.array(z.string()),
+    z.record(z.unknown()).transform((obj): string[] => Object.keys(obj)),
+  ]).default([]),
+});
+
+export type UserFlowStepAnalyst = z.infer<typeof UserFlowStepSchema>;
+
+/**
+ * User flow schema (used in style research)
+ */
+export const FlowSchema = z.object({
+  id: z.string().default(''),
+  name: z.string().default(''),
+  description: z.string().default(''),
+  steps: objectToArrayCoercion(UserFlowStepSchema, 'screen'),
+  entryPoint: z.string().default(''),
+  exitPoints: z.union([
+    z.array(z.string()),
+    z.record(z.unknown()).transform((obj): string[] => Object.keys(obj)),
+  ]).default([]),
+  isCriticalPath: z.boolean().default(false),
+});
+
+export type Flow = z.infer<typeof FlowSchema>;
+
+/**
+ * Style package reference schema
+ */
+export const StyleReferenceSchema = z.object({
+  name: z.string().default(''),
+  url: z.string().optional(),
+  notes: z.string().default(''),
+});
+
+export type StyleReference = z.infer<typeof StyleReferenceSchema>;
+
+/**
+ * Style package schema (used in style research)
+ */
+export const StylePackageAnalystSchema = z.object({
+  id: z.string().default(''),
+  name: z.string().default(''),
+  moodDescription: z.string().default(''),
+  characteristics: z.union([
+    z.array(z.string()),
+    z.record(z.unknown()).transform((obj): string[] => Object.keys(obj)),
+  ]).default([]),
+  differentiator: z.string().default(''),
+  typography: z.object({
+    headingFont: z.string().default('Inter'),
+    bodyFont: z.string().default('Inter'),
+    weights: z.union([
+      z.array(z.number()),
+      z.record(z.unknown()).transform((obj): number[] =>
+        Object.values(obj).filter((v): v is number => typeof v === 'number')
+      ),
+    ]).default([400, 500, 600, 700]),
+    source: z.enum(['google', 'adobe', 'local', 'system', 'bunny', 'typekit', 'custom']).catch('google'),
+  }),
+  icons: z.object({
+    library: z.string().default('lucide'),
+    style: z.enum(['outline', 'solid', 'duotone', 'thin', 'regular', 'light', 'bold', 'filled']).catch('outline'),
+  }),
+  colors: z.object({
+    primary: z.string().default('#3B82F6'),
+    secondary: z.string().default('#6366F1'),
+    accent: z.string().default('#F59E0B'),
+    background: z.string().default('#FFFFFF'),
+    surface: z.string().default('#F9FAFB'),
+    text: z.string().default('#111827'),
+    textMuted: z.string().default('#6B7280'),
+  }),
+  visual: z.object({
+    borderRadius: z.string().default('0.5rem'),
+    shadows: z.boolean().default(true),
+    gradients: z.boolean().default(false),
+  }),
+  references: objectToArrayCoercion(StyleReferenceSchema, 'name'),
+  honorsUserHints: z.boolean().default(false),
+  userHintsUsed: z.union([
+    z.array(z.string()),
+    z.record(z.unknown()).transform((obj): string[] => Object.keys(obj)),
+  ]).default([]),
+});
+
+export type StylePackageAnalyst = z.infer<typeof StylePackageAnalystSchema>;
+
+/**
+ * Specialized component schema
+ */
+export const SpecializedComponentSchema = z.object({
+  component: z.string().default(''),
+  reason: z.string().default(''),
+  complexity: z.enum(['simple', 'moderate', 'complex', 'advanced']).catch('moderate'),
+});
+
+export type SpecializedComponent = z.infer<typeof SpecializedComponentSchema>;
+
+/**
  * Complete style research output from Analyst
  */
 export const StyleResearchOutputSchema = z.object({
@@ -259,82 +399,31 @@ export const StyleResearchOutputSchema = z.object({
   domainResearch: DomainResearchSchema,
 
   /** All screens identified for the application */
-  screens: z.array(z.object({
-    id: z.string().default(''),
-    name: z.string().default(''),
-    description: z.string().default(''),
-    purpose: z.string().default(''),
-    type: z.enum([
-      'landing',
-      'dashboard',
-      'list',
-      'detail',
-      'form',
-      'settings',
-      'profile',
-      'auth',
-      'onboarding',
-      'error',
-      'empty',
-      'search',
-      'checkout',
-      'confirmation',
-      'home',
-      'content',
-      'wiki',
-      'article',
-      'about',
-      'contact',
-      'pricing',
-      'booking',
-      'calendar',
-      'chat',
-      'other',
-    ]).catch('other'),
-    components: z.array(z.string()).default([]),
-    flows: z.array(z.string()).default([]),
-    navigatesTo: z.array(z.string()).default([]),
-    priority: z.enum(['critical', 'high', 'medium', 'low']).catch('medium'),
-  })).default([]),
+  screens: objectToArrayCoercion(ScreenSchema, 'name'),
 
   /** User flows identified */
-  userFlows: z.array(z.object({
-    id: z.string().default(''),
-    name: z.string().default(''),
-    description: z.string().default(''),
-    steps: z.array(z.object({
-      stepNumber: z.number().default(0),
-      screen: z.string().default(''),
-      action: z.string().default(''),
-      outcome: z.string().default(''),
-      componentsUsed: z.array(z.string()).default([]),
-    })).default([]),
-    entryPoint: z.string().default(''),
-    exitPoints: z.array(z.string()).default([]),
-    isCriticalPath: z.boolean().default(false),
-  })).default([]),
+  userFlows: objectToArrayCoercion(FlowSchema, 'name'),
 
   /** Component inventory */
   componentInventory: z.object({
     projectContext: z.object({
       appType: z.string().default(''),
       domain: z.string().default(''),
-      platforms: z.array(z.enum(['web', 'mobile', 'desktop', 'tablet', 'all']).catch('web')).default(['web']),
+      platforms: z.union([
+        z.array(z.enum(['web', 'mobile', 'desktop', 'tablet', 'all']).catch('web')),
+        z.record(z.unknown()).transform((): Array<'web' | 'mobile' | 'desktop' | 'tablet' | 'all'> => ['web']),
+      ]).default(['web']),
       audience: z.string().default(''),
     }),
-    navigation: z.array(z.string()).default([]),
-    dataDisplay: z.array(z.string()).default([]),
-    forms: z.array(z.string()).default([]),
-    feedback: z.array(z.string()).default([]),
-    overlays: z.array(z.string()).default([]),
-    layout: z.array(z.string()).default([]),
-    media: z.array(z.string()).default([]),
-    specialized: z.array(z.object({
-      component: z.string().default(''),
-      reason: z.string().default(''),
-      complexity: z.enum(['simple', 'moderate', 'complex', 'advanced']).catch('moderate'),
-    })).default([]),
-    requiredStates: z.array(z.string()).default([]),
+    navigation: stringArrayFromObject(),
+    dataDisplay: stringArrayFromObject(),
+    forms: stringArrayFromObject(),
+    feedback: stringArrayFromObject(),
+    overlays: stringArrayFromObject(),
+    layout: stringArrayFromObject(),
+    media: stringArrayFromObject(),
+    specialized: objectToArrayCoercion(SpecializedComponentSchema, 'component'),
+    requiredStates: stringArrayFromObject(),
     totalCount: z.number().default(0),
   }),
 
@@ -342,47 +431,16 @@ export const StyleResearchOutputSchema = z.object({
   techStack: TechRecommendationSchema,
 
   /** 5 distinct style packages */
-  stylePackages: z.array(z.object({
-    id: z.string().default(''),
-    name: z.string().default(''),
-    moodDescription: z.string().default(''),
-    characteristics: z.array(z.string()).default([]),
-    differentiator: z.string().default(''),
-    typography: z.object({
-      headingFont: z.string().default('Inter'),
-      bodyFont: z.string().default('Inter'),
-      weights: z.array(z.number()).default([400, 500, 600, 700]),
-      source: z.enum(['google', 'adobe', 'local', 'system', 'bunny', 'typekit', 'custom']).catch('google'),
-    }),
-    icons: z.object({
-      library: z.string().default('lucide'),
-      style: z.enum(['outline', 'solid', 'duotone', 'thin', 'regular', 'light', 'bold', 'filled']).catch('outline'),
-    }),
-    colors: z.object({
-      primary: z.string().default('#3B82F6'),
-      secondary: z.string().default('#6366F1'),
-      accent: z.string().default('#F59E0B'),
-      background: z.string().default('#FFFFFF'),
-      surface: z.string().default('#F9FAFB'),
-      text: z.string().default('#111827'),
-      textMuted: z.string().default('#6B7280'),
-    }),
-    visual: z.object({
-      borderRadius: z.string().default('0.5rem'),
-      shadows: z.boolean().default(true),
-      gradients: z.boolean().default(false),
-    }),
-    references: z.array(z.object({
-      name: z.string().default(''),
-      url: z.string().optional(),
-      notes: z.string().default(''),
-    })).default([]),
-    honorsUserHints: z.boolean().default(false),
-    userHintsUsed: z.array(z.string()).default([]),
-  })).default([]),
+  stylePackages: objectToArrayCoercion(StylePackageAnalystSchema, 'name'),
 
-  /** Constraints that all styles must honor */
-  styleConstraints: StyleConstraintsSchema,
+  /** Constraints that all styles must honor - with string array coercion */
+  styleConstraints: z.object({
+    mustUseColors: stringArrayFromObject(),
+    mustUseFonts: stringArrayFromObject(),
+    mustMatchUrls: stringArrayFromObject(),
+    mustAvoid: stringArrayFromObject(),
+    platformConstraints: stringArrayFromObject(),
+  }),
 
   /** Summary for the orchestrator */
   summary: z.string().max(2000),
@@ -486,7 +544,7 @@ export function extractStyleHintsFromPrompt(prompt: string): Partial<PromptStyle
   }
 
   // URL detection
-  const urlPattern = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi;
+  const urlPattern = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
   const urls = prompt.match(urlPattern) || [];
   const inspirationUrls: InspirationUrl[] = urls.map((url) => ({
     url,
