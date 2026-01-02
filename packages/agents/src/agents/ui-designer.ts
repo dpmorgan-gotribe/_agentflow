@@ -246,9 +246,18 @@ Each component must have:
 - id: Unique identifier (start with letter, use alphanumeric/hyphens only)
 - type: One of: page, section, header, footer, navigation, form, input, button, card, list, table, modal, alert, tabs, accordion, image, text, link, icon, container, grid, flex, divider, badge, avatar, tooltip, dropdown, checkbox, radio, select, textarea, slider, switch, progress, spinner, skeleton
 - name: Human-readable name
+- content: THE VISIBLE TEXT CONTENT (REQUIRED for text, button, link, badge, and label elements - this is what users see!)
 - styles: Object with "base" property containing CSS key-value pairs
 - accessibility: ARIA attributes as needed (role, ariaLabel, etc.)
 - children: Nested components (if any)
+
+IMPORTANT: The "content" field contains the actual visible text!
+- Buttons MUST have content like "Start", "Submit", "Cancel"
+- Text elements MUST have content like "Welcome to the app", "Enter your email"
+- Links MUST have content like "Settings", "Back to Home"
+- Badge/label elements MUST have content like "New", "5 min"
+- Timer displays MUST have content like "05:00" or "00:00"
+- Do NOT leave content empty - users need to see the actual UI text!
 
 ## Design Principles:
 1. Mobile-first responsive design
@@ -354,6 +363,16 @@ Each component must have:
 
     prompt += `\nGenerate a complete UI design with mockups for this feature.
 Include at least one page with components.
+
+CRITICAL: Every component that displays text MUST have a "content" field with the actual visible text:
+- Buttons: "Start", "Pause", "Reset", "Submit", "Cancel", etc.
+- Text/headings: "Countdown Timer", "Settings", "Enter duration", etc.
+- Links: "Go to Settings", "Back", etc.
+- Labels: "Minutes", "Seconds", "1 min", "5 min", etc.
+- Timer display: "05:00", "00:00", etc.
+
+Without content, the UI will show empty buttons and blank text!
+
 Output valid JSON only matching the UIDesignerOutput schema.`;
 
     return prompt;
