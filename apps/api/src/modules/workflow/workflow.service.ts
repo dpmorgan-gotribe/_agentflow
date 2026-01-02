@@ -260,6 +260,81 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
               }
               break;
 
+            case 'parallel_dispatch':
+              // Handle parallel agent execution results (style competition, etc.)
+              const parallelResults = (stateUpdate as Record<string, unknown>).parallelResults as Array<{
+                agentId: string;
+                executionId: string;
+                success: boolean;
+                output: unknown;
+                artifacts: Array<{ id: string; type: string; path: string; content?: string }>;
+                error?: string;
+                stylePackageId?: string;
+              }> | undefined;
+
+              if (parallelResults && parallelResults.length > 0) {
+                // Emit parallel completion event
+                const successfulCount = parallelResults.filter(r => r.success).length;
+                eventSubject.next(
+                  createStreamEvent('workflow.parallel_completed', {
+                    taskId,
+                    totalAgents: parallelResults.length,
+                    successfulAgents: successfulCount,
+                    failedAgents: parallelResults.length - successfulCount,
+                    reasoning: `Parallel execution complete: ${successfulCount}/${parallelResults.length} agents succeeded`,
+                    completedAgents: stateUpdate.completedAgents,
+                  })
+                );
+
+                // Write artifacts for each parallel agent
+                for (const result of parallelResults) {
+                  if (result.success && result.artifacts && result.artifacts.length > 0) {
+                    // Emit individual agent completed event
+                    eventSubject.next(
+                      createStreamEvent('workflow.agent_completed', {
+                        taskId,
+                        agentId: result.agentId,
+                        success: result.success,
+                        artifactCount: result.artifacts.length,
+                        reasoning: `Agent ${result.agentId} (parallel) completed with ${result.artifacts.length} artifact(s)`,
+                        stylePackageId: result.stylePackageId,
+                      })
+                    );
+
+                    // Write artifacts to project directory
+                    this.writeAgentArtifacts(
+                      projectId,
+                      prompt,
+                      result.agentId,
+                      result.output,
+                      result.artifacts.map((a) => ({
+                        type: a.type,
+                        name: a.id,
+                        path: a.path,
+                        content: a.content,
+                      }))
+                    ).catch((err) => {
+                      this.logger.warn(
+                        `Failed to write artifacts for parallel agent ${result.agentId}: ${err}`
+                      );
+                    });
+                  } else if (!result.success) {
+                    // Emit failure event
+                    eventSubject.next(
+                      createStreamEvent('workflow.agent_completed', {
+                        taskId,
+                        agentId: result.agentId,
+                        success: false,
+                        artifactCount: 0,
+                        reasoning: `Agent ${result.agentId} (parallel) failed: ${result.error}`,
+                        stylePackageId: result.stylePackageId,
+                      })
+                    );
+                  }
+                }
+              }
+              break;
+
             case 'awaiting_approval':
               eventSubject.next(
                 createStreamEvent('workflow.approval_needed', {

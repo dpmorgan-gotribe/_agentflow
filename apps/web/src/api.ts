@@ -131,6 +131,7 @@ export async function getSystemStatus(): Promise<{ status: string; shuttingDown:
 export async function cleanupProjects(): Promise<{ deleted: string[]; errors: string[] }> {
   return fetchApi<{ deleted: string[]; errors: string[] }>('/projects', {
     method: 'DELETE',
+    body: JSON.stringify({}), // Empty body required when Content-Type is set
   });
 }
 
