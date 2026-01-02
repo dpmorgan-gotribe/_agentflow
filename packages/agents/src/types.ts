@@ -69,6 +69,7 @@ export const ContextTypeEnum = {
   EXECUTION_HISTORY: 'execution_history',
   CURRENT_TASK: 'current_task',
   AGENT_OUTPUTS: 'agent_outputs',
+  WORKFLOW_SETTINGS: 'workflow_settings',
 } as const;
 
 export type ContextType = (typeof ContextTypeEnum)[keyof typeof ContextTypeEnum];
@@ -85,6 +86,7 @@ export const ContextTypeSchema = z.enum([
   'execution_history',
   'current_task',
   'agent_outputs',
+  'workflow_settings',
 ]);
 
 /**

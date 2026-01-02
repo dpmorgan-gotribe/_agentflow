@@ -434,7 +434,41 @@ export const OrchestratorState = Annotation.Root({
     reducer: appendReducer,
     default: () => [],
   }),
+
+  // ============================================================
+  // WORKFLOW SETTINGS STATE CHANNELS
+  // ============================================================
+
+  // Workflow settings passed from API
+  workflowSettings: Annotation<WorkflowSettings>({
+    reducer: lastValue,
+    default: () => DEFAULT_WORKFLOW_SETTINGS,
+  }),
 });
+
+/**
+ * Workflow settings for configurable parameters
+ */
+export interface WorkflowSettings {
+  /** Number of style packages to generate */
+  stylePackageCount: number;
+  /** Number of parallel UI designers */
+  parallelDesignerCount: number;
+  /** Whether to enable style competition */
+  enableStyleCompetition: boolean;
+  /** Maximum style rejection iterations */
+  maxStyleRejections: number;
+  /** Claude CLI timeout in ms */
+  claudeCliTimeoutMs: number;
+}
+
+export const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
+  stylePackageCount: 1,
+  parallelDesignerCount: 1,
+  enableStyleCompetition: false,
+  maxStyleRejections: 5,
+  claudeCliTimeoutMs: 900000,
+};
 
 export type OrchestratorStateType = typeof OrchestratorState.State;
 
@@ -446,6 +480,7 @@ export function createInitialState(input: {
   projectId: string;
   taskId: string;
   prompt: string;
+  workflowSettings?: Partial<WorkflowSettings>;
 }): Partial<OrchestratorStateType> {
   // Validate required fields
   const schema = z.object({
@@ -456,6 +491,12 @@ export function createInitialState(input: {
   });
 
   const validated = schema.parse(input);
+
+  // Merge settings with defaults
+  const settings: WorkflowSettings = {
+    ...DEFAULT_WORKFLOW_SETTINGS,
+    ...input.workflowSettings,
+  };
 
   return {
     tenantId: validated.tenantId,
@@ -494,5 +535,7 @@ export function createInitialState(input: {
     componentInventory: null,
     // Mega page previews
     megaPagePreviews: [],
+    // Workflow settings
+    workflowSettings: settings,
   };
 }

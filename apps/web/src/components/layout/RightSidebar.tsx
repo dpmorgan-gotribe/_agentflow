@@ -1,4 +1,5 @@
 import type { AgentType, ExtendedAgentEvent, TaskStatus } from '../../types';
+import { SettingsPanel } from '../SettingsPanel';
 
 interface RightSidebarProps {
   isExecuting: boolean;
@@ -76,6 +77,9 @@ export function RightSidebar({ isExecuting, currentAgent, orchestratorEvents }: 
           </div>
         )}
       </div>
+
+      {/* Settings Panel - collapsible */}
+      <SettingsPanel />
 
       {/* Orchestrator Thinking Panel */}
       {latestThinking?.thinking && (

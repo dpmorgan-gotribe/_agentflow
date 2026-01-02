@@ -8,7 +8,7 @@
 import { getAIProvider } from '@aigentflow/ai-provider';
 import type { OrchestratorStateType } from '../state.js';
 import {
-  ORCHESTRATOR_THINKING_PROMPT,
+  buildOrchestratorThinkingPrompt,
   buildThinkingContext,
   parseOrchestratorDecision as parseDecision,
 } from '../prompts/orchestrator-thinking.js';
@@ -185,9 +185,12 @@ export async function orchestratorThinkNode(
   });
 
   try {
+    // Build prompt with workflow settings
+    const systemPrompt = buildOrchestratorThinkingPrompt(state.workflowSettings);
+
     // Call AI to reason about next steps
     const response = await provider.complete({
-      system: ORCHESTRATOR_THINKING_PROMPT,
+      system: systemPrompt,
       messages: [
         {
           role: 'user',

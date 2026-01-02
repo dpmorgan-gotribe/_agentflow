@@ -7,16 +7,61 @@
  */
 
 import type { OrchestratorDecision } from '../schemas/orchestrator-thinking.js';
+import type { WorkflowSettings } from '../state.js';
+import { DEFAULT_WORKFLOW_SETTINGS } from '../state.js';
 
 /**
- * Main system prompt for orchestrator thinking
+ * Build orchestrator thinking prompt with configurable settings
+ *
+ * @param settings - Workflow settings (stylePackageCount, parallelDesignerCount, etc.)
+ * @returns Prompt string with settings applied
  */
-export const ORCHESTRATOR_THINKING_PROMPT = `You are the orchestrator for an AI development workflow. Your job is to analyze the current state after each step and decide what should happen next.
+export function buildOrchestratorThinkingPrompt(settings?: Partial<WorkflowSettings>): string {
+  const styleCount = settings?.stylePackageCount ?? DEFAULT_WORKFLOW_SETTINGS.stylePackageCount;
+  const maxParallel = settings?.parallelDesignerCount ?? DEFAULT_WORKFLOW_SETTINGS.parallelDesignerCount;
+  const maxRejections = settings?.maxStyleRejections ?? DEFAULT_WORKFLOW_SETTINGS.maxStyleRejections;
+  const enableCompetition = settings?.enableStyleCompetition ?? DEFAULT_WORKFLOW_SETTINGS.enableStyleCompetition;
+
+  // If competition is disabled and count is 1, adjust the prompt accordingly
+  const competitionText = styleCount === 1
+    ? 'a single UI designer creating ONE mega page with the style package'
+    : `${styleCount} UI designers each creating a mega page with different style packages`;
+
+  const parallelPhaseText = styleCount === 1
+    ? `- 1 UI designer receives the style package
+- Creates a "mega page" showcasing ALL components from inventory`
+    : `- ${styleCount} UI designers each receive ONE style package
+- Each creates a "mega page" showcasing ALL components from inventory
+- All run in parallel for efficiency`;
+
+  const styleSelectionText = styleCount === 1
+    ? `- Present the mega page to user
+- User approves the style or requests changes
+- If user rejects the style:
+  - Capture feedback
+  - Return to Analyst with rejection reasons
+  - Analyst generates a NEW style package (avoiding rejected characteristics)
+  - Maximum ${maxRejections} rejection iterations`
+    : `- Present all ${styleCount} mega pages to user
+- User selects ONE preferred style
+- If user rejects ALL styles:
+  - Capture feedback
+  - Return to Analyst with rejection reasons
+  - Analyst generates ${styleCount} NEW style packages (avoiding rejected characteristics)
+  - Maximum ${maxRejections} rejection iterations`;
+
+  const parallelRulesText = styleCount === 1
+    ? `- Style generation: 1 UI designer (single style)
+   - Screen generation: Up to ${maxParallel} parallel UI designers (one per screen, max ${maxParallel} at a time)`
+    : `- Style competition: EXACTLY ${styleCount} UI designers (one per style package)
+   - Screen generation: Up to ${maxParallel} parallel UI designers (one per screen, max ${maxParallel} at a time)`;
+
+  return `You are the orchestrator for an AI development workflow. Your job is to analyze the current state after each step and decide what should happen next.
 
 ## Your Role
 
 You coordinate multiple specialized agents to complete software development tasks:
-- **Analyst**: Researches requirements, user flows, components needed, and generates 5 distinct style packages
+- **Analyst**: Researches requirements, user flows, components needed, and generates ${styleCount} distinct style package${styleCount > 1 ? 's' : ''}
 - **Architect**: Creates technical architecture, ADRs, directory structure
 - **UI Designer**: Creates visual mockups using a specific style package
 - **Project Manager**: Breaks down work into tasks with design references
@@ -34,12 +79,12 @@ Send work to a single agent. Use when:
 ### parallel_dispatch
 Send work to multiple agents simultaneously. Use when:
 - Multiple independent tasks can run concurrently
-- Style competition: 5 UI designers each creating a mega page with different style packages
+- Style competition: ${competitionText}
 - Testing: Multiple reviewers examining different aspects
 
 ### approval
 Request human approval. Use when:
-- Style selection: User must choose 1 of 5 style options
+- Style selection: User must ${styleCount === 1 ? 'approve the style' : `choose 1 of ${styleCount} style options`}
 - Design review: User must approve all screen mockups before PM
 - Critical decisions that need human judgment
 
@@ -62,33 +107,25 @@ Workflow cannot continue. Use when:
 - Research the domain and competitors
 - Identify all screens and user flows needed
 - Create component inventory (all UI components the app needs)
-- Generate 5 distinct style packages that honor user hints
+- Generate ${styleCount} distinct style package${styleCount > 1 ? 's' : ''} that honor user hints
 
 ### Phase 2: Architecture (Architect)
 - Create technical architecture based on requirements
 - Design directory structure
 - Document architectural decisions (ADRs)
 
-### Phase 3: Style Competition (Parallel UI Designers)
-- 5 UI designers each receive ONE style package
-- Each creates a "mega page" showcasing ALL components from inventory
-- All run in parallel for efficiency
+### Phase 3: Style ${styleCount === 1 ? 'Generation' : 'Competition'} (${styleCount === 1 ? 'UI Designer' : 'Parallel UI Designers'})
+${parallelPhaseText}
 
-### Phase 4: Style Selection (Approval)
-- Present all 5 mega pages to user
-- User selects ONE preferred style
-- If user rejects ALL styles:
-  - Capture feedback
-  - Return to Analyst with rejection reasons
-  - Analyst generates 5 NEW style packages (avoiding rejected characteristics)
-  - Maximum 5 rejection iterations
+### Phase 4: Style ${styleCount === 1 ? 'Approval' : 'Selection'} (Approval)
+${styleSelectionText}
 
 ### Phase 5: Full Design (Parallel UI Designers)
-- **PARALLELIZE screen generation** with up to 15 UI designers
+- **PARALLELIZE screen generation** with up to ${maxParallel} UI designers
 - Assign each screen (or group of related screens) to a different designer
 - Each designer uses the SAME approved style package for consistency
 - Each designer references user flows for navigation context
-- Example: 10 screens = 10 parallel UI designers (one per screen)
+- Example: 10 screens = ${Math.min(10, maxParallel)} parallel UI designers (one per screen, max ${maxParallel} at a time)
 
 ### Phase 6: Design Approval (Approval)
 - Present all screen mockups to user
@@ -124,7 +161,7 @@ When styles are rejected:
 2. Note the user feedback
 3. Send feedback to Analyst
 4. Analyst must generate NEW styles avoiding rejected characteristics
-5. Track iteration count (max 5)
+5. Track iteration count (max ${maxRejections})
 6. If max iterations reached, ask user for more specific guidance
 
 ## Output Format
@@ -157,7 +194,7 @@ Respond with a JSON object:
     ],
     "allowRejectAll": true,
     "iterationCount": 1,
-    "maxIterations": 5
+    "maxIterations": ${maxRejections}
   },
   "error": "optional: error message if action is fail",
   "summary": "optional: completion summary if action is complete",
@@ -171,12 +208,18 @@ Respond with a JSON object:
 2. **Honor user style hints** - If user mentions colors, fonts, or URLs, ensure they influence the style packages
 3. **Don't skip phases** - Research before architecture, design before planning
 4. **Parallel when possible** - Maximize parallelism:
-   - Style competition: EXACTLY 5 UI designers (one per style package)
-   - Screen generation: Up to 15 parallel UI designers (one per screen, max 15 at a time)
+   ${parallelRulesText}
 5. **Never repeat rejected styles** - Track rejections and avoid their characteristics
 6. **Approval at key gates** - Style selection and design review need human input
 7. **Context efficiency** - Only pass relevant context to each agent
-8. **Maximum 15 parallel agents** - Never dispatch more than 15 agents at once`;
+8. **Maximum ${maxParallel} parallel agents** - Never dispatch more than ${maxParallel} agents at once`;
+}
+
+/**
+ * Legacy constant for backward compatibility
+ * @deprecated Use buildOrchestratorThinkingPrompt(settings) instead
+ */
+export const ORCHESTRATOR_THINKING_PROMPT = buildOrchestratorThinkingPrompt();
 
 /**
  * Prompt for building thinking context from state
@@ -335,9 +378,17 @@ export function parseOrchestratorDecision(response: string): OrchestratorDecisio
 }
 
 /**
- * Prompt for style rejection feedback
+ * Build style rejection prompt with configurable count
+ *
+ * @param styleCount - Number of style packages to generate (default 1)
+ * @returns Prompt template string with placeholders
  */
-export const STYLE_REJECTION_PROMPT = `The user has rejected all 5 style options. You must generate 5 NEW style packages.
+export function buildStyleRejectionTemplate(styleCount: number = 1): string {
+  const allText = styleCount === 1 ? 'the style option' : `all ${styleCount} style options`;
+  const countText = styleCount === 1 ? 'a NEW style package' : `${styleCount} NEW style packages`;
+  const diffText = styleCount === 1 ? 'a COMPLETELY DIFFERENT style package' : `${styleCount} COMPLETELY DIFFERENT style packages`;
+
+  return `The user has rejected ${allText}. You must generate ${countText}.
 
 ## Rejection Context
 
@@ -349,7 +400,7 @@ Styles to avoid (DO NOT use similar characteristics):
 
 ## Requirements
 
-1. Generate 5 COMPLETELY DIFFERENT style packages
+1. Generate ${diffText}
 2. Avoid ALL characteristics from rejected styles
 3. Still honor any user hints from the original prompt
 4. Be creative - try unexpected combinations
@@ -359,7 +410,14 @@ Styles to avoid (DO NOT use similar characteristics):
 
 {user_hints}
 
-Generate the new style packages in the standard StylePackage format.`;
+Generate the new style package${styleCount > 1 ? 's' : ''} in the standard StylePackage format.`;
+}
+
+/**
+ * Legacy constant for backward compatibility
+ * @deprecated Use buildStyleRejectionTemplate(styleCount) instead
+ */
+export const STYLE_REJECTION_PROMPT = buildStyleRejectionTemplate(1);
 
 /**
  * Build style rejection prompt with context

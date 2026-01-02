@@ -4,7 +4,7 @@
  * Executes the current agent and captures its output.
  */
 
-import type { OrchestratorStateType, AgentOutput, AgentActivity } from '../state.js';
+import type { OrchestratorStateType, AgentOutput, AgentActivity, WorkflowSettings } from '../state.js';
 
 /**
  * Agent execution context passed to each agent
@@ -16,6 +16,7 @@ export interface AgentContext {
   prompt: string;
   analysis: OrchestratorStateType['analysis'];
   previousOutputs: AgentOutput[];
+  workflowSettings: WorkflowSettings;
 }
 
 /**
@@ -84,6 +85,7 @@ export async function executeAgentNode(
     prompt,
     analysis,
     agentOutputs,
+    workflowSettings,
   } = state;
 
   if (!currentAgent) {
@@ -116,6 +118,7 @@ export async function executeAgentNode(
       prompt,
       analysis,
       previousOutputs: agentOutputs,
+      workflowSettings,
     });
 
     const output: AgentOutput = {

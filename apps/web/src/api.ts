@@ -136,6 +136,44 @@ export async function cleanupProjects(): Promise<{ deleted: string[]; errors: st
 }
 
 /**
+ * Workflow settings interface
+ */
+export interface WorkflowSettings {
+  stylePackageCount: number;
+  parallelDesignerCount: number;
+  enableStyleCompetition: boolean;
+  maxStyleRejections: number;
+  claudeCliTimeoutMs: number;
+}
+
+/**
+ * Get current workflow settings
+ */
+export async function getSettings(): Promise<WorkflowSettings> {
+  return fetchApi<WorkflowSettings>('/settings');
+}
+
+/**
+ * Update workflow settings (partial update)
+ */
+export async function updateSettings(settings: Partial<WorkflowSettings>): Promise<WorkflowSettings> {
+  return fetchApi<WorkflowSettings>('/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(settings),
+  });
+}
+
+/**
+ * Reset settings to defaults
+ */
+export async function resetSettings(): Promise<WorkflowSettings> {
+  return fetchApi<WorkflowSettings>('/settings/reset', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+/**
  * API client with typed methods
  */
 export const apiClient = {

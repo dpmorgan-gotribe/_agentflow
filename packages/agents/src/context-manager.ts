@@ -79,9 +79,11 @@ export const DEFAULT_CONTEXT_BUDGET: ContextBudget = {
     execution_history: 500,
     current_task: 500,
     agent_outputs: 1000,
+    workflow_settings: 200,
   },
   priorityOrder: [
     'current_task',
+    'workflow_settings',
     'project_config',
     'source_code',
     'lessons_learned',

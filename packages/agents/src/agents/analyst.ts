@@ -497,6 +497,30 @@ Output must be valid JSON matching this structure:
   }
 
   /**
+   * Get style package count from workflow settings
+   *
+   * Reads the stylePackageCount from WORKFLOW_SETTINGS context item.
+   * Defaults to 1 if not found (single style, no competition).
+   */
+  private getStylePackageCount(request: AgentRequest): number {
+    const settingsItem = request.context.items.find(
+      (item) => item.type === ContextTypeEnum.WORKFLOW_SETTINGS
+    );
+
+    if (settingsItem?.content) {
+      const settings = settingsItem.content as Record<string, unknown>;
+      const count = settings['stylePackageCount'];
+      if (typeof count === 'number' && count >= 1 && count <= 10) {
+        this.log('debug', `Using stylePackageCount from settings: ${count}`);
+        return count;
+      }
+    }
+
+    this.log('debug', 'No stylePackageCount in settings, defaulting to 1');
+    return 1;
+  }
+
+  /**
    * Render report as markdown
    */
   private renderReport(output: AnalystOutput): string {
@@ -936,12 +960,15 @@ Respond with valid JSON matching the StyleResearchOutput schema:
       prompt += '\n';
     }
 
+    // Get style package count from settings (default to 1)
+    const stylePackageCount = this.getStylePackageCount(request);
+
     prompt += `## Requirements\n\n`;
     prompt += `1. Analyze the prompt for ALL style hints (colors, fonts, URLs, mood, platform, audience)\n`;
     prompt += `2. Research the domain and identify 3-5 relevant competitors\n`;
     prompt += `3. Identify ALL screens and user flows needed for this application\n`;
     prompt += `4. Create a complete component inventory\n`;
-    prompt += `5. Generate EXACTLY 5 distinct style packages\n`;
+    prompt += `5. Generate EXACTLY ${stylePackageCount} distinct style package${stylePackageCount > 1 ? 's' : ''}\n`;
     prompt += `6. Ensure all explicit user hints are honored in the style packages\n\n`;
     prompt += `Respond with valid JSON matching the StyleResearchOutput schema.`;
 

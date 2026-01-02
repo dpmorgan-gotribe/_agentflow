@@ -449,6 +449,7 @@ export async function executeWorkflowStreaming(
     projectId: string;
     taskId: string;
     prompt: string;
+    workflowSettings?: import('../state.js').WorkflowSettings;
   },
   options: WorkflowExecutionOptions,
   callback?: WorkflowStreamCallback

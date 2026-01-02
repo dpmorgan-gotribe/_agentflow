@@ -16,6 +16,7 @@ import { HealthModule } from './modules/health';
 import { TasksModule } from './modules/tasks';
 import { ProjectsModule } from './modules/projects';
 import { SystemModule } from './modules/system';
+import { SettingsModule } from './modules/settings';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { SystemModule } from './modules/system';
     TasksModule,
     ProjectsModule,
     SystemModule,
+    SettingsModule,
   ],
   providers: [
     // Global exception filter

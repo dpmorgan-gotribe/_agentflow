@@ -8,24 +8,42 @@
  * - Any concurrent agent execution
  */
 
-import type { OrchestratorStateType, AgentOutput } from '../state.js';
+import type { OrchestratorStateType, AgentOutput, WorkflowSettings } from '../state.js';
+import { DEFAULT_WORKFLOW_SETTINGS } from '../state.js';
 import type { ParallelResult, AgentDispatch } from '../schemas/orchestrator-thinking.js';
 import { getAgentRegistry } from './execute.js';
 
 /**
- * Maximum number of agents that can run in parallel
- * - Style competition: 5 UI designers (fixed)
- * - Screen generation: Up to 15 parallel UI designers
- * - Other parallel work: Up to 15 agents
+ * Get the maximum number of parallel agents from settings
+ *
+ * @param settings - Workflow settings (optional)
+ * @returns Maximum parallel agent count
  */
-export const MAX_PARALLEL_AGENTS = 15;
+export function getMaxParallelAgents(settings?: WorkflowSettings): number {
+  return settings?.parallelDesignerCount ?? DEFAULT_WORKFLOW_SETTINGS.parallelDesignerCount;
+}
 
 /**
- * Style competition designers count
- * NOTE: Set to 1 for development/testing to reduce token usage
- * Production should use 5 for proper style competition
+ * Get the style competition designers count from settings
+ *
+ * @param settings - Workflow settings (optional)
+ * @returns Style package count for competition
  */
-export const STYLE_COMPETITION_DESIGNERS = 1;
+export function getStyleCompetitionDesigners(settings?: WorkflowSettings): number {
+  return settings?.stylePackageCount ?? DEFAULT_WORKFLOW_SETTINGS.stylePackageCount;
+}
+
+/**
+ * Maximum number of agents that can run in parallel (legacy constant)
+ * @deprecated Use getMaxParallelAgents(settings) instead
+ */
+export const MAX_PARALLEL_AGENTS = DEFAULT_WORKFLOW_SETTINGS.parallelDesignerCount;
+
+/**
+ * Style competition designers count (legacy constant)
+ * @deprecated Use getStyleCompetitionDesigners(settings) instead
+ */
+export const STYLE_COMPETITION_DESIGNERS = DEFAULT_WORKFLOW_SETTINGS.stylePackageCount;
 
 /**
  * Execute a single agent as part of parallel dispatch
@@ -105,6 +123,7 @@ async function executeSingleAgent(
       prompt: state.prompt,
       analysis: state.analysis ?? null,
       previousOutputs: previousOutputsWithDefaults,
+      workflowSettings: state.workflowSettings ?? DEFAULT_WORKFLOW_SETTINGS,
     });
 
     return {
@@ -155,15 +174,18 @@ export async function parallelDispatchNode(
     };
   }
 
+  // Get max parallel agents from settings
+  const maxParallel = getMaxParallelAgents(state.workflowSettings);
+
   // Enforce maximum parallel agents limit
-  if (pendingAgents.length > MAX_PARALLEL_AGENTS) {
+  if (pendingAgents.length > maxParallel) {
     console.warn(
-      `Parallel dispatch: ${pendingAgents.length} agents exceeds max of ${MAX_PARALLEL_AGENTS}, limiting to first ${MAX_PARALLEL_AGENTS}`
+      `Parallel dispatch: ${pendingAgents.length} agents exceeds max of ${maxParallel}, limiting to first ${maxParallel}`
     );
-    pendingAgents = pendingAgents.slice(0, MAX_PARALLEL_AGENTS);
+    pendingAgents = pendingAgents.slice(0, maxParallel);
   }
 
-  console.log(`Parallel dispatch: executing ${pendingAgents.length} agents (max: ${MAX_PARALLEL_AGENTS})`);
+  console.log(`Parallel dispatch: executing ${pendingAgents.length} agents (max: ${maxParallel})`);
 
   // Execute all agents in parallel
   const promises = pendingAgents.map((dispatch) =>

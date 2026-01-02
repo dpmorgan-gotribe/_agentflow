@@ -20,6 +20,7 @@ import {
   type StreamEvent,
   type ApprovalResponse,
   type WorkflowStreamCallback,
+  type WorkflowSettings,
 } from '@aigentflow/langgraph';
 
 import { getAgentAdapter } from './agent-adapter';
@@ -27,6 +28,7 @@ import {
   ProjectDirectoryService,
   ProjectArtifactWriterService,
 } from '../projects';
+import { SettingsService } from '../settings';
 
 /**
  * Workflow input for starting a new task
@@ -60,7 +62,8 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
 
   constructor(
     private readonly projectDir: ProjectDirectoryService,
-    private readonly artifactWriter: ProjectArtifactWriterService
+    private readonly artifactWriter: ProjectArtifactWriterService,
+    private readonly settingsService: SettingsService
   ) {}
 
   onModuleInit(): void {
@@ -128,6 +131,10 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
 
     const { tenantId, projectId, taskId, prompt } = input;
     this.logger.log(`Starting workflow for task: ${taskId}`);
+
+    // Get current workflow settings
+    const settings = this.settingsService.getSettings();
+    this.logger.log(`Workflow settings: stylePackageCount=${settings.stylePackageCount}, parallelDesignerCount=${settings.parallelDesignerCount}`);
 
     // Create event stream for this task with replay buffer for late subscribers
     const eventSubject = new ReplaySubject<StreamEvent>(50);
@@ -348,10 +355,17 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
         },
       };
 
-      // Execute the workflow with streaming
+      // Execute the workflow with streaming (include settings)
+      const workflowSettings: WorkflowSettings = {
+        stylePackageCount: settings.stylePackageCount,
+        parallelDesignerCount: settings.parallelDesignerCount,
+        enableStyleCompetition: settings.enableStyleCompetition,
+        maxStyleRejections: settings.maxStyleRejections,
+        claudeCliTimeoutMs: settings.claudeCliTimeoutMs,
+      };
       const result = await executeWorkflowStreaming(
         this.graph,
-        { tenantId, projectId, taskId, prompt },
+        { tenantId, projectId, taskId, prompt, workflowSettings },
         { threadId: taskId },
         streamCallback
       );

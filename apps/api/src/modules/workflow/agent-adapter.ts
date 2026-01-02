@@ -221,6 +221,16 @@ class AgentWrapper implements LangGraphAgent {
             relevance: 1,
           },
         },
+        // Add workflow settings as context item
+        {
+          type: ContextTypeEnum.WORKFLOW_SETTINGS,
+          content: context.workflowSettings,
+          metadata: {
+            source: 'orchestrator',
+            timestamp: new Date(),
+            relevance: 1,
+          },
+        },
       ];
 
       // Add previous agent outputs as context items
