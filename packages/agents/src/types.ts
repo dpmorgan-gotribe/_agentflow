@@ -55,6 +55,73 @@ export const AgentTypeSchema = z.enum([
 ]);
 
 /**
+ * Mapping of common agent names to valid enum values
+ * Claude often returns human-friendly names that don't match our enum
+ */
+export const AGENT_TYPE_ALIASES: Record<string, AgentType> = {
+  // Common variations Claude might return
+  frontend_developer: 'frontend_dev',
+  backend_developer: 'backend_dev',
+  database_architect: 'architect',
+  researcher: 'analyzer',
+  research: 'analyzer',
+  security: 'compliance',
+  security_analyst: 'compliance',
+  pm: 'project_manager',
+  project_mgr: 'project_manager',
+  designer: 'ui_designer',
+  ux_designer: 'ui_designer',
+  qa: 'tester',
+  qa_tester: 'tester',
+  code_reviewer: 'reviewer',
+  devops: 'git_agent',
+  // Valid enum values map to themselves
+  orchestrator: 'orchestrator',
+  project_manager: 'project_manager',
+  analyzer: 'analyzer',
+  project_analyzer: 'project_analyzer',
+  planner: 'planner',
+  architect: 'architect',
+  ui_designer: 'ui_designer',
+  frontend_dev: 'frontend_dev',
+  backend_dev: 'backend_dev',
+  tester: 'tester',
+  bug_fixer: 'bug_fixer',
+  reviewer: 'reviewer',
+  git_agent: 'git_agent',
+  compliance: 'compliance',
+  compliance_agent: 'compliance_agent',
+  pattern_miner: 'pattern_miner',
+  agent_generator: 'agent_generator',
+  tournament_manager: 'tournament_manager',
+};
+
+/**
+ * Normalize an agent type string to a valid enum value
+ * Returns null if unrecognized
+ */
+export function normalizeAgentType(value: string): AgentType | null {
+  const normalized = value.toLowerCase().trim();
+  return AGENT_TYPE_ALIASES[normalized] ?? null;
+}
+
+/**
+ * Lenient agent type array schema that:
+ * 1. Maps common names to valid enum values
+ * 2. Filters out unrecognized values instead of failing validation
+ *
+ * Use this for routing hints where Claude may return varied agent names
+ */
+export const LenientAgentTypeArraySchema = z
+  .array(z.string())
+  .transform((arr) => {
+    return arr
+      .map((val) => normalizeAgentType(val))
+      .filter((v): v is AgentType => v !== null);
+  })
+  .default([]);
+
+/**
  * Context types that can be provided to agents
  */
 export const ContextTypeEnum = {
@@ -251,10 +318,11 @@ export type AgentContext = z.infer<typeof AgentContextSchema>;
 
 /**
  * Routing hints for orchestrator
+ * Uses LenientAgentTypeArraySchema to handle common Claude name variations
  */
 export const RoutingHintsSchema = z.object({
-  suggestNext: z.array(AgentTypeSchema),
-  skipAgents: z.array(AgentTypeSchema),
+  suggestNext: LenientAgentTypeArraySchema,
+  skipAgents: LenientAgentTypeArraySchema,
   needsApproval: z.boolean(),
   hasFailures: z.boolean(),
   isComplete: z.boolean(),

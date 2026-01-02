@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import { AgentTypeSchema } from '../types.js';
+import { LenientAgentTypeArraySchema } from '../types.js';
 import type { StyleResearchOutput } from './analyst-style-output.js';
 
 /**
@@ -190,10 +190,11 @@ export type ReportType = z.infer<typeof ReportTypeSchema>;
 
 /**
  * Analyst routing hints (extended from base)
+ * Uses LenientAgentTypeArraySchema to handle common Claude name variations
  */
 export const AnalystRoutingHintsSchema = z.object({
-  suggestNext: z.array(AgentTypeSchema),
-  skipAgents: z.array(AgentTypeSchema),
+  suggestNext: LenientAgentTypeArraySchema,
+  skipAgents: LenientAgentTypeArraySchema,
   needsApproval: z.boolean(),
   hasFailures: z.boolean(),
   isComplete: z.boolean(),

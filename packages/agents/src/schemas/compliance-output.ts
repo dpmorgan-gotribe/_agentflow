@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { AgentTypeSchema } from '../types.js';
+import { LenientAgentTypeArraySchema } from '../types.js';
 
 /**
  * Path validation regex - prevents traversal attacks
@@ -320,10 +320,11 @@ export type ComplianceSummary = z.infer<typeof ComplianceSummarySchema>;
 
 /**
  * Compliance routing hints
+ * Uses LenientAgentTypeArraySchema to handle common Claude name variations
  */
 export const ComplianceRoutingHintsSchema = z.object({
-  suggestNext: z.array(AgentTypeSchema),
-  skipAgents: z.array(AgentTypeSchema),
+  suggestNext: LenientAgentTypeArraySchema,
+  skipAgents: LenientAgentTypeArraySchema,
   needsApproval: z.boolean(),
   hasFailures: z.boolean(),
   isComplete: z.boolean(),

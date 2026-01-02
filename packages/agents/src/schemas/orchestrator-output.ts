@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod';
-import { AgentTypeSchema } from '../types.js';
+import { AgentTypeSchema, LenientAgentTypeArraySchema } from '../types.js';
 
 /**
  * Task classification from user input analysis
@@ -169,8 +169,8 @@ export const OrchestratorOutputSchema = z.object({
   userMessage: z.string().max(2000).optional(),
   requiresUserInput: z.boolean(),
   routingHints: z.object({
-    suggestNext: z.array(AgentTypeSchema),
-    skipAgents: z.array(AgentTypeSchema),
+    suggestNext: LenientAgentTypeArraySchema,
+    skipAgents: LenientAgentTypeArraySchema,
     needsApproval: z.boolean(),
     hasFailures: z.boolean(),
     isComplete: z.boolean(),

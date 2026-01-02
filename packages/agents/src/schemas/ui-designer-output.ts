@@ -14,7 +14,7 @@
  */
 
 import { z } from 'zod';
-import { AgentTypeSchema } from '../types.js';
+import { LenientAgentTypeArraySchema } from '../types.js';
 
 /**
  * Path validation regex - prevents traversal attacks
@@ -650,10 +650,12 @@ export type FullDesignOutput = z.infer<typeof FullDesignOutputSchema>;
 /**
  * UI Designer routing hints
  * All fields have defaults for lenient parsing of Claude responses
+ * Uses LenientAgentTypeArraySchema to map common Claude names (e.g., frontend_developer)
+ * to valid enum values (frontend_dev) and filter out unrecognized values
  */
 export const UIDesignerRoutingHintsSchema = z.object({
-  suggestNext: z.array(AgentTypeSchema).default([]),
-  skipAgents: z.array(AgentTypeSchema).default([]),
+  suggestNext: LenientAgentTypeArraySchema,
+  skipAgents: LenientAgentTypeArraySchema,
   needsApproval: z.boolean().default(true), // Default to needing approval for UI designs
   hasFailures: z.boolean().default(false),
   isComplete: z.boolean().default(true),

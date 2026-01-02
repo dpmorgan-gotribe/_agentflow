@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import { AgentTypeSchema } from '../types.js';
+import { LenientAgentTypeArraySchema } from '../types.js';
 
 /**
  * Technology selection with reasoning
@@ -388,10 +388,11 @@ export type CodingConventions = z.infer<typeof CodingConventionsSchema>;
 
 /**
  * Architect routing hints
+ * Uses LenientAgentTypeArraySchema to handle common Claude name variations
  */
 export const ArchitectRoutingHintsSchema = z.object({
-  suggestNext: z.array(AgentTypeSchema).default([]),
-  skipAgents: z.array(AgentTypeSchema).default([]),
+  suggestNext: LenientAgentTypeArraySchema,
+  skipAgents: LenientAgentTypeArraySchema,
   needsApproval: z.boolean().default(false),
   hasFailures: z.boolean().default(false),
   isComplete: z.boolean().default(true),

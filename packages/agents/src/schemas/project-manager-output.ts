@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import { AgentTypeSchema, RoutingHintsSchema } from '../types.js';
+import { LenientAgentTypeArraySchema, RoutingHintsSchema } from '../types.js';
 
 /**
  * Task types that categorize work items
@@ -112,7 +112,7 @@ export const TaskSchema = z.object({
   complexity: ComplexitySchema,
   dependencies: z.array(z.string().min(1).max(100)), // Task IDs
   acceptanceCriteria: z.array(z.string().min(1).max(500)),
-  assignedAgents: z.array(AgentTypeSchema),
+  assignedAgents: LenientAgentTypeArraySchema,
   complianceRelevant: z.boolean(),
   complianceNotes: z.string().max(1000).optional(),
   estimatedTokens: z.number().int().min(0).max(1000000).optional(),
@@ -198,10 +198,11 @@ export type WorkBreakdownSummary = z.infer<typeof WorkBreakdownSummarySchema>;
 
 /**
  * Project Manager routing hints
+ * Uses LenientAgentTypeArraySchema to handle common Claude name variations
  */
 export const PMRoutingHintsSchema = z.object({
-  suggestNext: z.array(AgentTypeSchema).default([]),
-  skipAgents: z.array(AgentTypeSchema).default([]),
+  suggestNext: LenientAgentTypeArraySchema,
+  skipAgents: LenientAgentTypeArraySchema,
   needsApproval: z.boolean().default(false),
   hasFailures: z.boolean().default(false),
   isComplete: z.boolean().default(true),
