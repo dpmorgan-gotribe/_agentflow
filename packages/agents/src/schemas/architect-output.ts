@@ -104,43 +104,42 @@ export type ADRStatus = z.infer<typeof ADRStatusSchema>;
 
 /**
  * ADR alternative option
+ * Made lenient with defaults
  */
 export const ADRAlternativeSchema = z.object({
-  option: z.string().min(1).max(200),
-  pros: z.array(z.string().min(1).max(500)),
-  cons: z.array(z.string().min(1).max(500)),
+  option: z.string().max(200).default(''),
+  pros: z.array(z.string().max(500)).default([]),
+  cons: z.array(z.string().max(500)).default([]),
 });
 
 export type ADRAlternative = z.infer<typeof ADRAlternativeSchema>;
 
 /**
  * ADR consequences
+ * Made lenient with defaults
  */
 export const ADRConsequencesSchema = z.object({
-  positive: z.array(z.string().min(1).max(500)),
-  negative: z.array(z.string().min(1).max(500)),
-  risks: z.array(z.string().min(1).max(500)),
+  positive: z.array(z.string().max(500)).default([]),
+  negative: z.array(z.string().max(500)).default([]),
+  risks: z.array(z.string().max(500)).default([]),
 });
 
 export type ADRConsequences = z.infer<typeof ADRConsequencesSchema>;
 
 /**
  * Architecture Decision Record (ADR)
+ * Made lenient - Claude may not always format IDs and dates exactly
  */
 export const ADRSchema = z.object({
-  id: z
-    .string()
-    .min(1)
-    .max(50)
-    .regex(/^ADR-\d{4}$/, 'ADR ID must be in format ADR-0001'),
-  title: z.string().min(1).max(200),
-  status: ADRStatusSchema,
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
-  context: z.string().min(1).max(5000),
-  decision: z.string().min(1).max(5000),
-  consequences: ADRConsequencesSchema,
-  alternatives: z.array(ADRAlternativeSchema),
-  relatedADRs: z.array(z.string().regex(/^ADR-\d{4}$/)),
+  id: z.string().max(50).default('ADR-0001'),
+  title: z.string().max(200).default('Untitled ADR'),
+  status: ADRStatusSchema.catch('proposed'),
+  date: z.string().max(20).default(() => new Date().toISOString().split('T')[0]!),
+  context: z.string().max(5000).default(''),
+  decision: z.string().max(5000).default(''),
+  consequences: ADRConsequencesSchema.default({ positive: [], negative: [], risks: [] }),
+  alternatives: z.array(ADRAlternativeSchema).default([]),
+  relatedADRs: z.array(z.string()).default([]),
 });
 
 export type ADR = z.infer<typeof ADRSchema>;
@@ -205,16 +204,18 @@ export type HTTPMethod = z.infer<typeof HTTPMethodSchema>;
 
 /**
  * Request/Response body schema
+ * Made lenient with defaults since Claude may not always provide these
  */
 export const BodySchemaDefinition = z.object({
-  contentType: z.string().min(1).max(100),
-  schema: z.record(z.unknown()),
+  contentType: z.string().max(100).default('application/json'),
+  schema: z.record(z.unknown()).default({}),
 });
 
 export type BodySchema = z.infer<typeof BodySchemaDefinition>;
 
 /**
  * API endpoint definition
+ * Made lenient with defaults and optional fields
  */
 export const APIEndpointSchema = z.object({
   path: z
@@ -222,11 +223,11 @@ export const APIEndpointSchema = z.object({
     .min(1)
     .max(500)
     .regex(/^\//, 'Path must start with /'),
-  method: HTTPMethodSchema,
-  description: z.string().min(1).max(500),
+  method: HTTPMethodSchema.catch('GET'),
+  description: z.string().max(500).default(''),
   requestBody: BodySchemaDefinition.optional(),
-  responseBody: BodySchemaDefinition,
-  authentication: z.boolean(),
+  responseBody: BodySchemaDefinition.default({ contentType: 'application/json', schema: {} }),
+  authentication: z.boolean().default(false),
   rateLimit: z.string().max(100).optional(),
 });
 
@@ -278,6 +279,7 @@ export type DataModel = z.infer<typeof DataModelSchema>;
 
 /**
  * Directory structure (recursive)
+ * Made lenient - paths may have various formats
  */
 export interface DirectoryStructure {
   path: string;
@@ -286,12 +288,8 @@ export interface DirectoryStructure {
 }
 
 export const DirectoryStructureSchema: z.ZodType<DirectoryStructure> = z.object({
-  path: z
-    .string()
-    .min(1)
-    .max(200)
-    .regex(/^[a-zA-Z0-9/_.-]+$/, 'Invalid path characters'),
-  description: z.string().min(1).max(500),
+  path: z.string().max(200),
+  description: z.string().max(500),
   children: z.lazy(() => z.array(DirectoryStructureSchema)).optional(),
 });
 
