@@ -170,7 +170,7 @@ export interface UIComponent {
   description?: string;
   content?: string;
   attributes?: Record<string, string>;
-  styles: ResponsiveStyles;
+  styles?: ResponsiveStyles;
   accessibility?: Accessibility;
   children?: UIComponent[];
   variants?: ComponentVariant[];
@@ -204,7 +204,7 @@ export const UIComponentSchema: z.ZodType<UIComponent> = z.lazy(() =>
         z.string().max(500)
       )
       .optional(),
-    styles: ResponsiveStylesSchema,
+    styles: ResponsiveStylesSchema.default({ base: {} }),
     accessibility: AccessibilitySchema.optional(),
     children: z.array(z.lazy(() => UIComponentSchema)).optional(),
     variants: z.array(ComponentVariantSchema).optional(),
@@ -336,6 +336,39 @@ export const ColorPaletteSchema = z.object({
 export type ColorPalette = z.infer<typeof ColorPaletteSchema>;
 
 /**
+ * Coerce lineHeight from object to number
+ * Claude sometimes returns { base: 1.6, heading: 1.2 } instead of just a number
+ */
+function coerceLineHeight(value: unknown): number | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? undefined : parsed;
+  }
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>;
+    // Try to extract a number from common keys
+    for (const key of ['base', 'body', 'default', 'normal']) {
+      if (typeof obj[key] === 'number') {
+        return obj[key] as number;
+      }
+    }
+    // Just take the first numeric value
+    for (const val of Object.values(obj)) {
+      if (typeof val === 'number') {
+        return val;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
  * Typography settings
  */
 export const TypographySchema = z.object({
@@ -343,8 +376,8 @@ export const TypographySchema = z.object({
   headingFamily: z.string().max(200).optional(),
   monoFamily: z.string().max(200).optional(),
   baseFontSize: z.string().max(20),
-  scaleRatio: z.number().min(1).max(2),
-  lineHeight: z.number().min(1).max(3).optional(),
+  scaleRatio: z.number().min(1).max(2).catch(1.25),
+  lineHeight: z.preprocess(coerceLineHeight, z.number().min(1).max(3).optional()),
   letterSpacing: z.string().max(20).optional(),
 });
 

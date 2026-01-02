@@ -195,7 +195,7 @@ export function renderComponent(
 ): string {
   const indent = '  '.repeat(depth);
   const tag = getHtmlTag(component.type);
-  const styles = styleObjectToString(component.styles.base);
+  const styles = styleObjectToString(component.styles?.base ?? {});
   const attrs = renderAttributes(component);
   const a11y = renderAccessibility(component.accessibility);
 
