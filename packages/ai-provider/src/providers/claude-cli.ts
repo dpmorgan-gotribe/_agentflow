@@ -246,6 +246,10 @@ export class ClaudeCliProvider implements AIProvider {
         delete cleanEnv['ANTHROPIC_API_KEY'];
       }
 
+      // Set a higher output token limit to allow longer agent responses
+      // Default is 64000, but UI designer can generate very long HTML/CSS
+      cleanEnv['CLAUDE_CODE_MAX_OUTPUT_TOKENS'] = '200000';
+
       const claude = spawn('bash', ['-c', bashCommand], {
         env: cleanEnv,
         stdio: ['ignore', 'pipe', 'pipe'], // stdin ignored - prompt comes from file
