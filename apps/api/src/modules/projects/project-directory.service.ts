@@ -454,4 +454,31 @@ coverage/
       this.logger.warn(`Failed to commit: ${error}`);
     }
   }
+
+  /**
+   * Delete all projects from disk
+   */
+  async deleteAllProjects(): Promise<{ deleted: string[]; errors: string[] }> {
+    const deleted: string[] = [];
+    const errors: string[] = [];
+
+    for (const slug of this.existingProjects) {
+      const projectPath = path.join(PROJECTS_BASE_DIR, slug);
+      try {
+        await fs.rm(projectPath, { recursive: true, force: true });
+        deleted.push(slug);
+        this.logger.log(`Deleted project: ${slug}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`${slug}: ${message}`);
+        this.logger.warn(`Failed to delete project ${slug}: ${message}`);
+      }
+    }
+
+    // Clear in-memory state
+    this.existingProjects.clear();
+    this.projectMap.clear();
+
+    return { deleted, errors };
+  }
 }

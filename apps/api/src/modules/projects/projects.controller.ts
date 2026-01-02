@@ -6,6 +6,7 @@
 
 import {
   Controller,
+  Delete,
   Get,
   Param,
   UseGuards,
@@ -174,5 +175,13 @@ export class ProjectsController {
       name.startsWith('.') && name !== '.aigentflow.json' ||
       ignorePatterns.includes(name)
     );
+  }
+
+  /**
+   * Delete all projects (cleanup)
+   */
+  @Delete()
+  async deleteAllProjects(): Promise<{ deleted: string[]; errors: string[] }> {
+    return this.projectDirectoryService.deleteAllProjects();
   }
 }

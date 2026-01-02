@@ -126,6 +126,15 @@ export async function getSystemStatus(): Promise<{ status: string; shuttingDown:
 }
 
 /**
+ * Delete all projects (cleanup)
+ */
+export async function cleanupProjects(): Promise<{ deleted: string[]; errors: string[] }> {
+  return fetchApi<{ deleted: string[]; errors: string[] }>('/projects', {
+    method: 'DELETE',
+  });
+}
+
+/**
  * API client with typed methods
  */
 export const apiClient = {

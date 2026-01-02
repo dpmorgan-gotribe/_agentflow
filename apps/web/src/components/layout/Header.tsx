@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { triggerShutdown } from '../../api';
+import { triggerShutdown, cleanupProjects } from '../../api';
 
 interface HeaderProps {
   activeTab: string;
@@ -18,6 +18,20 @@ export function Header({ activeTab, onTabChange, isExecuting, currentBranch }: H
   const [showKillConfirm, setShowKillConfirm] = useState(false);
   const [isKilling, setIsKilling] = useState(false);
   const [serverStopped, setServerStopped] = useState(false);
+  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<{ deleted: string[]; errors: string[] } | null>(null);
+
+  const handleCleanup = async () => {
+    setIsCleaning(true);
+    try {
+      const result = await cleanupProjects();
+      setCleanupResult(result);
+    } catch (error) {
+      setCleanupResult({ deleted: [], errors: [String(error)] });
+    }
+    setIsCleaning(false);
+  };
 
   const handleKillAll = async () => {
     setIsKilling(true);
@@ -118,6 +132,26 @@ export function Header({ activeTab, onTabChange, isExecuting, currentBranch }: H
             Cost: <span className="text-text-primary font-medium">$0.00</span>
           </span>
         </div>
+
+        {/* Clean Up Button */}
+        <button
+          onClick={() => setShowCleanupConfirm(true)}
+          className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 rounded text-xs font-medium text-white transition-colors"
+          title="Delete all projects"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+          Clean Up
+        </button>
 
         {/* Kill All Button */}
         <button
@@ -237,6 +271,129 @@ export function Header({ activeTab, onTabChange, isExecuting, currentBranch }: H
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cleanup Confirmation Dialog */}
+      {showCleanupConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-bg-secondary border border-border-primary rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            {cleanupResult ? (
+              // Result view
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    cleanupResult.errors.length > 0 ? 'bg-amber-500/20' : 'bg-status-success/20'
+                  }`}>
+                    {cleanupResult.errors.length > 0 ? (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-500">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                    ) : (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-status-success">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary">Cleanup Complete</h3>
+                    <p className="text-sm text-text-secondary">
+                      {cleanupResult.deleted.length} project{cleanupResult.deleted.length !== 1 ? 's' : ''} deleted
+                    </p>
+                  </div>
+                </div>
+
+                {cleanupResult.deleted.length > 0 && (
+                  <div className="bg-bg-tertiary rounded p-3 mb-4 text-xs text-text-secondary">
+                    <p className="mb-2 font-medium text-status-success">Deleted:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      {cleanupResult.deleted.map((name) => (
+                        <li key={name}>{name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {cleanupResult.errors.length > 0 && (
+                  <div className="bg-status-error/10 rounded p-3 mb-4 text-xs text-status-error">
+                    <p className="mb-2 font-medium">Errors:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      {cleanupResult.errors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowCleanupConfirm(false);
+                      setCleanupResult(null);
+                    }}
+                    className="px-4 py-2 bg-accent-primary hover:bg-accent-primary-hover rounded text-sm font-medium text-white transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            ) : (
+              // Confirmation view
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-500">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary">Clean Up Projects?</h3>
+                    <p className="text-sm text-text-secondary">This will delete all project directories.</p>
+                  </div>
+                </div>
+
+                <div className="bg-bg-tertiary rounded p-3 mb-4 text-xs text-text-secondary">
+                  <p className="mb-2">This action will:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Delete all project folders in <code className="bg-bg-card px-1 rounded">.aigentflow/projects/</code></li>
+                    <li>Remove all generated designs, mockups, and code</li>
+                    <li>Clear the project list in memory</li>
+                  </ul>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowCleanupConfirm(false)}
+                    disabled={isCleaning}
+                    className="px-4 py-2 bg-bg-tertiary border border-border-primary rounded text-sm text-text-primary hover:bg-bg-card-hover transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCleanup}
+                    disabled={isCleaning}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded text-sm font-medium text-white transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isCleaning ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Cleaning...
+                      </>
+                    ) : (
+                      'Delete All Projects'
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
