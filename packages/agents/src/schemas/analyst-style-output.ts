@@ -65,8 +65,8 @@ export type ColorMention = z.infer<typeof ColorMentionSchema>;
 export const FontMentionSchema = z.object({
   /** The font mentioned */
   font: z.string().min(1).max(100),
-  /** Whether for headings, body, or both */
-  usage: z.enum(['heading', 'body', 'both', 'unknown']).default('unknown'),
+  /** Whether for headings, body, or both - uses catch() to coerce invalid values like 'primary' or 'alternative' */
+  usage: z.enum(['heading', 'body', 'both', 'unknown']).catch('unknown'),
   /** Whether this is a must-use constraint */
   required: z.boolean().default(false),
 });

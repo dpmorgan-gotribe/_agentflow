@@ -587,6 +587,39 @@ const dataModelsCoercion = z.union([
 ]).default([]);
 
 /**
+ * Helper to coerce interfaces from object to array
+ * Claude sometimes returns { methodName: { type: '...', description: '...' } } instead of an array
+ */
+function coerceInterfacesToArray(interfaces: unknown): ComponentInterface[] {
+  if (Array.isArray(interfaces)) {
+    return interfaces;
+  }
+  if (typeof interfaces === 'object' && interfaces !== null) {
+    // Convert { methodName: {...} } to [{ name: 'methodName', ...}]
+    return Object.entries(interfaces).map(([key, value]) => {
+      if (typeof value === 'object' && value !== null) {
+        const v = value as Record<string, unknown>;
+        // Normalize type to valid values: 'api' | 'event' | 'function' | 'import'
+        const validTypes = ['api', 'event', 'function', 'import'] as const;
+        const rawType = String(v['type'] ?? 'function');
+        const type = validTypes.includes(rawType as InterfaceType) ? (rawType as InterfaceType) : 'function';
+        return {
+          name: typeof v['name'] === 'string' ? v['name'] : key,
+          type,
+          description: String(v['description'] ?? ''),
+        };
+      }
+      // If value is a string, use it as description
+      if (typeof value === 'string') {
+        return { name: key, type: 'function' as const, description: value };
+      }
+      return { name: key, type: 'function' as const, description: '' };
+    });
+  }
+  return [];
+}
+
+/**
  * Helper to coerce components from object to array
  * Claude sometimes returns { service1: {...}, service2: {...} } instead of an array
  */
@@ -602,7 +635,7 @@ const componentsCoercion = z.union([
           description: String(v['description'] ?? ''),
           responsibilities: Array.isArray(v['responsibilities']) ? v['responsibilities'] : [],
           dependencies: Array.isArray(v['dependencies']) ? v['dependencies'] : [],
-          interfaces: Array.isArray(v['interfaces']) ? v['interfaces'] : [],
+          interfaces: coerceInterfacesToArray(v['interfaces']),
           location: String(v['location'] ?? ''),
         });
       }
@@ -610,6 +643,51 @@ const componentsCoercion = z.union([
     });
   }),
 ]).default([]);
+
+/**
+ * Helper to coerce responseBody from string to object
+ * Claude sometimes returns "BookingResponse" instead of { contentType: '...', schema: {...} }
+ */
+function coerceResponseBody(responseBody: unknown): BodySchema {
+  if (typeof responseBody === 'object' && responseBody !== null) {
+    const v = responseBody as Record<string, unknown>;
+    return {
+      contentType: typeof v['contentType'] === 'string' ? v['contentType'] : 'application/json',
+      schema: typeof v['schema'] === 'object' && v['schema'] !== null ? (v['schema'] as Record<string, unknown>) : {},
+    };
+  }
+  if (typeof responseBody === 'string') {
+    // Convert string like "BookingResponse" to { contentType: 'application/json', schema: { type: 'BookingResponse' } }
+    return {
+      contentType: 'application/json',
+      schema: { type: responseBody },
+    };
+  }
+  return { contentType: 'application/json', schema: {} };
+}
+
+/**
+ * Helper to coerce requestBody from string to object (same logic as responseBody)
+ */
+function coerceRequestBody(requestBody: unknown): BodySchema | undefined {
+  if (requestBody === undefined || requestBody === null) {
+    return undefined;
+  }
+  if (typeof requestBody === 'object' && requestBody !== null) {
+    const v = requestBody as Record<string, unknown>;
+    return {
+      contentType: typeof v['contentType'] === 'string' ? v['contentType'] : 'application/json',
+      schema: typeof v['schema'] === 'object' && v['schema'] !== null ? (v['schema'] as Record<string, unknown>) : {},
+    };
+  }
+  if (typeof requestBody === 'string') {
+    return {
+      contentType: 'application/json',
+      schema: { type: requestBody },
+    };
+  }
+  return undefined;
+}
 
 /**
  * Helper to coerce apiEndpoints from object to array
@@ -627,8 +705,8 @@ const apiEndpointsCoercion = z.union([
           path,
           method: v['method'] ?? 'GET',
           description: String(v['description'] ?? ''),
-          requestBody: v['requestBody'],
-          responseBody: v['responseBody'],
+          requestBody: coerceRequestBody(v['requestBody']),
+          responseBody: coerceResponseBody(v['responseBody']),
           authentication: v['authentication'] ?? v['auth'] ?? false,
           rateLimit: v['rateLimit'],
         });
