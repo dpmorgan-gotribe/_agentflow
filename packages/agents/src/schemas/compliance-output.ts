@@ -12,13 +12,23 @@
  * - Path validation for file locations
  * - String length limits
  * - Severity bounds validation
+ *
+ * LENIENT: Uses lenient parsing utilities to handle Claude's output variations.
  */
 
 import { z } from 'zod';
 import { LenientAgentTypeArraySchema } from '../types.js';
+import {
+  lenientEnum,
+  lenientArray,
+  lenientBoolean,
+  lenientPath,
+  lenientUrl,
+} from './lenient-utils.js';
 
 /**
  * Path validation regex - prevents traversal attacks
+ * (kept for helper functions)
  */
 const SAFE_PATH_REGEX = /^[a-zA-Z0-9_\-./\\:]+$/;
 
@@ -27,31 +37,26 @@ const SAFE_PATH_REGEX = /^[a-zA-Z0-9_\-./\\:]+$/;
 // ============================================================================
 
 /**
- * Compliance framework types
+ * Compliance framework values
  */
-export const ComplianceFrameworkSchema = z.enum([
-  'platform', // Built-in platform compliance (mandatory)
-  'gdpr', // General Data Protection Regulation
-  'soc2', // Service Organization Control 2
-  'hipaa', // Health Insurance Portability and Accountability Act
-  'pci-dss', // Payment Card Industry Data Security Standard
-  'iso27001', // Information Security Management
-  'ccpa', // California Consumer Privacy Act
-  'custom', // User-defined rules
-]);
+const COMPLIANCE_FRAMEWORKS = ['platform', 'gdpr', 'soc2', 'hipaa', 'pci-dss', 'iso27001', 'ccpa', 'custom'] as const;
+
+/**
+ * Compliance framework types (lenient)
+ */
+export const ComplianceFrameworkSchema = lenientEnum(COMPLIANCE_FRAMEWORKS, 'platform');
 
 export type ComplianceFramework = z.infer<typeof ComplianceFrameworkSchema>;
 
 /**
- * Violation severity levels
+ * Violation severity values
  */
-export const ViolationSeveritySchema = z.enum([
-  'critical', // Must be fixed immediately, blocks deployment
-  'high', // Should be fixed before release
-  'medium', // Should be addressed soon
-  'low', // Nice to fix
-  'info', // Informational only
-]);
+const VIOLATION_SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'] as const;
+
+/**
+ * Violation severity levels (lenient)
+ */
+export const ViolationSeveritySchema = lenientEnum(VIOLATION_SEVERITIES, 'medium');
 
 export type ViolationSeverity = z.infer<typeof ViolationSeveritySchema>;
 
@@ -60,16 +65,10 @@ export type ViolationSeverity = z.infer<typeof ViolationSeveritySchema>;
 // ============================================================================
 
 /**
- * Code location for a violation
+ * Code location for a violation (lenient)
  */
 export const ViolationLocationSchema = z.object({
-  file: z
-    .string()
-    .min(1)
-    .max(500)
-    .refine((p) => SAFE_PATH_REGEX.test(p), {
-      message: 'Invalid path characters detected',
-    }),
+  file: lenientPath(500),
   line: z.number().int().min(1).optional(),
   column: z.number().int().min(1).optional(),
   code: z.string().max(500).optional(), // Snippet of offending code
@@ -78,19 +77,19 @@ export const ViolationLocationSchema = z.object({
 export type ViolationLocation = z.infer<typeof ViolationLocationSchema>;
 
 /**
- * Compliance violation
+ * Compliance violation (lenient)
  */
 export const ViolationSchema = z.object({
-  id: z.string().min(1).max(100),
+  id: z.string().max(100).default(''),
   framework: ComplianceFrameworkSchema,
-  rule: z.string().min(1).max(100),
+  rule: z.string().max(100).default(''),
   severity: ViolationSeveritySchema,
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(2000),
+  title: z.string().max(200).default(''),
+  description: z.string().max(2000).default(''),
   location: ViolationLocationSchema.optional(),
-  remediation: z.string().min(1).max(2000),
-  references: z.array(z.string().url().or(z.string().max(500))),
-  autoFixable: z.boolean(),
+  remediation: z.string().max(2000).default(''),
+  references: lenientArray(z.union([lenientUrl, z.string().max(500)])),
+  autoFixable: lenientBoolean,
   fixCode: z.string().max(5000).optional(),
 });
 
@@ -101,13 +100,13 @@ export type Violation = z.infer<typeof ViolationSchema>;
 // ============================================================================
 
 /**
- * Result of a compliance check
+ * Result of a compliance check (lenient)
  */
 export const CheckResultSchema = z.object({
-  rule: z.string().min(1).max(100),
+  rule: z.string().max(100).default(''),
   framework: ComplianceFrameworkSchema,
-  passed: z.boolean(),
-  message: z.string().min(1).max(1000),
+  passed: lenientBoolean,
+  message: z.string().max(1000).default(''),
   details: z.string().max(2000).optional(),
 });
 
@@ -118,60 +117,60 @@ export type CheckResult = z.infer<typeof CheckResultSchema>;
 // ============================================================================
 
 /**
- * Data sensitivity levels
+ * Data sensitivity values
  */
-export const DataSensitivitySchema = z.enum([
-  'public',
-  'internal',
-  'confidential',
-  'restricted',
-]);
+const DATA_SENSITIVITIES = ['public', 'internal', 'confidential', 'restricted'] as const;
+
+/**
+ * Data sensitivity levels (lenient)
+ */
+export const DataSensitivitySchema = lenientEnum(DATA_SENSITIVITIES, 'internal');
 
 export type DataSensitivity = z.infer<typeof DataSensitivitySchema>;
 
 /**
- * Data type classification
+ * Data type classification (lenient)
  */
 export const DataTypeClassificationSchema = z.object({
-  type: z.string().min(1).max(200),
+  type: z.string().max(200).default(''),
   sensitivity: DataSensitivitySchema,
-  locations: z.array(z.string().max(500)),
-  protection: z.array(z.string().max(200)),
+  locations: lenientArray(z.string().max(500)),
+  protection: lenientArray(z.string().max(200)),
 });
 
 export type DataTypeClassification = z.infer<typeof DataTypeClassificationSchema>;
 
 /**
- * Data flow definition
+ * Data flow definition (lenient)
  */
 export const DataFlowSchema = z.object({
-  from: z.string().min(1).max(200),
-  to: z.string().min(1).max(200),
-  dataType: z.string().min(1).max(200),
-  encrypted: z.boolean(),
-  logged: z.boolean(),
+  from: z.string().max(200).default(''),
+  to: z.string().max(200).default(''),
+  dataType: z.string().max(200).default(''),
+  encrypted: lenientBoolean,
+  logged: lenientBoolean,
 });
 
 export type DataFlow = z.infer<typeof DataFlowSchema>;
 
 /**
- * Data retention policy
+ * Data retention policy (lenient)
  */
 export const RetentionPolicySchema = z.object({
-  dataType: z.string().min(1).max(200),
-  period: z.string().min(1).max(100),
-  implemented: z.boolean(),
+  dataType: z.string().max(200).default(''),
+  period: z.string().max(100).default(''),
+  implemented: lenientBoolean,
 });
 
 export type RetentionPolicy = z.infer<typeof RetentionPolicySchema>;
 
 /**
- * Complete data handling assessment
+ * Complete data handling assessment (lenient)
  */
 export const DataHandlingSchema = z.object({
-  dataTypes: z.array(DataTypeClassificationSchema),
-  dataFlows: z.array(DataFlowSchema),
-  retentionPolicies: z.array(RetentionPolicySchema),
+  dataTypes: lenientArray(DataTypeClassificationSchema),
+  dataFlows: lenientArray(DataFlowSchema),
+  retentionPolicies: lenientArray(RetentionPolicySchema),
 });
 
 export type DataHandling = z.infer<typeof DataHandlingSchema>;
@@ -181,58 +180,58 @@ export type DataHandling = z.infer<typeof DataHandlingSchema>;
 // ============================================================================
 
 /**
- * Authentication assessment
+ * Authentication assessment (lenient)
  */
 export const AuthenticationAssessmentSchema = z.object({
-  implemented: z.boolean(),
-  methods: z.array(z.string().min(1).max(100)),
-  mfaAvailable: z.boolean(),
-  sessionManagement: z.boolean(),
+  implemented: lenientBoolean,
+  methods: lenientArray(z.string().max(100)),
+  mfaAvailable: lenientBoolean,
+  sessionManagement: lenientBoolean,
 });
 
 export type AuthenticationAssessment = z.infer<typeof AuthenticationAssessmentSchema>;
 
 /**
- * Authorization assessment
+ * Authorization assessment (lenient)
  */
 export const AuthorizationAssessmentSchema = z.object({
-  implemented: z.boolean(),
-  model: z.string().min(1).max(100), // RBAC, ABAC, etc.
-  granularity: z.string().min(1).max(200),
+  implemented: lenientBoolean,
+  model: z.string().max(100).default('none'), // RBAC, ABAC, etc.
+  granularity: z.string().max(200).default(''),
 });
 
 export type AuthorizationAssessment = z.infer<typeof AuthorizationAssessmentSchema>;
 
 /**
- * Encryption assessment
+ * Encryption assessment (lenient)
  */
 export const EncryptionAssessmentSchema = z.object({
-  atRest: z.boolean(),
-  inTransit: z.boolean(),
-  algorithms: z.array(z.string().min(1).max(100)),
+  atRest: lenientBoolean,
+  inTransit: lenientBoolean,
+  algorithms: lenientArray(z.string().max(100)),
 });
 
 export type EncryptionAssessment = z.infer<typeof EncryptionAssessmentSchema>;
 
 /**
- * Secret management assessment
+ * Secret management assessment (lenient)
  */
 export const SecretManagementAssessmentSchema = z.object({
-  noHardcodedSecrets: z.boolean(),
+  noHardcodedSecrets: lenientBoolean,
   secretsManager: z.string().max(100).optional(),
-  rotation: z.boolean(),
+  rotation: lenientBoolean,
 });
 
 export type SecretManagementAssessment = z.infer<typeof SecretManagementAssessmentSchema>;
 
 /**
- * Complete security assessment
+ * Complete security assessment (lenient)
  */
 export const SecurityAssessmentSchema = z.object({
-  authentication: AuthenticationAssessmentSchema,
-  authorization: AuthorizationAssessmentSchema,
-  encryption: EncryptionAssessmentSchema,
-  secretManagement: SecretManagementAssessmentSchema,
+  authentication: AuthenticationAssessmentSchema.optional(),
+  authorization: AuthorizationAssessmentSchema.optional(),
+  encryption: EncryptionAssessmentSchema.optional(),
+  secretManagement: SecretManagementAssessmentSchema.optional(),
 });
 
 export type SecurityAssessment = z.infer<typeof SecurityAssessmentSchema>;
@@ -242,35 +241,40 @@ export type SecurityAssessment = z.infer<typeof SecurityAssessmentSchema>;
 // ============================================================================
 
 /**
- * Implementation effort levels
+ * Effort level values
  */
-export const EffortLevelSchema = z.enum(['minimal', 'moderate', 'significant']);
+const EFFORT_LEVELS = ['minimal', 'moderate', 'significant'] as const;
+
+/**
+ * Implementation effort levels (lenient)
+ */
+export const EffortLevelSchema = lenientEnum(EFFORT_LEVELS, 'moderate');
 
 export type EffortLevel = z.infer<typeof EffortLevelSchema>;
 
 /**
- * Compliance recommendation
+ * Compliance recommendation (lenient)
  */
 export const ComplianceRecommendationSchema = z.object({
   framework: ComplianceFrameworkSchema,
   priority: ViolationSeveritySchema,
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(2000),
-  implementation: z.array(z.string().min(1).max(500)),
+  title: z.string().max(200).default(''),
+  description: z.string().max(2000).default(''),
+  implementation: lenientArray(z.string().max(500)),
   effort: EffortLevelSchema,
 });
 
 export type ComplianceRecommendation = z.infer<typeof ComplianceRecommendationSchema>;
 
 /**
- * Compliance score for a framework
+ * Compliance score for a framework (lenient)
  */
 export const ComplianceScoreSchema = z.object({
   framework: ComplianceFrameworkSchema,
-  score: z.number().min(0).max(100),
-  passed: z.number().int().min(0),
-  failed: z.number().int().min(0),
-  notApplicable: z.number().int().min(0),
+  score: z.number().min(0).max(100).catch(0),
+  passed: z.number().int().min(0).catch(0),
+  failed: z.number().int().min(0).catch(0),
+  notApplicable: z.number().int().min(0).catch(0),
 });
 
 export type ComplianceScore = z.infer<typeof ComplianceScoreSchema>;
@@ -280,36 +284,38 @@ export type ComplianceScore = z.infer<typeof ComplianceScoreSchema>;
 // ============================================================================
 
 /**
- * Scan types
+ * Scan type values
  */
-export const ScanTypeSchema = z.enum([
-  'full', // Complete codebase scan
-  'incremental', // Only changed files
-  'targeted', // Specific files/rules
-]);
+const SCAN_TYPES = ['full', 'incremental', 'targeted'] as const;
+
+/**
+ * Scan types (lenient)
+ */
+export const ScanTypeSchema = lenientEnum(SCAN_TYPES, 'full');
 
 export type ScanType = z.infer<typeof ScanTypeSchema>;
 
 /**
- * Overall compliance status
+ * Compliance status values
  */
-export const ComplianceStatusSchema = z.enum([
-  'compliant',
-  'non-compliant',
-  'needs-attention',
-]);
+const COMPLIANCE_STATUSES = ['compliant', 'non-compliant', 'needs-attention'] as const;
+
+/**
+ * Overall compliance status (lenient)
+ */
+export const ComplianceStatusSchema = lenientEnum(COMPLIANCE_STATUSES, 'needs-attention');
 
 export type ComplianceStatus = z.infer<typeof ComplianceStatusSchema>;
 
 /**
- * Compliance summary
+ * Compliance summary (lenient)
  */
 export const ComplianceSummarySchema = z.object({
   overallStatus: ComplianceStatusSchema,
-  criticalViolations: z.number().int().min(0),
-  highViolations: z.number().int().min(0),
-  totalViolations: z.number().int().min(0),
-  averageScore: z.number().min(0).max(100),
+  criticalViolations: z.number().int().min(0).catch(0),
+  highViolations: z.number().int().min(0).catch(0),
+  totalViolations: z.number().int().min(0).catch(0),
+  averageScore: z.number().min(0).max(100).catch(0),
 });
 
 export type ComplianceSummary = z.infer<typeof ComplianceSummarySchema>;
@@ -319,17 +325,24 @@ export type ComplianceSummary = z.infer<typeof ComplianceSummarySchema>;
 // ============================================================================
 
 /**
- * Compliance routing hints
- * Uses LenientAgentTypeArraySchema to handle common Claude name variations
+ * Compliance routing hints (lenient)
+ * Uses LenientAgentTypeArraySchema and lenientBoolean
  */
 export const ComplianceRoutingHintsSchema = z.object({
   suggestNext: LenientAgentTypeArraySchema,
   skipAgents: LenientAgentTypeArraySchema,
-  needsApproval: z.boolean(),
-  hasFailures: z.boolean(),
-  isComplete: z.boolean(),
-  blockingViolations: z.boolean(),
+  needsApproval: lenientBoolean,
+  hasFailures: lenientBoolean,
+  isComplete: lenientBoolean,
+  blockingViolations: lenientBoolean,
   notes: z.string().max(1000).optional(),
+}).default({
+  suggestNext: [],
+  skipAgents: [],
+  needsApproval: false,
+  hasFailures: false,
+  isComplete: false,
+  blockingViolations: false,
 });
 
 export type ComplianceRoutingHints = z.infer<typeof ComplianceRoutingHintsSchema>;
@@ -339,23 +352,23 @@ export type ComplianceRoutingHints = z.infer<typeof ComplianceRoutingHintsSchema
 // ============================================================================
 
 /**
- * Complete Compliance Agent output
+ * Complete Compliance Agent output (lenient)
  */
 export const ComplianceOutputSchema = z.object({
   scanType: ScanTypeSchema,
-  timestamp: z.string().min(1).max(50),
+  timestamp: z.string().max(50).default(''),
 
   // Active compliance frameworks
-  activeFrameworks: z.array(ComplianceFrameworkSchema),
+  activeFrameworks: lenientArray(ComplianceFrameworkSchema),
 
   // Violations found
-  violations: z.array(ViolationSchema),
+  violations: lenientArray(ViolationSchema),
 
   // Check results
-  checkResults: z.array(CheckResultSchema),
+  checkResults: lenientArray(CheckResultSchema),
 
   // Scores by framework
-  scores: z.array(ComplianceScoreSchema),
+  scores: lenientArray(ComplianceScoreSchema),
 
   // Data handling assessment (optional)
   dataHandling: DataHandlingSchema.optional(),
@@ -364,10 +377,10 @@ export const ComplianceOutputSchema = z.object({
   security: SecurityAssessmentSchema.optional(),
 
   // Recommendations
-  recommendations: z.array(ComplianceRecommendationSchema),
+  recommendations: lenientArray(ComplianceRecommendationSchema),
 
   // Summary
-  summary: ComplianceSummarySchema,
+  summary: ComplianceSummarySchema.optional(),
 
   // Routing hints
   routingHints: ComplianceRoutingHintsSchema,

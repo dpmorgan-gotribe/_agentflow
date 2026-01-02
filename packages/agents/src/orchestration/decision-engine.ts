@@ -302,6 +302,7 @@ export class DecisionEngine {
         reason: `${rule.action.toUpperCase()}: ${rule.description}`,
         priority: rule.priority,
         contextRequirements: [],
+        alternativeAgents: [],
       };
     }
 
@@ -310,6 +311,7 @@ export class DecisionEngine {
       reason: rule.description,
       priority: rule.priority,
       contextRequirements: this.getContextRequirements(rule.action),
+      alternativeAgents: [],
     };
   }
 
@@ -364,6 +366,7 @@ export class DecisionEngine {
           reason: 'Default fallback after AI reasoning failure',
           priority: 50,
           contextRequirements: [],
+          alternativeAgents: [],
         },
         usedAIReasoning: true,
         tokenUsage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
@@ -447,6 +450,7 @@ What should be the next step?`;
         reason: 'Fallback due to parse error',
         priority: 50,
         contextRequirements: [],
+        alternativeAgents: [],
       };
     }
   }

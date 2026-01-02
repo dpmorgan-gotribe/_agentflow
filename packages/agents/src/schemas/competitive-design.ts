@@ -13,96 +13,93 @@
  * SECURITY:
  * - Tenant isolation via competition IDs
  * - String length limits
+ *
+ * LENIENT: Uses lenient parsing utilities to handle Claude's output variations.
  */
 
 import { z } from 'zod';
 import { UIDesignerOutputSchema } from './ui-designer-output.js';
+import {
+  lenientEnum,
+  lenientArray,
+  lenientBoolean,
+  lenientId,
+} from './lenient-utils.js';
 
 // ============================================================================
 // Design Styles
 // ============================================================================
 
 /**
- * Design style approaches for variety in competitive designs
+ * Design style values
  */
-export const DesignStyleSchema = z.enum([
-  'minimal',
-  'modern',
-  'classic',
-  'bold',
-  'playful',
-  'corporate',
-  'elegant',
-  'tech',
-  'organic',
-  'geometric',
-]);
+const DESIGN_STYLE_VALUES = ['minimal', 'modern', 'classic', 'bold', 'playful', 'corporate', 'elegant', 'tech', 'organic', 'geometric'] as const;
+
+/**
+ * Design style approaches for variety in competitive designs (lenient)
+ */
+export const DesignStyleSchema = lenientEnum(DESIGN_STYLE_VALUES, 'modern');
 
 export type DesignStyle = z.infer<typeof DesignStyleSchema>;
 
 /**
  * All design styles as array
  */
-export const DESIGN_STYLES = DesignStyleSchema.options;
+export const DESIGN_STYLES: readonly string[] = DESIGN_STYLE_VALUES;
 
 // ============================================================================
 // Design Focus
 // ============================================================================
 
 /**
- * Design focus areas for variety
+ * Design focus values
  */
-export const DesignFocusSchema = z.enum([
-  'usability',
-  'aesthetics',
-  'accessibility',
-  'performance',
-  'innovation',
-]);
+const DESIGN_FOCUS_VALUES = ['usability', 'aesthetics', 'accessibility', 'performance', 'innovation'] as const;
+
+/**
+ * Design focus areas for variety (lenient)
+ */
+export const DesignFocusSchema = lenientEnum(DESIGN_FOCUS_VALUES, 'usability');
 
 export type DesignFocus = z.infer<typeof DesignFocusSchema>;
 
 /**
  * All design focuses as array
  */
-export const DESIGN_FOCUSES = DesignFocusSchema.options;
+export const DESIGN_FOCUSES: readonly string[] = DESIGN_FOCUS_VALUES;
 
 // ============================================================================
 // Color Schemes
 // ============================================================================
 
 /**
- * Color scheme approaches for variety
+ * Color scheme values
  */
-export const ColorSchemeTypeSchema = z.enum([
-  'vibrant',
-  'muted',
-  'monochrome',
-  'complementary',
-  'analogous',
-  'triadic',
-  'split-complementary',
-  'tetradic',
-]);
+const COLOR_SCHEME_VALUES = ['vibrant', 'muted', 'monochrome', 'complementary', 'analogous', 'triadic', 'split-complementary', 'tetradic'] as const;
+
+/**
+ * Color scheme approaches for variety (lenient)
+ */
+export const ColorSchemeTypeSchema = lenientEnum(COLOR_SCHEME_VALUES, 'complementary');
 
 export type ColorSchemeType = z.infer<typeof ColorSchemeTypeSchema>;
 
 /**
  * All color schemes as array
  */
-export const COLOR_SCHEMES = ColorSchemeTypeSchema.options;
+export const COLOR_SCHEMES: readonly string[] = COLOR_SCHEME_VALUES;
 
 // ============================================================================
 // Design Variant
 // ============================================================================
 
 /**
- * Design variant metadata assigned to each designer
+ * Design variant metadata assigned to each designer (lenient)
  */
 export const DesignVariantSchema = z.object({
-  variantId: z.string().min(1).max(100),
-  variantNumber: z.number().int().min(1).max(15),
-  totalVariants: z.number().int().min(1).max(15),
+  variantId: lenientId(100),
+  variantNumber: z.number().int().min(1).max(15).catch(1),
+  totalVariants: z.number().int().min(1).max(15).catch(1),
   designStyle: DesignStyleSchema,
   designFocus: DesignFocusSchema,
   colorScheme: ColorSchemeTypeSchema,
@@ -115,13 +112,13 @@ export type DesignVariant = z.infer<typeof DesignVariantSchema>;
 // ============================================================================
 
 /**
- * Trade-off made during design
+ * Trade-off made during design (lenient)
  */
 export const DesignTradeoffSchema = z.object({
-  aspect: z.string().min(1).max(100),
-  choice: z.string().min(1).max(200),
-  rationale: z.string().max(500),
-  alternatives: z.array(z.string().max(200)).optional(),
+  aspect: z.string().max(100).default(''),
+  choice: z.string().max(200).default(''),
+  rationale: z.string().max(500).default(''),
+  alternatives: lenientArray(z.string().max(200)),
 });
 
 export type DesignTradeoff = z.infer<typeof DesignTradeoffSchema>;
@@ -131,14 +128,14 @@ export type DesignTradeoff = z.infer<typeof DesignTradeoffSchema>;
 // ============================================================================
 
 /**
- * Metadata specific to competitive design output
+ * Metadata specific to competitive design output (lenient)
  */
 export const CompetitionMetadataSchema = z.object({
   variant: DesignVariantSchema,
-  designRationale: z.string().max(2000),
-  keyFeatures: z.array(z.string().max(200)),
-  tradeoffs: z.array(DesignTradeoffSchema),
-  inspirations: z.array(z.string().max(200)).optional(),
+  designRationale: z.string().max(2000).default(''),
+  keyFeatures: lenientArray(z.string().max(200)),
+  tradeoffs: lenientArray(DesignTradeoffSchema),
+  inspirations: lenientArray(z.string().max(200)),
   targetAudience: z.string().max(500).optional(),
 });
 
@@ -162,15 +159,15 @@ export type CompetitiveDesignOutput = z.infer<typeof CompetitiveDesignOutputSche
 // ============================================================================
 
 /**
- * Single design submission in a competition
+ * Single design submission in a competition (lenient)
  */
 export const DesignSubmissionSchema = z.object({
-  variantId: z.string().min(1).max(100),
-  agentId: z.string().min(1).max(100),
+  variantId: lenientId(100),
+  agentId: z.string().max(100).default(''),
   design: CompetitiveDesignOutputSchema,
-  submittedAt: z.string().max(50),
+  submittedAt: z.string().max(50).default(''),
   score: z.number().min(0).max(100).optional(),
-  selected: z.boolean().default(false),
+  selected: lenientBoolean,
   feedback: z.string().max(1000).optional(),
 });
 
@@ -181,11 +178,11 @@ export type DesignSubmission = z.infer<typeof DesignSubmissionSchema>;
 // ============================================================================
 
 /**
- * Winner selection info
+ * Winner selection info (lenient)
  */
 export const CompetitionWinnerSchema = z.object({
-  variantId: z.string().min(1).max(100),
-  reason: z.string().max(1000),
+  variantId: lenientId(100),
+  reason: z.string().max(1000).default(''),
   selectedBy: z.string().max(100).optional(), // user ID
   selectedAt: z.string().max(50).optional(),
 });
@@ -197,18 +194,30 @@ export type CompetitionWinner = z.infer<typeof CompetitionWinnerSchema>;
 // ============================================================================
 
 /**
- * Complete design competition result
+ * Competition status values
+ */
+const COMPETITION_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled'] as const;
+
+/**
+ * Competition status (lenient)
+ */
+export const CompetitionStatusSchema = lenientEnum(COMPETITION_STATUSES, 'pending');
+
+export type CompetitionStatus = z.infer<typeof CompetitionStatusSchema>;
+
+/**
+ * Complete design competition result (lenient)
  */
 export const DesignCompetitionResultSchema = z.object({
-  competitionId: z.string().min(1).max(100),
-  tenantId: z.string().min(1).max(100).optional(), // For tenant isolation
-  requirement: z.string().max(5000),
-  startedAt: z.string().max(50),
+  competitionId: lenientId(100),
+  tenantId: z.string().max(100).optional(), // For tenant isolation
+  requirement: z.string().max(5000).default(''),
+  startedAt: z.string().max(50).default(''),
   completedAt: z.string().max(50).optional(),
-  targetDesignerCount: z.number().int().min(1).max(15),
-  submissions: z.array(DesignSubmissionSchema),
+  targetDesignerCount: z.number().int().min(1).max(15).catch(5),
+  submissions: lenientArray(DesignSubmissionSchema),
   winner: CompetitionWinnerSchema.optional(),
-  status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']),
+  status: CompetitionStatusSchema,
 });
 
 export type DesignCompetitionResult = z.infer<typeof DesignCompetitionResultSchema>;
@@ -218,13 +227,13 @@ export type DesignCompetitionResult = z.infer<typeof DesignCompetitionResultSche
 // ============================================================================
 
 /**
- * Options for running a design competition
+ * Options for running a design competition (lenient)
  */
 export const CompetitionOptionsSchema = z.object({
-  maxDesigners: z.number().int().min(1).max(15).default(5),
-  timeoutMs: z.number().int().min(30000).max(600000).default(300000), // 5 min default
-  requireMinimumSubmissions: z.number().int().min(1).max(15).default(3),
-  autoSelect: z.boolean().default(false), // Auto-select winner based on scoring
+  maxDesigners: z.number().int().min(1).max(15).catch(5),
+  timeoutMs: z.number().int().min(30000).max(600000).catch(300000), // 5 min default
+  requireMinimumSubmissions: z.number().int().min(1).max(15).catch(3),
+  autoSelect: lenientBoolean, // Auto-select winner based on scoring
 });
 
 export type CompetitionOptions = z.infer<typeof CompetitionOptionsSchema>;

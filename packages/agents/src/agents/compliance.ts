@@ -281,9 +281,9 @@ Be thorough and specific. Include all violations found in the scan.`;
       content: this.renderComplianceReport(parsed),
       metadata: {
         type: 'compliance-report',
-        status: parsed.summary.overallStatus,
-        totalViolations: parsed.summary.totalViolations,
-        criticalViolations: parsed.summary.criticalViolations,
+        status: parsed.summary?.overallStatus ?? 'needs-attention',
+        totalViolations: parsed.summary?.totalViolations ?? 0,
+        criticalViolations: parsed.summary?.criticalViolations ?? 0,
       },
     });
 
@@ -317,15 +317,15 @@ Be thorough and specific. Include all violations found in the scan.`;
       ),
       metadata: {
         type: 'compliance-scores',
-        averageScore: parsed.summary.averageScore,
+        averageScore: parsed.summary?.averageScore ?? 0,
       },
     });
 
     this.log('info', 'Compliance scan complete', {
-      status: parsed.summary.overallStatus,
-      totalViolations: parsed.summary.totalViolations,
-      criticalViolations: parsed.summary.criticalViolations,
-      averageScore: parsed.summary.averageScore,
+      status: parsed.summary?.overallStatus ?? 'needs-attention',
+      totalViolations: parsed.summary?.totalViolations ?? 0,
+      criticalViolations: parsed.summary?.criticalViolations ?? 0,
+      averageScore: parsed.summary?.averageScore ?? 0,
       tenantId: request.context.tenantId,
     });
 
@@ -344,8 +344,8 @@ Be thorough and specific. Include all violations found in the scan.`;
     request: AgentRequest
   ): RoutingHints {
     const output = result as ComplianceOutput;
-    const hasCritical = output.summary.criticalViolations > 0;
-    const hasHigh = output.summary.highViolations > 0;
+    const hasCritical = (output.summary?.criticalViolations ?? 0) > 0;
+    const hasHigh = (output.summary?.highViolations ?? 0) > 0;
 
     const suggestNext: (typeof AgentTypeEnum)[keyof typeof AgentTypeEnum][] = [];
 
@@ -357,7 +357,7 @@ Be thorough and specific. Include all violations found in the scan.`;
       }
 
       // Suggest project manager to plan remediation work
-      if (output.summary.totalViolations > 0) {
+      if ((output.summary?.totalViolations ?? 0) > 0) {
         suggestNext.push(AgentTypeEnum.PROJECT_MANAGER);
       }
     }
@@ -369,10 +369,10 @@ Be thorough and specific. Include all violations found in the scan.`;
       hasFailures: hasCritical,
       isComplete: true,
       notes: hasCritical
-        ? `BLOCKING: ${output.summary.criticalViolations} critical violations must be fixed before proceeding`
+        ? `BLOCKING: ${output.summary?.criticalViolations ?? 0} critical violations must be fixed before proceeding`
         : hasHigh
-          ? `${output.summary.highViolations} high-severity violations should be addressed`
-          : `${output.summary.totalViolations} violations found, average score: ${output.summary.averageScore}%`,
+          ? `${output.summary?.highViolations ?? 0} high-severity violations should be addressed`
+          : `${output.summary?.totalViolations ?? 0} violations found, average score: ${output.summary?.averageScore ?? 0}%`,
     };
   }
 
@@ -387,13 +387,14 @@ Be thorough and specific. Include all violations found in the scan.`;
     lines.push('');
 
     // Status badge
+    const overallStatus = output.summary?.overallStatus ?? 'needs-attention';
     const statusIcon =
-      output.summary.overallStatus === 'compliant'
+      overallStatus === 'compliant'
         ? '✅'
-        : output.summary.overallStatus === 'non-compliant'
+        : overallStatus === 'non-compliant'
           ? '🔴'
           : '🟡';
-    lines.push(`**Status:** ${statusIcon} ${output.summary.overallStatus.toUpperCase()}`);
+    lines.push(`**Status:** ${statusIcon} ${overallStatus.toUpperCase()}`);
     lines.push(`**Scan Type:** ${output.scanType}`);
     lines.push(`**Timestamp:** ${output.timestamp}`);
     lines.push('');
@@ -403,10 +404,10 @@ Be thorough and specific. Include all violations found in the scan.`;
     lines.push('');
     lines.push('| Metric | Value |');
     lines.push('|--------|-------|');
-    lines.push(`| Total Violations | ${output.summary.totalViolations} |`);
-    lines.push(`| Critical | ${output.summary.criticalViolations} |`);
-    lines.push(`| High | ${output.summary.highViolations} |`);
-    lines.push(`| Average Score | ${output.summary.averageScore}% |`);
+    lines.push(`| Total Violations | ${output.summary?.totalViolations ?? 0} |`);
+    lines.push(`| Critical | ${output.summary?.criticalViolations ?? 0} |`);
+    lines.push(`| High | ${output.summary?.highViolations ?? 0} |`);
+    lines.push(`| Average Score | ${output.summary?.averageScore ?? 0}% |`);
     lines.push('');
 
     // Active frameworks
@@ -498,40 +499,48 @@ Be thorough and specific. Include all violations found in the scan.`;
       lines.push('## Security Assessment');
       lines.push('');
 
-      lines.push('### Authentication');
-      lines.push(`- Implemented: ${output.security.authentication.implemented ? '✅' : '❌'}`);
-      if (output.security.authentication.methods.length > 0) {
-        lines.push(`- Methods: ${output.security.authentication.methods.join(', ')}`);
+      if (output.security.authentication) {
+        lines.push('### Authentication');
+        lines.push(`- Implemented: ${output.security.authentication.implemented ? '✅' : '❌'}`);
+        if (output.security.authentication.methods.length > 0) {
+          lines.push(`- Methods: ${output.security.authentication.methods.join(', ')}`);
+        }
+        lines.push(`- MFA Available: ${output.security.authentication.mfaAvailable ? '✅' : '❌'}`);
+        lines.push(
+          `- Session Management: ${output.security.authentication.sessionManagement ? '✅' : '❌'}`
+        );
+        lines.push('');
       }
-      lines.push(`- MFA Available: ${output.security.authentication.mfaAvailable ? '✅' : '❌'}`);
-      lines.push(
-        `- Session Management: ${output.security.authentication.sessionManagement ? '✅' : '❌'}`
-      );
-      lines.push('');
 
-      lines.push('### Authorization');
-      lines.push(`- Implemented: ${output.security.authorization.implemented ? '✅' : '❌'}`);
-      lines.push(`- Model: ${output.security.authorization.model}`);
-      lines.push(`- Granularity: ${output.security.authorization.granularity}`);
-      lines.push('');
-
-      lines.push('### Encryption');
-      lines.push(`- At Rest: ${output.security.encryption.atRest ? '✅' : '❌'}`);
-      lines.push(`- In Transit: ${output.security.encryption.inTransit ? '✅' : '❌'}`);
-      if (output.security.encryption.algorithms.length > 0) {
-        lines.push(`- Algorithms: ${output.security.encryption.algorithms.join(', ')}`);
+      if (output.security.authorization) {
+        lines.push('### Authorization');
+        lines.push(`- Implemented: ${output.security.authorization.implemented ? '✅' : '❌'}`);
+        lines.push(`- Model: ${output.security.authorization.model}`);
+        lines.push(`- Granularity: ${output.security.authorization.granularity}`);
+        lines.push('');
       }
-      lines.push('');
 
-      lines.push('### Secret Management');
-      lines.push(
-        `- No Hardcoded Secrets: ${output.security.secretManagement.noHardcodedSecrets ? '✅' : '❌'}`
-      );
-      if (output.security.secretManagement.secretsManager) {
-        lines.push(`- Secrets Manager: ${output.security.secretManagement.secretsManager}`);
+      if (output.security.encryption) {
+        lines.push('### Encryption');
+        lines.push(`- At Rest: ${output.security.encryption.atRest ? '✅' : '❌'}`);
+        lines.push(`- In Transit: ${output.security.encryption.inTransit ? '✅' : '❌'}`);
+        if (output.security.encryption.algorithms.length > 0) {
+          lines.push(`- Algorithms: ${output.security.encryption.algorithms.join(', ')}`);
+        }
+        lines.push('');
       }
-      lines.push(`- Key Rotation: ${output.security.secretManagement.rotation ? '✅' : '❌'}`);
-      lines.push('');
+
+      if (output.security.secretManagement) {
+        lines.push('### Secret Management');
+        lines.push(
+          `- No Hardcoded Secrets: ${output.security.secretManagement.noHardcodedSecrets ? '✅' : '❌'}`
+        );
+        if (output.security.secretManagement.secretsManager) {
+          lines.push(`- Secrets Manager: ${output.security.secretManagement.secretsManager}`);
+        }
+        lines.push(`- Key Rotation: ${output.security.secretManagement.rotation ? '✅' : '❌'}`);
+        lines.push('');
+      }
     }
 
     // Recommendations

@@ -8,235 +8,235 @@
  * - Path validation to prevent traversal attacks
  * - Confidence bounds validation
  * - String length limits to prevent payload abuse
+ *
+ * LENIENT: Uses lenient parsing utilities to handle Claude's output variations.
  */
 
 import { z } from 'zod';
 import { LenientAgentTypeArraySchema } from '../types.js';
+import {
+  lenientEnum,
+  lenientArray,
+  lenientConfidence,
+  lenientBoolean,
+  lenientPath,
+} from './lenient-utils.js';
 
 /**
  * Path validation regex - prevents traversal attacks
+ * (kept for isValidPath helper function)
  */
 const SAFE_PATH_REGEX = /^[a-zA-Z0-9_\-./\\]+$/;
 
 /**
- * Detected programming language
+ * Detected programming language (lenient)
  */
 export const DetectedLanguageSchema = z.object({
-  name: z.string().min(1).max(100),
-  percentage: z.number().min(0).max(100),
-  files: z.number().int().min(0),
-  lines: z.number().int().min(0),
-  primary: z.boolean(),
+  name: z.string().max(100).default(''),
+  percentage: z.number().min(0).max(100).catch(0),
+  files: z.number().int().min(0).catch(0),
+  lines: z.number().int().min(0).catch(0),
+  primary: lenientBoolean,
 });
 
 export type DetectedLanguage = z.infer<typeof DetectedLanguageSchema>;
 
 /**
- * Framework type categories
+ * Framework type values
  */
-export const FrameworkTypeSchema = z.enum([
-  'frontend',
-  'backend',
-  'fullstack',
-  'testing',
-  'build',
-  'utility',
-]);
+const FRAMEWORK_TYPES = ['frontend', 'backend', 'fullstack', 'testing', 'build', 'utility'] as const;
+
+/**
+ * Framework type categories (lenient)
+ */
+export const FrameworkTypeSchema = lenientEnum(FRAMEWORK_TYPES, 'utility');
 
 export type FrameworkType = z.infer<typeof FrameworkTypeSchema>;
 
 /**
- * Detected framework with confidence scoring
+ * Detected framework with confidence scoring (lenient)
  */
 export const DetectedFrameworkSchema = z.object({
-  name: z.string().min(1).max(200),
+  name: z.string().max(200).default(''),
   version: z.string().max(50).optional(),
   type: FrameworkTypeSchema,
-  confidence: z.number().min(0).max(1),
-  evidence: z.array(z.string().min(1).max(500)),
+  confidence: lenientConfidence,
+  evidence: lenientArray(z.string().max(500)),
 });
 
 export type DetectedFramework = z.infer<typeof DetectedFrameworkSchema>;
 
 /**
- * Directory importance levels
+ * Importance level values
  */
-export const ImportanceSchema = z.enum(['critical', 'high', 'medium', 'low']);
+const IMPORTANCE_LEVELS = ['critical', 'high', 'medium', 'low'] as const;
+
+/**
+ * Directory importance levels (lenient)
+ */
+export const ImportanceSchema = lenientEnum(IMPORTANCE_LEVELS, 'medium');
 
 export type Importance = z.infer<typeof ImportanceSchema>;
 
 /**
- * Directory analysis result
+ * Directory analysis result (lenient)
  */
 export const DirectoryAnalysisSchema = z.object({
-  path: z
-    .string()
-    .min(1)
-    .max(500)
-    .refine((p) => SAFE_PATH_REGEX.test(p), {
-      message: 'Invalid path characters detected',
-    }),
-  purpose: z.string().min(1).max(500),
-  fileCount: z.number().int().min(0),
-  patterns: z.array(z.string().min(1).max(100)),
-  technologies: z.array(z.string().min(1).max(100)),
+  path: lenientPath(500),
+  purpose: z.string().max(500).default(''),
+  fileCount: z.number().int().min(0).catch(0),
+  patterns: lenientArray(z.string().max(100)),
+  technologies: lenientArray(z.string().max(100)),
   importance: ImportanceSchema,
 });
 
 export type DirectoryAnalysis = z.infer<typeof DirectoryAnalysisSchema>;
 
 /**
- * Pattern categories for detection
+ * Pattern category values
  */
-export const PatternCategorySchema = z.enum([
-  'architecture',
-  'design',
-  'testing',
-  'state',
-  'api',
-  'data',
-]);
+const PATTERN_CATEGORIES = ['architecture', 'design', 'testing', 'state', 'api', 'data'] as const;
+
+/**
+ * Pattern categories for detection (lenient)
+ */
+export const PatternCategorySchema = lenientEnum(PATTERN_CATEGORIES, 'design');
 
 export type PatternCategory = z.infer<typeof PatternCategorySchema>;
 
 /**
- * Detected coding/architecture pattern
+ * Detected coding/architecture pattern (lenient)
  */
 export const DetectedPatternSchema = z.object({
-  name: z.string().min(1).max(200),
+  name: z.string().max(200).default(''),
   category: PatternCategorySchema,
-  description: z.string().min(1).max(2000),
-  locations: z.array(
-    z
-      .string()
-      .min(1)
-      .max(500)
-      .refine((p) => SAFE_PATH_REGEX.test(p), {
-        message: 'Invalid path characters detected',
-      })
-  ),
-  confidence: z.number().min(0).max(1),
+  description: z.string().max(2000).default(''),
+  locations: lenientArray(lenientPath(500)),
+  confidence: lenientConfidence,
 });
 
 export type DetectedPattern = z.infer<typeof DetectedPatternSchema>;
 
 /**
- * Code quality issue type
+ * Issue type values
  */
-export const IssueTypeSchema = z.enum(['warning', 'error', 'suggestion']);
+const ISSUE_TYPES = ['warning', 'error', 'suggestion'] as const;
+
+/**
+ * Code quality issue type (lenient)
+ */
+export const IssueTypeSchema = lenientEnum(ISSUE_TYPES, 'warning');
 
 export type IssueType = z.infer<typeof IssueTypeSchema>;
 
 /**
- * Code quality issue
+ * Code quality issue (lenient)
  */
 export const CodeQualityIssueSchema = z.object({
   type: IssueTypeSchema,
-  message: z.string().min(1).max(1000),
+  message: z.string().max(1000).default(''),
   location: z.string().max(500).optional(),
 });
 
 export type CodeQualityIssue = z.infer<typeof CodeQualityIssueSchema>;
 
 /**
- * Code quality assessment
+ * Code quality assessment (lenient)
  */
 export const CodeQualitySchema = z.object({
-  hasTests: z.boolean(),
+  hasTests: lenientBoolean,
   testCoverage: z.string().max(50).optional(),
-  hasLinting: z.boolean(),
-  hasTypeChecking: z.boolean(),
-  hasDocumentation: z.boolean(),
-  hasCI: z.boolean(),
-  hasSecurity: z.boolean(),
-  issues: z.array(CodeQualityIssueSchema),
+  hasLinting: lenientBoolean,
+  hasTypeChecking: lenientBoolean,
+  hasDocumentation: lenientBoolean,
+  hasCI: lenientBoolean,
+  hasSecurity: lenientBoolean,
+  issues: lenientArray(CodeQualityIssueSchema),
 });
 
 export type CodeQuality = z.infer<typeof CodeQualitySchema>;
 
 /**
- * Compliance indicators for security/privacy analysis
+ * Compliance indicators for security/privacy analysis (lenient)
  */
 export const ComplianceIndicatorsSchema = z.object({
-  handlesPersonalData: z.boolean(),
-  hasAuthentication: z.boolean(),
-  hasAuthorization: z.boolean(),
-  hasAuditLogging: z.boolean(),
-  hasEncryption: z.boolean(),
-  hasSensitiveData: z.boolean(),
-  locations: z.record(z.string(), z.array(z.string().max(500))),
+  handlesPersonalData: lenientBoolean,
+  hasAuthentication: lenientBoolean,
+  hasAuthorization: lenientBoolean,
+  hasAuditLogging: lenientBoolean,
+  hasEncryption: lenientBoolean,
+  hasSensitiveData: lenientBoolean,
+  locations: z.record(z.string(), lenientArray(z.string().max(500))).default({}),
 });
 
 export type ComplianceIndicators = z.infer<typeof ComplianceIndicatorsSchema>;
 
 /**
- * Entry point type
+ * Entry point type values
  */
-export const EntryPointTypeSchema = z.enum([
-  'application',
-  'library',
-  'cli',
-  'api',
-  'worker',
-]);
+const ENTRY_POINT_TYPES = ['application', 'library', 'cli', 'api', 'worker'] as const;
+
+/**
+ * Entry point type (lenient)
+ */
+export const EntryPointTypeSchema = lenientEnum(ENTRY_POINT_TYPES, 'application');
 
 export type EntryPointType = z.infer<typeof EntryPointTypeSchema>;
 
 /**
- * Application entry point
+ * Application entry point (lenient)
  */
 export const EntryPointSchema = z.object({
-  path: z
-    .string()
-    .min(1)
-    .max(500)
-    .refine((p) => SAFE_PATH_REGEX.test(p), {
-      message: 'Invalid path characters detected',
-    }),
+  path: lenientPath(500),
   type: EntryPointTypeSchema,
-  description: z.string().min(1).max(500),
+  description: z.string().max(500).default(''),
 });
 
 export type EntryPoint = z.infer<typeof EntryPointSchema>;
 
 /**
- * Outdated dependency severity
+ * Outdated severity values
  */
-export const OutdatedSeveritySchema = z.enum(['major', 'minor', 'patch']);
+const OUTDATED_SEVERITIES = ['major', 'minor', 'patch'] as const;
+
+/**
+ * Outdated dependency severity (lenient)
+ */
+export const OutdatedSeveritySchema = lenientEnum(OUTDATED_SEVERITIES, 'minor');
 
 export type OutdatedSeverity = z.infer<typeof OutdatedSeveritySchema>;
 
 /**
- * Outdated dependency info
+ * Outdated dependency info (lenient)
  */
 export const OutdatedDependencySchema = z.object({
-  name: z.string().min(1).max(200),
-  current: z.string().min(1).max(50),
-  latest: z.string().min(1).max(50),
+  name: z.string().max(200).default(''),
+  current: z.string().max(50).default(''),
+  latest: z.string().max(50).default(''),
   type: OutdatedSeveritySchema,
 });
 
 export type OutdatedDependency = z.infer<typeof OutdatedDependencySchema>;
 
 /**
- * Vulnerability severity levels
+ * Vulnerability severity values
  */
-export const VulnerabilitySeveritySchema = z.enum([
-  'low',
-  'medium',
-  'high',
-  'critical',
-]);
+const VULNERABILITY_SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
+
+/**
+ * Vulnerability severity levels (lenient)
+ */
+export const VulnerabilitySeveritySchema = lenientEnum(VULNERABILITY_SEVERITIES, 'medium');
 
 export type VulnerabilitySeverity = z.infer<typeof VulnerabilitySeveritySchema>;
 
 /**
- * Dependency vulnerability
+ * Dependency vulnerability (lenient)
  */
 export const DependencyVulnerabilitySchema = z.object({
-  name: z.string().min(1).max(200),
+  name: z.string().max(200).default(''),
   severity: VulnerabilitySeveritySchema,
-  description: z.string().min(1).max(2000),
+  description: z.string().max(2000).default(''),
 });
 
 export type DependencyVulnerability = z.infer<
@@ -244,57 +244,55 @@ export type DependencyVulnerability = z.infer<
 >;
 
 /**
- * Dependency analysis summary
+ * Dependency analysis summary (lenient)
  */
 export const DependencyAnalysisSchema = z.object({
-  total: z.number().int().min(0),
-  production: z.number().int().min(0),
-  development: z.number().int().min(0),
-  outdated: z.array(OutdatedDependencySchema),
-  vulnerabilities: z.array(DependencyVulnerabilitySchema),
+  total: z.number().int().min(0).catch(0),
+  production: z.number().int().min(0).catch(0),
+  development: z.number().int().min(0).catch(0),
+  outdated: lenientArray(OutdatedDependencySchema),
+  vulnerabilities: lenientArray(DependencyVulnerabilitySchema),
 });
 
 export type DependencyAnalysis = z.infer<typeof DependencyAnalysisSchema>;
 
 /**
- * Recommendation categories
+ * Recommendation category values
  */
-export const RecommendationCategorySchema = z.enum([
-  'architecture',
-  'security',
-  'testing',
-  'performance',
-  'maintainability',
-  'documentation',
-]);
+const RECOMMENDATION_CATEGORIES = ['architecture', 'security', 'testing', 'performance', 'maintainability', 'documentation'] as const;
+
+/**
+ * Recommendation categories (lenient)
+ */
+export const RecommendationCategorySchema = lenientEnum(RECOMMENDATION_CATEGORIES, 'architecture');
 
 export type RecommendationCategory = z.infer<
   typeof RecommendationCategorySchema
 >;
 
 /**
- * Recommendation priority
+ * Recommendation priority values
  */
-export const RecommendationPrioritySchema = z.enum([
-  'critical',
-  'high',
-  'medium',
-  'low',
-]);
+const RECOMMENDATION_PRIORITIES = ['critical', 'high', 'medium', 'low'] as const;
+
+/**
+ * Recommendation priority (lenient)
+ */
+export const RecommendationPrioritySchema = lenientEnum(RECOMMENDATION_PRIORITIES, 'medium');
 
 export type RecommendationPriority = z.infer<
   typeof RecommendationPrioritySchema
 >;
 
 /**
- * Analysis recommendation
+ * Analysis recommendation (lenient)
  */
 export const AnalysisRecommendationSchema = z.object({
   category: RecommendationCategorySchema,
   priority: RecommendationPrioritySchema,
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(2000),
-  effort: z.string().min(1).max(100),
+  title: z.string().max(200).default(''),
+  description: z.string().max(2000).default(''),
+  effort: z.string().max(100).default(''),
 });
 
 export type AnalysisRecommendation = z.infer<
@@ -302,79 +300,81 @@ export type AnalysisRecommendation = z.infer<
 >;
 
 /**
- * Project type classification
+ * Project type values
  */
-export const ProjectTypeSchema = z.enum([
-  'web-app',
-  'api',
-  'library',
-  'cli',
-  'monorepo',
-  'mobile',
-  'desktop',
-  'unknown',
-]);
+const PROJECT_TYPES = ['web-app', 'api', 'library', 'cli', 'monorepo', 'mobile', 'desktop', 'unknown'] as const;
+
+/**
+ * Project type classification (lenient)
+ */
+export const ProjectTypeSchema = lenientEnum(PROJECT_TYPES, 'unknown');
 
 export type ProjectType = z.infer<typeof ProjectTypeSchema>;
 
 /**
- * Tech stack summary
+ * Tech stack summary (lenient)
  */
 export const TechStackSummarySchema = z.object({
-  languages: z.array(DetectedLanguageSchema),
-  frameworks: z.array(DetectedFrameworkSchema),
-  databases: z.array(z.string().min(1).max(100)),
-  infrastructure: z.array(z.string().min(1).max(100)),
+  languages: lenientArray(DetectedLanguageSchema),
+  frameworks: lenientArray(DetectedFrameworkSchema),
+  databases: lenientArray(z.string().max(100)),
+  infrastructure: lenientArray(z.string().max(100)),
 });
 
 export type TechStackSummary = z.infer<typeof TechStackSummarySchema>;
 
 /**
- * Project structure analysis
+ * Project structure analysis (lenient)
  */
 export const ProjectStructureSchema = z.object({
-  rootDirectories: z.array(DirectoryAnalysisSchema),
-  entryPoints: z.array(EntryPointSchema),
-  configFiles: z.array(z.string().min(1).max(200)),
-  totalFiles: z.number().int().min(0),
-  totalLines: z.number().int().min(0),
+  rootDirectories: lenientArray(DirectoryAnalysisSchema),
+  entryPoints: lenientArray(EntryPointSchema),
+  configFiles: lenientArray(z.string().max(200)),
+  totalFiles: z.number().int().min(0).catch(0),
+  totalLines: z.number().int().min(0).catch(0),
 });
 
 export type ProjectStructure = z.infer<typeof ProjectStructureSchema>;
 
 /**
- * Architecture summary
+ * Architecture summary (lenient)
  */
 export const ArchitectureSummarySchema = z.object({
-  pattern: z.string().min(1).max(200),
+  pattern: z.string().max(200).default(''),
   apiStyle: z.string().max(200).optional(),
   stateManagement: z.string().max(200).optional(),
-  dataFlow: z.string().min(1).max(500),
+  dataFlow: z.string().max(500).default(''),
 });
 
 export type ArchitectureSummary = z.infer<typeof ArchitectureSummarySchema>;
 
 /**
- * Generated context files
+ * Generated context files (lenient)
  */
 export const GeneratedContextSchema = z.object({
-  claudeMd: z.string().max(50000),
-  architectureYaml: z.string().max(50000),
+  claudeMd: z.string().max(50000).default(''),
+  architectureYaml: z.string().max(50000).default(''),
 });
 
 export type GeneratedContext = z.infer<typeof GeneratedContextSchema>;
 
 /**
- * Project analyzer routing hints
- * Uses LenientAgentTypeArraySchema to handle common Claude name variations
+ * Project analyzer routing hints (lenient)
+ * Uses LenientAgentTypeArraySchema and lenientBoolean
  */
 export const ProjectAnalyzerRoutingHintsSchema = z.object({
   suggestNext: LenientAgentTypeArraySchema,
   skipAgents: LenientAgentTypeArraySchema,
-  needsApproval: z.boolean(),
-  hasFailures: z.boolean(),
-  isComplete: z.boolean(),
+  needsApproval: lenientBoolean,
+  hasFailures: lenientBoolean,
+  isComplete: lenientBoolean,
   notes: z.string().max(1000).optional(),
+}).default({
+  suggestNext: [],
+  skipAgents: [],
+  needsApproval: false,
+  hasFailures: false,
+  isComplete: false,
 });
 
 export type ProjectAnalyzerRoutingHints = z.infer<
@@ -382,23 +382,23 @@ export type ProjectAnalyzerRoutingHints = z.infer<
 >;
 
 /**
- * Complete Project Analyzer output
+ * Complete Project Analyzer output (lenient)
  */
 export const ProjectAnalyzerOutputSchema = z.object({
-  projectName: z.string().min(1).max(200),
+  projectName: z.string().max(200).default(''),
   projectType: ProjectTypeSchema,
 
-  techStack: TechStackSummarySchema,
-  structure: ProjectStructureSchema,
-  architecture: ArchitectureSummarySchema,
+  techStack: TechStackSummarySchema.optional(),
+  structure: ProjectStructureSchema.optional(),
+  architecture: ArchitectureSummarySchema.optional(),
 
-  patterns: z.array(DetectedPatternSchema),
-  codeQuality: CodeQualitySchema,
-  complianceIndicators: ComplianceIndicatorsSchema,
-  dependencies: DependencyAnalysisSchema,
+  patterns: lenientArray(DetectedPatternSchema),
+  codeQuality: CodeQualitySchema.optional(),
+  complianceIndicators: ComplianceIndicatorsSchema.optional(),
+  dependencies: DependencyAnalysisSchema.optional(),
 
-  recommendations: z.array(AnalysisRecommendationSchema),
-  generatedContext: GeneratedContextSchema,
+  recommendations: lenientArray(AnalysisRecommendationSchema),
+  generatedContext: GeneratedContextSchema.optional(),
 
   routingHints: ProjectAnalyzerRoutingHintsSchema,
 });

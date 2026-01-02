@@ -7,40 +7,51 @@
  * SECURITY:
  * - URL validation on sources
  * - Confidence bounds validation
+ *
+ * LENIENT: Uses lenient parsing utilities to handle Claude's output variations.
  */
 
 import { z } from 'zod';
 import { LenientAgentTypeArraySchema } from '../types.js';
 import type { StyleResearchOutput } from './analyst-style-output.js';
+import {
+  lenientEnum,
+  lenientArray,
+  lenientConfidence,
+  lenientBoolean,
+  lenientUrl,
+} from './lenient-utils.js';
 
 /**
- * Source type for research citations
+ * Source type values
  */
-export const SourceTypeSchema = z.enum([
-  'documentation',
-  'article',
-  'github',
-  'stackoverflow',
-  'book',
-  'video',
-  'other',
-]);
+const SOURCE_TYPES = ['documentation', 'article', 'github', 'stackoverflow', 'book', 'video', 'other'] as const;
+
+/**
+ * Source type for research citations (lenient)
+ */
+export const SourceTypeSchema = lenientEnum(SOURCE_TYPES, 'other');
 
 export type SourceType = z.infer<typeof SourceTypeSchema>;
 
 /**
- * Source credibility level
+ * Credibility level values
  */
-export const CredibilitySchema = z.enum(['official', 'community', 'expert', 'unknown']);
+const CREDIBILITY_LEVELS = ['official', 'community', 'expert', 'unknown'] as const;
+
+/**
+ * Source credibility level (lenient)
+ */
+export const CredibilitySchema = lenientEnum(CREDIBILITY_LEVELS, 'unknown');
 
 export type Credibility = z.infer<typeof CredibilitySchema>;
 
 /**
- * Research source with citation
+ * Research source with citation (lenient)
  */
 export const SourceSchema = z.object({
-  title: z.string().min(1).max(500),
-  url: z.string().url().optional(),
+  title: z.string().max(500).default(''),
+  url: lenientUrl.optional(),
   type: SourceTypeSchema,
   credibility: CredibilitySchema,
   date: z.string().max(50).optional(),
@@ -49,48 +60,62 @@ export const SourceSchema = z.object({
 export type Source = z.infer<typeof SourceSchema>;
 
 /**
- * Popularity level for comparison
+ * Popularity level values
  */
-export const PopularitySchema = z.enum(['high', 'medium', 'low', 'unknown']);
+const POPULARITY_LEVELS = ['high', 'medium', 'low', 'unknown'] as const;
+
+/**
+ * Popularity level for comparison (lenient)
+ */
+export const PopularitySchema = lenientEnum(POPULARITY_LEVELS, 'unknown');
 
 export type Popularity = z.infer<typeof PopularitySchema>;
 
 /**
- * Maintenance status
+ * Maintenance status values
  */
-export const MaintenanceSchema = z.enum([
-  'active',
-  'stable',
-  'declining',
-  'abandoned',
-  'unknown',
-]);
+const MAINTENANCE_STATUSES = ['active', 'stable', 'declining', 'abandoned', 'unknown'] as const;
+
+/**
+ * Maintenance status (lenient)
+ */
+export const MaintenanceSchema = lenientEnum(MAINTENANCE_STATUSES, 'unknown');
 
 export type Maintenance = z.infer<typeof MaintenanceSchema>;
 
 /**
- * Learning curve difficulty
+ * Learning curve values
  */
-export const LearningCurveSchema = z.enum(['easy', 'moderate', 'steep']);
+const LEARNING_CURVES = ['easy', 'moderate', 'steep'] as const;
+
+/**
+ * Learning curve difficulty (lenient)
+ */
+export const LearningCurveSchema = lenientEnum(LEARNING_CURVES, 'moderate');
 
 export type LearningCurve = z.infer<typeof LearningCurveSchema>;
 
 /**
- * Community size
+ * Community size values
  */
-export const CommunitySizeSchema = z.enum(['large', 'medium', 'small', 'unknown']);
+const COMMUNITY_SIZES = ['large', 'medium', 'small', 'unknown'] as const;
+
+/**
+ * Community size (lenient)
+ */
+export const CommunitySizeSchema = lenientEnum(COMMUNITY_SIZES, 'unknown');
 
 export type CommunitySize = z.infer<typeof CommunitySizeSchema>;
 
 /**
- * Comparison option for technology/library evaluation
+ * Comparison option for technology/library evaluation (lenient)
  */
 export const ComparisonOptionSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().min(1).max(2000),
-  pros: z.array(z.string().min(1).max(500)),
-  cons: z.array(z.string().min(1).max(500)),
-  useCases: z.array(z.string().min(1).max(500)),
+  name: z.string().max(200).default(''),
+  description: z.string().max(2000).default(''),
+  pros: lenientArray(z.string().max(500)),
+  cons: lenientArray(z.string().max(500)),
+  useCases: lenientArray(z.string().max(500)),
   popularity: PopularitySchema,
   maintenance: MaintenanceSchema,
   learningCurve: LearningCurveSchema,
@@ -101,135 +126,140 @@ export const ComparisonOptionSchema = z.object({
 export type ComparisonOption = z.infer<typeof ComparisonOptionSchema>;
 
 /**
- * Comparison result
+ * Comparison result (lenient)
  */
 export const ComparisonSchema = z.object({
-  options: z.array(ComparisonOptionSchema),
+  options: lenientArray(ComparisonOptionSchema),
   winner: z.string().max(200).optional(),
-  criteria: z.array(z.string().min(1).max(200)),
+  criteria: lenientArray(z.string().max(200)),
   matrix: z.record(z.string(), z.record(z.string(), z.number())).optional(),
 });
 
 export type Comparison = z.infer<typeof ComparisonSchema>;
 
 /**
- * Best practice recommendation
+ * Best practice recommendation (lenient)
  */
 export const BestPracticeSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(2000),
-  rationale: z.string().min(1).max(2000),
+  title: z.string().max(200).default(''),
+  description: z.string().max(2000).default(''),
+  rationale: z.string().max(2000).default(''),
   example: z.string().max(5000).optional(),
-  caveats: z.array(z.string().min(1).max(500)),
-  sources: z.array(SourceSchema),
+  caveats: lenientArray(z.string().max(500)),
+  sources: lenientArray(SourceSchema),
 });
 
 export type BestPractice = z.infer<typeof BestPracticeSchema>;
 
 /**
- * Research finding
+ * Research finding (lenient)
  */
 export const FindingSchema = z.object({
-  topic: z.string().min(1).max(200),
-  summary: z.string().min(1).max(500),
-  details: z.string().min(1).max(5000),
-  evidence: z.array(z.string().min(1).max(1000)),
-  confidence: z.number().min(0).max(1),
-  sources: z.array(SourceSchema),
+  topic: z.string().max(200).default(''),
+  summary: z.string().max(500).default(''),
+  details: z.string().max(5000).default(''),
+  evidence: lenientArray(z.string().max(1000)),
+  confidence: lenientConfidence,
+  sources: lenientArray(SourceSchema),
 });
 
 export type Finding = z.infer<typeof FindingSchema>;
 
 /**
- * Alternative option in recommendation
+ * Alternative option in recommendation (lenient)
  */
 export const AlternativeSchema = z.object({
-  option: z.string().min(1).max(200),
-  whenToUse: z.string().min(1).max(500),
+  option: z.string().max(200).default(''),
+  whenToUse: z.string().max(500).default(''),
 });
 
 export type Alternative = z.infer<typeof AlternativeSchema>;
 
 /**
- * Implementation steps
+ * Implementation steps (lenient)
  */
 export const ImplementationSchema = z.object({
-  steps: z.array(z.string().min(1).max(500)),
-  estimatedEffort: z.string().min(1).max(100),
-  risks: z.array(z.string().min(1).max(500)),
+  steps: lenientArray(z.string().max(500)),
+  estimatedEffort: z.string().max(100).default(''),
+  risks: lenientArray(z.string().max(500)),
 });
 
 export type Implementation = z.infer<typeof ImplementationSchema>;
 
 /**
- * Recommendation with reasoning
+ * Recommendation with reasoning (lenient)
  */
 export const RecommendationSchema = z.object({
-  recommendation: z.string().min(1).max(2000),
-  reasoning: z.string().min(1).max(5000),
-  confidence: z.number().min(0).max(1),
-  alternatives: z.array(AlternativeSchema),
+  recommendation: z.string().max(2000).default(''),
+  reasoning: z.string().max(5000).default(''),
+  confidence: lenientConfidence,
+  alternatives: lenientArray(AlternativeSchema),
   implementation: ImplementationSchema.optional(),
 });
 
 export type Recommendation = z.infer<typeof RecommendationSchema>;
 
 /**
- * Research report types
+ * Report type values
  */
-export const ReportTypeSchema = z.enum([
-  'comparison',
-  'best_practices',
-  'investigation',
-  'recommendation',
-  'feasibility',
-  'style_research',
-]);
+const REPORT_TYPES = ['comparison', 'best_practices', 'investigation', 'recommendation', 'feasibility', 'style_research'] as const;
+
+/**
+ * Research report types (lenient)
+ */
+export const ReportTypeSchema = lenientEnum(REPORT_TYPES, 'investigation');
 
 export type ReportType = z.infer<typeof ReportTypeSchema>;
 
 /**
  * Analyst routing hints (extended from base)
- * Uses LenientAgentTypeArraySchema to handle common Claude name variations
+ * Uses LenientAgentTypeArraySchema and lenientBoolean
  */
 export const AnalystRoutingHintsSchema = z.object({
   suggestNext: LenientAgentTypeArraySchema,
   skipAgents: LenientAgentTypeArraySchema,
-  needsApproval: z.boolean(),
-  hasFailures: z.boolean(),
-  isComplete: z.boolean(),
-  needsUserDecision: z.boolean(),
+  needsApproval: lenientBoolean,
+  hasFailures: lenientBoolean,
+  isComplete: lenientBoolean,
+  needsUserDecision: lenientBoolean,
   suggestedOption: z.string().max(200).optional(),
+}).default({
+  suggestNext: [],
+  skipAgents: [],
+  needsApproval: false,
+  hasFailures: false,
+  isComplete: false,
+  needsUserDecision: false,
 });
 
 export type AnalystRoutingHints = z.infer<typeof AnalystRoutingHintsSchema>;
 
 /**
- * Complete Analyst output
+ * Complete Analyst output (lenient)
  */
 export const AnalystOutputSchema = z.object({
   reportType: ReportTypeSchema,
-  question: z.string().min(1).max(1000),
-  executiveSummary: z.string().min(1).max(2000),
+  question: z.string().max(1000).default(''),
+  executiveSummary: z.string().max(2000).default(''),
 
   // For comparison reports
   comparison: ComparisonSchema.optional(),
 
   // For best practices reports
-  bestPractices: z.array(BestPracticeSchema).optional(),
+  bestPractices: lenientArray(BestPracticeSchema).optional(),
 
   // For investigation reports
-  findings: z.array(FindingSchema).optional(),
+  findings: lenientArray(FindingSchema).optional(),
 
   // For style research reports (design workflow)
   // Using z.custom to reference the type from analyst-style-output.ts
   styleResearch: z.custom<StyleResearchOutput>().optional(),
 
   // For all reports
-  recommendation: RecommendationSchema,
-  sources: z.array(SourceSchema),
-  limitations: z.array(z.string().min(1).max(500)),
-  furtherResearch: z.array(z.string().min(1).max(500)),
+  recommendation: RecommendationSchema.optional(),
+  sources: lenientArray(SourceSchema),
+  limitations: lenientArray(z.string().max(500)),
+  furtherResearch: lenientArray(z.string().max(500)),
 
   routingHints: AnalystRoutingHintsSchema,
 });

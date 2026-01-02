@@ -295,7 +295,7 @@ Output must be valid JSON matching this structure:
       content: this.renderReport(parsed),
       metadata: {
         reportType: parsed.reportType,
-        confidence: parsed.recommendation.confidence,
+        confidence: parsed.recommendation?.confidence ?? 0,
         sourcesCount: parsed.sources.length,
         officialSources: parsed.sources.filter((s) => s.credibility === 'official').length,
       },
@@ -315,7 +315,7 @@ Output must be valid JSON matching this structure:
 
     this.log('info', 'Research complete', {
       reportType: parsed.reportType,
-      confidence: parsed.recommendation.confidence,
+      confidence: parsed.recommendation?.confidence ?? 0,
       sources: parsed.sources.length,
       tenantId: request.context.tenantId,
     });
@@ -366,7 +366,7 @@ Output must be valid JSON matching this structure:
       needsApproval: output.routingHints.needsUserDecision,
       hasFailures: false,
       isComplete: output.routingHints.isComplete,
-      notes: `Research complete with ${Math.round(output.recommendation.confidence * 100)}% confidence. ${output.sources.length} sources cited.`,
+      notes: `Research complete with ${Math.round((output.recommendation?.confidence ?? 0) * 100)}% confidence. ${output.sources.length} sources cited.`,
     };
   }
 
@@ -530,7 +530,7 @@ Output must be valid JSON matching this structure:
     lines.push('');
     lines.push(`**Report Type:** ${output.reportType}`);
     lines.push(
-      `**Confidence:** ${Math.round(output.recommendation.confidence * 100)}%`
+      `**Confidence:** ${Math.round((output.recommendation?.confidence ?? 0) * 100)}%`
     );
     lines.push(`**Sources:** ${output.sources.length}`);
     lines.push('');
@@ -659,43 +659,45 @@ Output must be valid JSON matching this structure:
     }
 
     // Recommendation section
-    lines.push('## Recommendation');
-    lines.push('');
-    lines.push(output.recommendation.recommendation);
-    lines.push('');
-    lines.push('**Reasoning:**');
-    lines.push('');
-    lines.push(output.recommendation.reasoning);
-    lines.push('');
-
-    if (output.recommendation.alternatives.length > 0) {
-      lines.push('**Alternatives:**');
+    if (output.recommendation) {
+      lines.push('## Recommendation');
       lines.push('');
-      for (const alt of output.recommendation.alternatives) {
-        lines.push(`- **${alt.option}:** ${alt.whenToUse}`);
-      }
+      lines.push(output.recommendation.recommendation);
       lines.push('');
-    }
-
-    if (output.recommendation.implementation) {
-      lines.push('**Implementation:**');
+      lines.push('**Reasoning:**');
       lines.push('');
-      lines.push(
-        `Estimated Effort: ${output.recommendation.implementation.estimatedEffort}`
-      );
-      lines.push('');
-      lines.push('Steps:');
-      for (let i = 0; i < output.recommendation.implementation.steps.length; i++) {
-        lines.push(`${i + 1}. ${output.recommendation.implementation.steps[i]}`);
-      }
+      lines.push(output.recommendation.reasoning);
       lines.push('');
 
-      if (output.recommendation.implementation.risks.length > 0) {
-        lines.push('Risks:');
-        for (const risk of output.recommendation.implementation.risks) {
-          lines.push(`- ⚠️ ${risk}`);
+      if (output.recommendation.alternatives.length > 0) {
+        lines.push('**Alternatives:**');
+        lines.push('');
+        for (const alt of output.recommendation.alternatives) {
+          lines.push(`- **${alt.option}:** ${alt.whenToUse}`);
         }
         lines.push('');
+      }
+
+      if (output.recommendation.implementation) {
+        lines.push('**Implementation:**');
+        lines.push('');
+        lines.push(
+          `Estimated Effort: ${output.recommendation.implementation.estimatedEffort}`
+        );
+        lines.push('');
+        lines.push('Steps:');
+        for (let i = 0; i < output.recommendation.implementation.steps.length; i++) {
+          lines.push(`${i + 1}. ${output.recommendation.implementation.steps[i]}`);
+        }
+        lines.push('');
+
+        if (output.recommendation.implementation.risks.length > 0) {
+          lines.push('Risks:');
+          for (const risk of output.recommendation.implementation.risks) {
+            lines.push(`- ⚠️ ${risk}`);
+          }
+          lines.push('');
+        }
       }
     }
 

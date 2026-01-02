@@ -7,61 +7,73 @@
  * SECURITY:
  * - All IDs are validated for format
  * - User input validation on descriptions
+ *
+ * LENIENT: Uses lenient parsing utilities to handle Claude's output variations.
  */
 
 import { z } from 'zod';
 import { LenientAgentTypeArraySchema, RoutingHintsSchema } from '../types.js';
+import {
+  lenientEnum,
+  lenientArray,
+  lenientBoolean,
+  lenientId,
+} from './lenient-utils.js';
 
 /**
- * Task types that categorize work items
+ * Task type values
  */
-export const TaskTypeSchema = z.enum([
-  'design',
-  'frontend',
-  'backend',
-  'database',
-  'testing',
-  'integration',
-  'documentation',
-  'devops',
-  'review',
-]);
+const TASK_TYPES = ['design', 'frontend', 'backend', 'database', 'testing', 'integration', 'documentation', 'devops', 'review'] as const;
+
+/**
+ * Task types that categorize work items (lenient)
+ */
+export const TaskTypeSchema = lenientEnum(TASK_TYPES, 'backend');
 
 export type TaskType = z.infer<typeof TaskTypeSchema>;
 
 /**
- * Complexity levels for effort estimation
+ * Complexity level values
  */
-export const ComplexitySchema = z.enum([
-  'trivial', // < 1 hour
-  'simple', // 1-4 hours
-  'moderate', // 4-8 hours
-  'complex', // 1-3 days
-  'epic', // > 3 days (should be broken down)
-]);
+const COMPLEXITY_LEVELS = ['trivial', 'simple', 'moderate', 'complex', 'epic'] as const;
+
+/**
+ * Complexity levels for effort estimation (lenient)
+ */
+export const ComplexitySchema = lenientEnum(COMPLEXITY_LEVELS, 'moderate');
 
 export type Complexity = z.infer<typeof ComplexitySchema>;
 
 /**
- * Priority levels for features
+ * Priority level values
  */
-export const PrioritySchema = z.enum(['critical', 'high', 'medium', 'low']);
+const PRIORITY_LEVELS = ['critical', 'high', 'medium', 'low'] as const;
+
+/**
+ * Priority levels for features (lenient)
+ */
+export const PrioritySchema = lenientEnum(PRIORITY_LEVELS, 'medium');
 
 export type Priority = z.infer<typeof PrioritySchema>;
 
 /**
- * Risk severity levels
+ * Risk severity values
  */
-export const RiskSeveritySchema = z.enum(['low', 'medium', 'high']);
+const RISK_SEVERITIES = ['low', 'medium', 'high'] as const;
+
+/**
+ * Risk severity levels (lenient)
+ */
+export const RiskSeveritySchema = lenientEnum(RISK_SEVERITIES, 'medium');
 
 export type RiskSeverity = z.infer<typeof RiskSeveritySchema>;
 
 /**
- * Risk definition for project planning
+ * Risk definition for project planning (lenient)
  */
 export const RiskSchema = z.object({
-  description: z.string().min(1).max(1000),
-  mitigation: z.string().min(1).max(1000),
+  description: z.string().max(1000).default(''),
+  mitigation: z.string().max(1000).default(''),
   severity: RiskSeveritySchema,
 });
 
@@ -95,28 +107,24 @@ export const TaskDesignReferenceSchema = z.object({
 export type TaskDesignReference = z.infer<typeof TaskDesignReferenceSchema>;
 
 /**
- * Task definition - atomic work unit
+ * Task definition - atomic work unit (lenient)
  *
  * Each task represents a single deliverable that can be
  * assigned to one agent and completed independently.
  */
 export const TaskSchema = z.object({
-  id: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9][a-z0-9-]*$/, 'Task ID must be lowercase alphanumeric with hyphens'),
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(2000),
+  id: lenientId(100),
+  title: z.string().max(200).default(''),
+  description: z.string().max(2000).default(''),
   type: TaskTypeSchema,
   complexity: ComplexitySchema,
-  dependencies: z.array(z.string().min(1).max(100)), // Task IDs
-  acceptanceCriteria: z.array(z.string().min(1).max(500)),
+  dependencies: lenientArray(z.string().max(100)), // Task IDs
+  acceptanceCriteria: lenientArray(z.string().max(500)),
   assignedAgents: LenientAgentTypeArraySchema,
-  complianceRelevant: z.boolean(),
+  complianceRelevant: lenientBoolean,
   complianceNotes: z.string().max(1000).optional(),
   estimatedTokens: z.number().int().min(0).max(1000000).optional(),
-  tags: z.array(z.string().min(1).max(50)),
+  tags: lenientArray(z.string().max(50)),
   /** Design reference - links to approved mockups (Sprint 5) */
   designReference: TaskDesignReferenceSchema.optional(),
 });
@@ -124,58 +132,50 @@ export const TaskSchema = z.object({
 export type Task = z.infer<typeof TaskSchema>;
 
 /**
- * Feature definition - group of related tasks
+ * Feature definition - group of related tasks (lenient)
  *
  * A feature represents a deliverable unit of functionality
  * that provides user value.
  */
 export const FeatureSchema = z.object({
-  id: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9][a-z0-9-]*$/, 'Feature ID must be lowercase alphanumeric with hyphens'),
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(2000),
-  userStory: z.string().min(1).max(500), // "As a [user], I want [goal], so that [benefit]"
-  tasks: z.array(TaskSchema),
-  acceptanceCriteria: z.array(z.string().min(1).max(500)),
+  id: lenientId(100),
+  title: z.string().max(200).default(''),
+  description: z.string().max(2000).default(''),
+  userStory: z.string().max(500).default(''), // "As a [user], I want [goal], so that [benefit]"
+  tasks: lenientArray(TaskSchema),
+  acceptanceCriteria: lenientArray(z.string().max(500)),
   priority: PrioritySchema,
-  dependencies: z.array(z.string().min(1).max(100)), // Feature IDs
-  complianceRelevant: z.boolean(),
+  dependencies: lenientArray(z.string().max(100)), // Feature IDs
+  complianceRelevant: lenientBoolean,
 });
 
 export type Feature = z.infer<typeof FeatureSchema>;
 
 /**
- * Epic definition - large initiative
+ * Epic definition - large initiative (lenient)
  *
  * An epic represents a major initiative that spans
  * multiple features and significant development effort.
  */
 export const EpicSchema = z.object({
-  id: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9][a-z0-9-]*$/, 'Epic ID must be lowercase alphanumeric with hyphens'),
-  title: z.string().min(1).max(200),
-  description: z.string().min(1).max(2000),
-  objective: z.string().min(1).max(1000),
-  features: z.array(FeatureSchema),
-  successMetrics: z.array(z.string().min(1).max(500)),
-  risks: z.array(RiskSchema),
+  id: lenientId(100),
+  title: z.string().max(200).default(''),
+  description: z.string().max(2000).default(''),
+  objective: z.string().max(1000).default(''),
+  features: lenientArray(FeatureSchema),
+  successMetrics: lenientArray(z.string().max(500)),
+  risks: lenientArray(RiskSchema),
 });
 
 export type Epic = z.infer<typeof EpicSchema>;
 
 /**
- * Blocker definition
+ * Blocker definition (lenient)
  */
 export const BlockerSchema = z.object({
-  taskId: z.string().min(1).max(100),
-  reason: z.string().min(1).max(1000),
-  resolution: z.string().min(1).max(1000),
+  taskId: z.string().max(100).default(''),
+  reason: z.string().max(1000).default(''),
+  resolution: z.string().max(1000).default(''),
 });
 
 export type Blocker = z.infer<typeof BlockerSchema>;
@@ -197,43 +197,49 @@ export const WorkBreakdownSummarySchema = z.object({
 export type WorkBreakdownSummary = z.infer<typeof WorkBreakdownSummarySchema>;
 
 /**
- * Project Manager routing hints
- * Uses LenientAgentTypeArraySchema to handle common Claude name variations
+ * Project Manager routing hints (lenient)
+ * Uses LenientAgentTypeArraySchema and lenientBoolean
  */
 export const PMRoutingHintsSchema = z.object({
   suggestNext: LenientAgentTypeArraySchema,
   skipAgents: LenientAgentTypeArraySchema,
-  needsApproval: z.boolean().default(false),
-  hasFailures: z.boolean().default(false),
-  isComplete: z.boolean().default(true),
+  needsApproval: lenientBoolean,
+  hasFailures: lenientBoolean,
+  isComplete: lenientBoolean,
   notes: z.string().max(1000).optional(),
+}).default({
+  suggestNext: [],
+  skipAgents: [],
+  needsApproval: false,
+  hasFailures: false,
+  isComplete: true,
 });
 
 export type PMRoutingHints = z.infer<typeof PMRoutingHintsSchema>;
 
 /**
- * Complete Project Manager output
+ * Complete Project Manager output (lenient)
  *
  * The full work breakdown structure produced by the PM agent.
  */
 export const ProjectManagerOutputSchema = z.object({
-  epics: z.array(EpicSchema).default([]),
+  epics: lenientArray(EpicSchema),
   summary: WorkBreakdownSummarySchema.default({}),
-  suggestedOrder: z.array(z.string().min(1).max(100)).default([]), // Task IDs in suggested execution order
-  parallelizable: z.array(z.array(z.string().min(1).max(100))).default([]), // Groups of task IDs that can run in parallel
-  blockers: z.array(BlockerSchema).default([]),
-  routingHints: PMRoutingHintsSchema.default({}),
+  suggestedOrder: lenientArray(z.string().max(100)), // Task IDs in suggested execution order
+  parallelizable: lenientArray(z.array(z.string().max(100))), // Groups of task IDs that can run in parallel
+  blockers: lenientArray(BlockerSchema),
+  routingHints: PMRoutingHintsSchema,
 });
 
 export type ProjectManagerOutput = z.infer<typeof ProjectManagerOutputSchema>;
 
 /**
- * Validation result for work breakdown
+ * Validation result for work breakdown (lenient)
  */
 export const WorkBreakdownValidationSchema = z.object({
-  valid: z.boolean(),
-  errors: z.array(z.string()),
-  warnings: z.array(z.string()),
+  valid: lenientBoolean,
+  errors: lenientArray(z.string()),
+  warnings: lenientArray(z.string()),
 });
 
 export type WorkBreakdownValidation = z.infer<typeof WorkBreakdownValidationSchema>;

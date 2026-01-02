@@ -262,29 +262,31 @@ Be thorough and specific. The CLAUDE.md should be comprehensive but focused.`;
     const artifacts: Artifact[] = [];
 
     // Create CLAUDE.md artifact
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.DOCUMENTATION,
-      path: 'CLAUDE.md',
-      content: parsed.generatedContext.claudeMd,
-      metadata: {
-        type: 'claude-md',
-        projectName: parsed.projectName,
-        projectType: parsed.projectType,
-      },
-    });
+    if (parsed.generatedContext) {
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: ArtifactTypeEnum.DOCUMENTATION,
+        path: 'CLAUDE.md',
+        content: parsed.generatedContext.claudeMd,
+        metadata: {
+          type: 'claude-md',
+          projectName: parsed.projectName,
+          projectType: parsed.projectType,
+        },
+      });
 
-    // Create architecture.yaml artifact
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.CONFIG_FILE,
-      path: 'architecture.yaml',
-      content: parsed.generatedContext.architectureYaml,
-      metadata: {
-        type: 'architecture',
-        pattern: parsed.architecture.pattern,
-      },
-    });
+      // Create architecture.yaml artifact
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: ArtifactTypeEnum.CONFIG_FILE,
+        path: 'architecture.yaml',
+        content: parsed.generatedContext.architectureYaml,
+        metadata: {
+          type: 'architecture',
+          pattern: parsed.architecture?.pattern ?? '',
+        },
+      });
+    }
 
     // Create analysis report
     artifacts.push({
@@ -294,29 +296,31 @@ Be thorough and specific. The CLAUDE.md should be comprehensive but focused.`;
       content: this.renderAnalysisReport(parsed),
       metadata: {
         type: 'analysis-report',
-        totalFiles: parsed.structure.totalFiles,
-        totalLines: parsed.structure.totalLines,
+        totalFiles: parsed.structure?.totalFiles ?? 0,
+        totalLines: parsed.structure?.totalLines ?? 0,
       },
     });
 
     // Create tech stack summary
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.CONFIG_FILE,
-      path: 'docs/tech-stack.json',
-      content: JSON.stringify(parsed.techStack, null, 2),
-      metadata: {
-        type: 'tech-stack',
-        languageCount: parsed.techStack.languages.length,
-        frameworkCount: parsed.techStack.frameworks.length,
-      },
-    });
+    if (parsed.techStack) {
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: ArtifactTypeEnum.CONFIG_FILE,
+        path: 'docs/tech-stack.json',
+        content: JSON.stringify(parsed.techStack, null, 2),
+        metadata: {
+          type: 'tech-stack',
+          languageCount: parsed.techStack.languages.length,
+          frameworkCount: parsed.techStack.frameworks.length,
+        },
+      });
+    }
 
     this.log('info', 'Project analysis complete', {
       projectName: parsed.projectName,
       projectType: parsed.projectType,
-      languages: parsed.techStack.languages.length,
-      frameworks: parsed.techStack.frameworks.length,
+      languages: parsed.techStack?.languages.length ?? 0,
+      frameworks: parsed.techStack?.frameworks.length ?? 0,
       patterns: parsed.patterns.length,
       recommendations: parsed.recommendations.length,
       tenantId: request.context.tenantId,
@@ -341,8 +345,8 @@ Be thorough and specific. The CLAUDE.md should be comprehensive but focused.`;
 
     // If compliance concerns found, suggest compliance agent
     if (
-      output.complianceIndicators.handlesPersonalData ||
-      output.complianceIndicators.hasSensitiveData
+      output.complianceIndicators?.handlesPersonalData ||
+      output.complianceIndicators?.hasSensitiveData
     ) {
       suggestNext.push(AgentTypeEnum.COMPLIANCE_AGENT);
     }
@@ -374,7 +378,7 @@ Be thorough and specific. The CLAUDE.md should be comprehensive but focused.`;
       needsApproval: criticalCount > 0,
       hasFailures: false,
       isComplete: true,
-      notes: `Analyzed ${output.structure.totalFiles} files, found ${output.patterns.length} patterns, ${output.recommendations.length} recommendations (${criticalCount} critical)`,
+      notes: `Analyzed ${output.structure?.totalFiles ?? 0} files, found ${output.patterns.length} patterns, ${output.recommendations.length} recommendations (${criticalCount} critical)`,
     };
   }
 
@@ -387,59 +391,63 @@ Be thorough and specific. The CLAUDE.md should be comprehensive but focused.`;
     lines.push(`# Project Analysis Report: ${output.projectName}`);
     lines.push('');
     lines.push(`**Project Type:** ${output.projectType}`);
-    lines.push(`**Total Files:** ${output.structure.totalFiles.toLocaleString()}`);
-    lines.push(`**Total Lines:** ${output.structure.totalLines.toLocaleString()}`);
+    lines.push(`**Total Files:** ${(output.structure?.totalFiles ?? 0).toLocaleString()}`);
+    lines.push(`**Total Lines:** ${(output.structure?.totalLines ?? 0).toLocaleString()}`);
     lines.push('');
 
     // Tech Stack
-    lines.push('## Tech Stack');
-    lines.push('');
-    lines.push('### Languages');
-    for (const lang of output.techStack.languages) {
-      const primary = lang.primary ? ' **(primary)**' : '';
-      lines.push(
-        `- **${lang.name}**${primary}: ${lang.percentage}% (${lang.files} files, ${lang.lines.toLocaleString()} lines)`
-      );
-    }
-    lines.push('');
-
-    lines.push('### Frameworks');
-    for (const fw of output.techStack.frameworks) {
-      const version = fw.version ? ` v${fw.version}` : '';
-      lines.push(
-        `- **${fw.name}**${version} (${fw.type}): ${Math.round(fw.confidence * 100)}% confidence`
-      );
-    }
-    lines.push('');
-
-    if (output.techStack.databases.length > 0) {
-      lines.push('### Databases');
-      for (const db of output.techStack.databases) {
-        lines.push(`- ${db}`);
+    if (output.techStack) {
+      lines.push('## Tech Stack');
+      lines.push('');
+      lines.push('### Languages');
+      for (const lang of output.techStack.languages) {
+        const primary = lang.primary ? ' **(primary)**' : '';
+        lines.push(
+          `- **${lang.name}**${primary}: ${lang.percentage}% (${lang.files} files, ${lang.lines.toLocaleString()} lines)`
+        );
       }
       lines.push('');
-    }
 
-    if (output.techStack.infrastructure.length > 0) {
-      lines.push('### Infrastructure');
-      for (const infra of output.techStack.infrastructure) {
-        lines.push(`- ${infra}`);
+      lines.push('### Frameworks');
+      for (const fw of output.techStack.frameworks) {
+        const version = fw.version ? ` v${fw.version}` : '';
+        lines.push(
+          `- **${fw.name}**${version} (${fw.type}): ${Math.round(fw.confidence * 100)}% confidence`
+        );
       }
       lines.push('');
+
+      if (output.techStack.databases.length > 0) {
+        lines.push('### Databases');
+        for (const db of output.techStack.databases) {
+          lines.push(`- ${db}`);
+        }
+        lines.push('');
+      }
+
+      if (output.techStack.infrastructure.length > 0) {
+        lines.push('### Infrastructure');
+        for (const infra of output.techStack.infrastructure) {
+          lines.push(`- ${infra}`);
+        }
+        lines.push('');
+      }
     }
 
     // Architecture
-    lines.push('## Architecture');
-    lines.push('');
-    lines.push(`- **Pattern:** ${output.architecture.pattern}`);
-    if (output.architecture.apiStyle) {
-      lines.push(`- **API Style:** ${output.architecture.apiStyle}`);
+    if (output.architecture) {
+      lines.push('## Architecture');
+      lines.push('');
+      lines.push(`- **Pattern:** ${output.architecture.pattern}`);
+      if (output.architecture.apiStyle) {
+        lines.push(`- **API Style:** ${output.architecture.apiStyle}`);
+      }
+      if (output.architecture.stateManagement) {
+        lines.push(`- **State Management:** ${output.architecture.stateManagement}`);
+      }
+      lines.push(`- **Data Flow:** ${output.architecture.dataFlow}`);
+      lines.push('');
     }
-    if (output.architecture.stateManagement) {
-      lines.push(`- **State Management:** ${output.architecture.stateManagement}`);
-    }
-    lines.push(`- **Data Flow:** ${output.architecture.dataFlow}`);
-    lines.push('');
 
     // Patterns
     if (output.patterns.length > 0) {
@@ -460,63 +468,69 @@ Be thorough and specific. The CLAUDE.md should be comprehensive but focused.`;
     }
 
     // Code Quality
-    lines.push('## Code Quality');
-    lines.push('');
-    lines.push('| Aspect | Status |');
-    lines.push('|--------|--------|');
-    lines.push(`| Tests | ${output.codeQuality.hasTests ? '✅' : '❌'} |`);
-    lines.push(`| Linting | ${output.codeQuality.hasLinting ? '✅' : '❌'} |`);
-    lines.push(`| Type Checking | ${output.codeQuality.hasTypeChecking ? '✅' : '❌'} |`);
-    lines.push(`| Documentation | ${output.codeQuality.hasDocumentation ? '✅' : '❌'} |`);
-    lines.push(`| CI/CD | ${output.codeQuality.hasCI ? '✅' : '❌'} |`);
-    lines.push(`| Security Tools | ${output.codeQuality.hasSecurity ? '✅' : '❌'} |`);
-    lines.push('');
-
-    if (output.codeQuality.issues.length > 0) {
-      lines.push('### Issues');
-      for (const issue of output.codeQuality.issues) {
-        const icon = issue.type === 'error' ? '🔴' : issue.type === 'warning' ? '🟡' : '💡';
-        lines.push(`- ${icon} ${issue.message}`);
-      }
+    if (output.codeQuality) {
+      lines.push('## Code Quality');
       lines.push('');
+      lines.push('| Aspect | Status |');
+      lines.push('|--------|--------|');
+      lines.push(`| Tests | ${output.codeQuality.hasTests ? '✅' : '❌'} |`);
+      lines.push(`| Linting | ${output.codeQuality.hasLinting ? '✅' : '❌'} |`);
+      lines.push(`| Type Checking | ${output.codeQuality.hasTypeChecking ? '✅' : '❌'} |`);
+      lines.push(`| Documentation | ${output.codeQuality.hasDocumentation ? '✅' : '❌'} |`);
+      lines.push(`| CI/CD | ${output.codeQuality.hasCI ? '✅' : '❌'} |`);
+      lines.push(`| Security Tools | ${output.codeQuality.hasSecurity ? '✅' : '❌'} |`);
+      lines.push('');
+
+      if (output.codeQuality.issues.length > 0) {
+        lines.push('### Issues');
+        for (const issue of output.codeQuality.issues) {
+          const icon = issue.type === 'error' ? '🔴' : issue.type === 'warning' ? '🟡' : '💡';
+          lines.push(`- ${icon} ${issue.message}`);
+        }
+        lines.push('');
+      }
     }
 
     // Compliance
-    lines.push('## Compliance Indicators');
-    lines.push('');
-    lines.push('| Indicator | Detected |');
-    lines.push('|-----------|----------|');
-    lines.push(`| Personal Data Handling | ${output.complianceIndicators.handlesPersonalData ? '⚠️ Yes' : 'No'} |`);
-    lines.push(`| Authentication | ${output.complianceIndicators.hasAuthentication ? '✅' : '❌'} |`);
-    lines.push(`| Authorization | ${output.complianceIndicators.hasAuthorization ? '✅' : '❌'} |`);
-    lines.push(`| Audit Logging | ${output.complianceIndicators.hasAuditLogging ? '✅' : '❌'} |`);
-    lines.push(`| Encryption | ${output.complianceIndicators.hasEncryption ? '✅' : '❌'} |`);
-    lines.push(`| Sensitive Data | ${output.complianceIndicators.hasSensitiveData ? '⚠️ Yes' : 'No'} |`);
-    lines.push('');
+    if (output.complianceIndicators) {
+      lines.push('## Compliance Indicators');
+      lines.push('');
+      lines.push('| Indicator | Detected |');
+      lines.push('|-----------|----------|');
+      lines.push(`| Personal Data Handling | ${output.complianceIndicators.handlesPersonalData ? '⚠️ Yes' : 'No'} |`);
+      lines.push(`| Authentication | ${output.complianceIndicators.hasAuthentication ? '✅' : '❌'} |`);
+      lines.push(`| Authorization | ${output.complianceIndicators.hasAuthorization ? '✅' : '❌'} |`);
+      lines.push(`| Audit Logging | ${output.complianceIndicators.hasAuditLogging ? '✅' : '❌'} |`);
+      lines.push(`| Encryption | ${output.complianceIndicators.hasEncryption ? '✅' : '❌'} |`);
+      lines.push(`| Sensitive Data | ${output.complianceIndicators.hasSensitiveData ? '⚠️ Yes' : 'No'} |`);
+      lines.push('');
+    }
 
     // Dependencies
-    lines.push('## Dependencies');
-    lines.push('');
-    lines.push(`- **Total:** ${output.dependencies.total}`);
-    lines.push(`- **Production:** ${output.dependencies.production}`);
-    lines.push(`- **Development:** ${output.dependencies.development}`);
-
-    if (output.dependencies.vulnerabilities.length > 0) {
+    if (output.dependencies) {
+      lines.push('## Dependencies');
       lines.push('');
-      lines.push('### Vulnerabilities');
-      for (const vuln of output.dependencies.vulnerabilities) {
-        const icon =
-          vuln.severity === 'critical'
-            ? '🔴'
-            : vuln.severity === 'high'
-              ? '🟠'
-              : vuln.severity === 'medium'
-                ? '🟡'
-                : '🔵';
-        lines.push(`- ${icon} **${vuln.name}** (${vuln.severity}): ${vuln.description}`);
+      lines.push(`- **Total:** ${output.dependencies.total}`);
+      lines.push(`- **Production:** ${output.dependencies.production}`);
+      lines.push(`- **Development:** ${output.dependencies.development}`);
+
+      if (output.dependencies.vulnerabilities.length > 0) {
+        lines.push('');
+        lines.push('### Vulnerabilities');
+        for (const vuln of output.dependencies.vulnerabilities) {
+          const icon =
+            vuln.severity === 'critical'
+              ? '🔴'
+              : vuln.severity === 'high'
+                ? '🟠'
+                : vuln.severity === 'medium'
+                  ? '🟡'
+                  : '🔵';
+          lines.push(`- ${icon} **${vuln.name}** (${vuln.severity}): ${vuln.description}`);
+        }
       }
+      lines.push('');
     }
-    lines.push('');
 
     // Recommendations
     if (output.recommendations.length > 0) {
@@ -557,22 +571,24 @@ Be thorough and specific. The CLAUDE.md should be comprehensive but focused.`;
     }
 
     // Structure
-    lines.push('## Directory Structure');
-    lines.push('');
-    lines.push('| Directory | Purpose | Files | Importance |');
-    lines.push('|-----------|---------|-------|------------|');
-    for (const dir of output.structure.rootDirectories) {
-      const icon =
-        dir.importance === 'critical'
-          ? '🔴'
-          : dir.importance === 'high'
-            ? '🟠'
-            : dir.importance === 'medium'
-              ? '🟡'
-              : '🔵';
-      lines.push(`| \`${dir.path}/\` | ${dir.purpose} | ${dir.fileCount} | ${icon} ${dir.importance} |`);
+    if (output.structure) {
+      lines.push('## Directory Structure');
+      lines.push('');
+      lines.push('| Directory | Purpose | Files | Importance |');
+      lines.push('|-----------|---------|-------|------------|');
+      for (const dir of output.structure.rootDirectories) {
+        const icon =
+          dir.importance === 'critical'
+            ? '🔴'
+            : dir.importance === 'high'
+              ? '🟠'
+              : dir.importance === 'medium'
+                ? '🟡'
+                : '🔵';
+        lines.push(`| \`${dir.path}/\` | ${dir.purpose} | ${dir.fileCount} | ${icon} ${dir.importance} |`);
+      }
+      lines.push('');
     }
-    lines.push('');
 
     lines.push('---');
     lines.push('*Generated by Project Analyzer Agent*');
