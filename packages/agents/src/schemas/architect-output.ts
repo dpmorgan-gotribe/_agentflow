@@ -177,7 +177,17 @@ export const ComponentInterfaceSchema = z.object({
 export type ComponentInterface = z.infer<typeof ComponentInterfaceSchema>;
 
 /**
+ * Lenient interface schema that accepts strings or objects
+ * Claude sometimes returns just interface names as strings
+ */
+export const LenientComponentInterfaceSchema = z.union([
+  ComponentInterfaceSchema,
+  z.string().transform((name) => ({ name, type: 'function' as const, description: '' })),
+]);
+
+/**
  * Component definition
+ * Uses lenient interface schema to accept strings or objects
  */
 export const ComponentSchema = z.object({
   name: z.string().min(1).max(100),
@@ -185,7 +195,7 @@ export const ComponentSchema = z.object({
   description: z.string().max(1000).default(''),
   responsibilities: z.array(z.string().min(1).max(500)).default([]),
   dependencies: z.array(z.string().min(1).max(100)).default([]),
-  interfaces: z.array(ComponentInterfaceSchema).default([]),
+  interfaces: z.array(LenientComponentInterfaceSchema).default([]),
   location: z
     .string()
     .max(500)
