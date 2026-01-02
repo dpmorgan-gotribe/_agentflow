@@ -309,13 +309,56 @@ export const NamingConventionsSchema = z.object({
 export type NamingConventions = z.infer<typeof NamingConventionsSchema>;
 
 /**
+ * Helper to coerce quote preference from various Claude responses
+ * Claude may return "single quotes for strings" instead of just "single"
+ */
+const quotesCoercion = z.union([
+  z.enum(['single', 'double']),
+  z.string().transform((val): 'single' | 'double' => {
+    const lower = val.toLowerCase();
+    if (lower.includes('double')) return 'double';
+    return 'single'; // default to single
+  }),
+]).catch('single');
+
+/**
+ * Helper to coerce semicolons from various Claude responses
+ * Claude may return "always use semicolons" instead of true/false
+ */
+const semicolonsCoercion = z.union([
+  z.boolean(),
+  z.string().transform((val): boolean => {
+    const lower = val.toLowerCase();
+    // Check for negative indicators first
+    if (lower.includes('no ') || lower.includes('never') || lower.includes('without') || lower === 'false') {
+      return false;
+    }
+    // Default to true (semicolons are common in TypeScript)
+    return true;
+  }),
+]).catch(true);
+
+/**
+ * Helper to coerce lineLength from string or number
+ */
+const lineLengthCoercion = z.union([
+  z.number().int().min(40).max(200),
+  z.string().transform((val): number => {
+    const num = parseInt(val, 10);
+    if (isNaN(num)) return 100;
+    return Math.min(200, Math.max(40, num));
+  }),
+]).catch(100);
+
+/**
  * Formatting conventions
+ * Made lenient to handle Claude's verbose responses
  */
 export const FormattingConventionsSchema = z.object({
   indentation: z.string().max(50).default('2 spaces'),
-  lineLength: z.number().int().min(40).max(200).default(100),
-  quotes: z.enum(['single', 'double']).default('single'),
-  semicolons: z.boolean().default(true),
+  lineLength: lineLengthCoercion.default(100),
+  quotes: quotesCoercion.default('single'),
+  semicolons: semicolonsCoercion.default(true),
 });
 
 export type FormattingConventions = z.infer<typeof FormattingConventionsSchema>;
