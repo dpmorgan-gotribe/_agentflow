@@ -56,6 +56,32 @@ import {
 } from '../design/index.js';
 
 /**
+ * Strong JSON-only instruction to prevent Claude from responding with prose
+ * This is appended to all system prompts to ensure valid JSON output
+ */
+const JSON_ONLY_INSTRUCTION = `
+
+## CRITICAL OUTPUT REQUIREMENT
+
+You MUST respond with ONLY valid JSON. Follow these rules EXACTLY:
+
+1. Start your response with the opening brace: {
+2. End your response with the closing brace: }
+3. Do NOT include any text before the JSON (no "I've generated...", no "Here is...", no explanations)
+4. Do NOT include any text after the JSON (no "Let me know if...", no summaries)
+5. Do NOT wrap the JSON in markdown code blocks (\`\`\`json)
+6. Output NOTHING except the raw JSON object
+
+WRONG (will fail):
+"I've created a design for your app. Here's the JSON: {...}"
+
+CORRECT (this is what you must do):
+{"projectName": "...", "pages": [...], ...}
+
+If you include ANY text outside the JSON braces, the system will fail to parse your response.
+`;
+
+/**
  * Screen definition from analyst for full design mode
  */
 interface ScreenDefinition {
@@ -279,6 +305,9 @@ IMPORTANT: The "content" field contains the actual visible text!
         prompt += `\n## Project UI Configuration:\n${JSON.stringify(uiConfig, null, 2)}\n`;
       }
     }
+
+    // Append strong JSON-only instruction
+    prompt += JSON_ONLY_INSTRUCTION;
 
     return prompt;
   }
@@ -619,7 +648,7 @@ Output valid JSON with:
 4. Code snippets or class names visible
 5. Real interactive states (CSS :hover, :focus)
 6. Dark mode toggle if applicable
-`;
+${JSON_ONLY_INSTRUCTION}`;
   }
 
   /**
@@ -911,7 +940,7 @@ Each user flow must have:
 5. Intuitive navigation patterns
 6. Loading and error state handling
 7. Empty state with helpful guidance
-`;
+${JSON_ONLY_INSTRUCTION}`;
   }
 
   /**
