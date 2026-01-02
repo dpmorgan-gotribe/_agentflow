@@ -167,7 +167,7 @@ export const AI_PROVIDER_LIMITS = {
   /** Maximum output buffer size for CLI */
   MAX_OUTPUT_BUFFER: 50_000_000, // 50MB
   /** Maximum timeout in milliseconds */
-  MAX_TIMEOUT_MS: 600_000, // 10 minutes
+  MAX_TIMEOUT_MS: 900_000, // 15 minutes
   /** Default timeout in milliseconds */
-  DEFAULT_TIMEOUT_MS: 300_000, // 5 minutes
+  DEFAULT_TIMEOUT_MS: 900_000, // 15 minutes
 } as const;
