@@ -37,8 +37,10 @@ const AGENT_NAMES: Record<AgentType, string> = {
   project_manager: 'Project Manager',
   architect: 'Architect',
   analyst: 'Analyst',
+  analyzer: 'Analyzer',
   project_analyzer: 'Project Analyzer',
   compliance: 'Compliance',
+  compliance_agent: 'Compliance Agent',
   ui_designer: 'UI Designer',
   frontend_developer: 'Frontend Dev',
   backend_developer: 'Backend Dev',
@@ -148,6 +150,9 @@ export function RightSidebar({ isExecuting, currentAgent, orchestratorEvents }: 
                   ? event.message.split('\n').slice(1).join(' ').slice(0, 80)
                   : undefined;
 
+                // Get reasoning from thinking data if available
+                const reasoning = event.thinking?.thinking;
+
                 return (
                   <div
                     key={index}
@@ -159,11 +164,35 @@ export function RightSidebar({ isExecuting, currentAgent, orchestratorEvents }: 
                       <span className={`font-medium uppercase text-3xs ${style.color}`}>
                         {phase}
                       </span>
+                      {event.thinking?.action && (
+                        <span className="text-3xs px-1 py-0.5 bg-accent-primary/10 text-accent-primary rounded">
+                          {event.thinking.action}
+                        </span>
+                      )}
                     </div>
                     <div className="text-text-secondary mt-0.5 pl-14 truncate">
                       {message}
                     </div>
-                    {details && (
+                    {reasoning && (
+                      <div className="mt-1 ml-14 p-1.5 bg-accent-primary/5 border-l-2 border-accent-primary/30 rounded-r">
+                        <div className="text-3xs text-text-muted uppercase tracking-wider mb-0.5">
+                          🧠 Reasoning
+                        </div>
+                        <div className="text-2xs text-text-secondary line-clamp-3">
+                          {reasoning}
+                        </div>
+                        {event.thinking?.targets && event.thinking.targets.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {event.thinking.targets.map((target, i) => (
+                              <span key={i} className="text-3xs px-1 py-0.5 bg-bg-tertiary rounded text-text-muted">
+                                → {target}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!reasoning && details && (
                       <div className="text-text-muted mt-0.5 pl-14 text-3xs truncate">
                         {details}
                       </div>
