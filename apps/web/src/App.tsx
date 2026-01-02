@@ -31,49 +31,34 @@ export default function App() {
     [events]
   );
 
-  // Derive active agents from events (excluding orchestrator which is always on)
+  // Derive active agents from events - only show currently working sub-agents
+  // Agents are removed when they complete or fail
   const activeAgents = useMemo((): ActiveAgent[] => {
     const agentMap = new Map<AgentType, ActiveAgent>();
 
     for (const event of events) {
       const agentType = event.agent;
-      // Skip system and orchestrator (orchestrator is always on, no need to show)
+      // Skip system and orchestrator (only show sub-agents)
       if (!agentType || agentType === 'system' || agentType === 'orchestrator') continue;
 
-      const existing = agentMap.get(agentType);
-
-      if (event.status === 'agent_working' || event.status === 'analyzing' || event.status === 'orchestrating') {
+      if (event.status === 'agent_working' || event.status === 'analyzing') {
+        // Agent started working - add to map
         agentMap.set(agentType, {
           type: agentType,
           status: 'working',
-          startedAt: existing?.startedAt || event.timestamp,
+          startedAt: agentMap.get(agentType)?.startedAt || event.timestamp,
           message: event.message?.split('\n')[0],
           artifactCount: event.artifacts?.length,
         });
-      } else if (event.status === 'completed') {
-        agentMap.set(agentType, {
-          type: agentType,
-          status: 'completed',
-          startedAt: existing?.startedAt,
-          completedAt: event.timestamp,
-          message: event.message?.split('\n')[0],
-          artifactCount: event.artifacts?.length || existing?.artifactCount,
-        });
-      } else if (event.status === 'failed') {
-        agentMap.set(agentType, {
-          type: agentType,
-          status: 'failed',
-          startedAt: existing?.startedAt,
-          completedAt: event.timestamp,
-          message: event.message?.split('\n')[0],
-        });
+      } else if (event.status === 'completed' || event.status === 'failed') {
+        // Agent finished - remove from active agents
+        agentMap.delete(agentType);
       }
     }
 
-    // Sort: working agents first, then completed, then failed
-    const statusOrder = { working: 0, completed: 1, failed: 2, idle: 3 };
+    // Return only working agents, sorted by start time
     return Array.from(agentMap.values()).sort(
-      (a, b) => statusOrder[a.status] - statusOrder[b.status]
+      (a, b) => new Date(a.startedAt || 0).getTime() - new Date(b.startedAt || 0).getTime()
     );
   }, [events]);
 
