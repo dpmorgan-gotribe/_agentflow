@@ -69,7 +69,7 @@ export const DEFAULT_CONTEXT_BUDGET: ContextBudget = {
   maxTotalTokens: 8000,
   maxTokensPerType: {
     project_config: 500,
-    design_tokens: 1000,
+    design_tokens: 2000, // Increased for design context
     user_flows: 1500,
     mockups: 1000,
     source_code: 2000,
@@ -78,7 +78,7 @@ export const DEFAULT_CONTEXT_BUDGET: ContextBudget = {
     lessons_learned: 1000,
     execution_history: 500,
     current_task: 500,
-    agent_outputs: 1000,
+    agent_outputs: 2000, // Increased for agent outputs
     workflow_settings: 200,
   },
   priorityOrder: [
@@ -94,6 +94,71 @@ export const DEFAULT_CONTEXT_BUDGET: ContextBudget = {
     'mockups',
     'git_status',
     'execution_history',
+  ],
+};
+
+/**
+ * Agent-specific context filters
+ *
+ * Defines which context types each agent type needs.
+ * This enables selective context passing to reduce token usage.
+ */
+export const AGENT_CONTEXT_FILTERS: Record<string, ContextType[]> = {
+  // UI Designer only needs design-related context
+  ui_designer: [
+    'current_task',
+    'design_tokens',
+    'user_flows',
+    'mockups',
+    'workflow_settings',
+  ],
+  // Architect needs project config and code context
+  architect: [
+    'current_task',
+    'project_config',
+    'source_code',
+    'lessons_learned',
+    'workflow_settings',
+  ],
+  // Analyst needs research context
+  analyzer: [
+    'current_task',
+    'project_config',
+    'lessons_learned',
+    'workflow_settings',
+  ],
+  // Frontend dev needs design and code context
+  frontend_dev: [
+    'current_task',
+    'design_tokens',
+    'mockups',
+    'source_code',
+    'test_results',
+    'workflow_settings',
+  ],
+  // Backend dev needs code context
+  backend_dev: [
+    'current_task',
+    'project_config',
+    'source_code',
+    'test_results',
+    'workflow_settings',
+  ],
+  // Tester needs code and test context
+  tester: [
+    'current_task',
+    'source_code',
+    'test_results',
+    'workflow_settings',
+  ],
+  // Project Manager needs everything
+  project_manager: [
+    'current_task',
+    'project_config',
+    'design_tokens',
+    'user_flows',
+    'agent_outputs',
+    'workflow_settings',
   ],
 };
 
@@ -123,6 +188,10 @@ export interface CuratedContext {
   truncated: boolean;
   missingRequired: ContextType[];
   sources: ContextType[];
+  /** Document references that bypass token budget */
+  documentRefs: string[];
+  /** Deduplication keys for shared context */
+  deduplicationKeys: string[];
 }
 
 /**
@@ -197,13 +266,28 @@ export class ContextManager {
     const items: ContextItem[] = [];
     const missingRequired: ContextType[] = [];
     const sourcesUsed: Set<ContextType> = new Set();
+    const documentRefs: string[] = [];
+    const deduplicationKeys: Set<string> = new Set();
     let totalTokens = 0;
     let truncated = false;
 
+    // Apply agent-specific context filters if available
+    const agentFilters = AGENT_CONTEXT_FILTERS[agentMetadata.id];
+    const filteredRequirements = agentFilters
+      ? agentMetadata.requiredContext.filter(
+          (req) => agentFilters.includes(req.type)
+        )
+      : agentMetadata.requiredContext;
+
     // Sort requirements by priority
     const sortedRequirements = this.sortRequirementsByPriority(
-      agentMetadata.requiredContext
+      filteredRequirements
     );
+
+    this.logger.debug(`Curating context for ${agentMetadata.id}`, {
+      requirementsCount: sortedRequirements.length,
+      hasAgentFilter: !!agentFilters,
+    });
 
     for (const requirement of sortedRequirements) {
       // Check if we've exceeded total budget
@@ -240,6 +324,25 @@ export class ContextManager {
 
         // Add items within token budget
         for (const item of contextItems) {
+          // Track document references (bypass token budget)
+          if (item.documentRef) {
+            documentRefs.push(item.documentRef);
+            items.push(item);
+            sourcesUsed.add(requirement.type);
+            continue; // Document refs don't count against token budget
+          }
+
+          // Track deduplication keys
+          if (item.deduplicationKey) {
+            if (deduplicationKeys.has(item.deduplicationKey)) {
+              this.logger.debug(
+                `Skipping duplicate context: ${item.deduplicationKey}`
+              );
+              continue; // Skip duplicate
+            }
+            deduplicationKeys.add(item.deduplicationKey);
+          }
+
           const itemTokens = this.estimateTokens(item);
           if (totalTokens + itemTokens <= this.budget.maxTotalTokens) {
             items.push(item);
@@ -266,6 +369,8 @@ export class ContextManager {
       totalTokens,
       truncated,
       missingRequired: missingRequired.length,
+      documentRefsCount: documentRefs.length,
+      deduplicatedCount: deduplicationKeys.size,
       durationMs,
     });
 
@@ -275,6 +380,8 @@ export class ContextManager {
       truncated,
       missingRequired,
       sources: Array.from(sourcesUsed),
+      documentRefs,
+      deduplicationKeys: Array.from(deduplicationKeys),
     };
   }
 

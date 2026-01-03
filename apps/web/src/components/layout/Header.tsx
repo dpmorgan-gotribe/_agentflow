@@ -1,12 +1,24 @@
 import { useState } from 'react';
 import { triggerShutdown, cleanupProjects } from '../../api';
 
+/** Token usage tracking for display */
+export interface TokenUsageStats {
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+}
+
 interface HeaderProps {
   activeTab: string;
   onTabChange: (tab: 'activity' | 'kanban' | 'viewer' | 'design' | 'planning') => void;
   isExecuting: boolean;
   currentBranch: string;
   onNewProject?: () => void;
+  /** Token usage for the current task */
+  tokenUsage?: TokenUsageStats;
+  /** Number of parallel agents currently running */
+  parallelAgents?: number;
 }
 
 const NAV_TABS = [
@@ -17,7 +29,25 @@ const NAV_TABS = [
   { id: 'viewer', label: 'Viewer' },
 ] as const;
 
-export function Header({ activeTab, onTabChange, isExecuting, currentBranch, onNewProject }: HeaderProps) {
+/** Format number with commas (e.g., 1234 -> 1,234) */
+function formatNumber(n: number): string {
+  return n.toLocaleString();
+}
+
+/** Calculate estimated cost based on Claude's pricing */
+function calculateCost(usage: TokenUsageStats): number {
+  // Claude Sonnet 3.5 pricing (as of Dec 2024):
+  // Input: $3/MTok, Output: $15/MTok
+  // Cache read: 90% discount ($0.30/MTok)
+  // Cache creation: 25% premium ($3.75/MTok)
+  const inputCost = ((usage.inputTokens - usage.cacheReadTokens) / 1_000_000) * 3;
+  const outputCost = (usage.outputTokens / 1_000_000) * 15;
+  const cacheReadCost = (usage.cacheReadTokens / 1_000_000) * 0.30;
+  const cacheCreateCost = (usage.cacheCreationTokens / 1_000_000) * 3.75;
+  return inputCost + outputCost + cacheReadCost + cacheCreateCost;
+}
+
+export function Header({ activeTab, onTabChange, isExecuting, currentBranch, onNewProject, tokenUsage, parallelAgents }: HeaderProps) {
   const [showKillConfirm, setShowKillConfirm] = useState(false);
   const [isKilling, setIsKilling] = useState(false);
   const [serverStopped, setServerStopped] = useState(false);
@@ -129,11 +159,31 @@ export function Header({ activeTab, onTabChange, isExecuting, currentBranch, onN
             Active: <span className="text-text-primary font-medium">{isExecuting ? 1 : 0}</span>
           </span>
           <span>
-            Parallel: <span className="text-text-primary font-medium">0/15</span>
+            Parallel: <span className="text-text-primary font-medium">{parallelAgents ?? 0}/15</span>
           </span>
-          <span>
-            Cost: <span className="text-text-primary font-medium">$0.00</span>
-          </span>
+          {tokenUsage && (
+            <>
+              <span title={`Input: ${formatNumber(tokenUsage.inputTokens)} (${formatNumber(tokenUsage.cacheReadTokens)} from cache)`}>
+                In: <span className="text-text-primary font-medium">{formatNumber(tokenUsage.inputTokens)}</span>
+                {tokenUsage.cacheReadTokens > 0 && (
+                  <span className="text-status-success ml-1" title="Tokens read from cache (90% cheaper)">
+                    ({formatNumber(tokenUsage.cacheReadTokens)} cached)
+                  </span>
+                )}
+              </span>
+              <span title={`Output: ${formatNumber(tokenUsage.outputTokens)}`}>
+                Out: <span className="text-text-primary font-medium">{formatNumber(tokenUsage.outputTokens)}</span>
+              </span>
+              <span title="Estimated cost based on Claude pricing">
+                Cost: <span className="text-text-primary font-medium">${calculateCost(tokenUsage).toFixed(4)}</span>
+              </span>
+            </>
+          )}
+          {!tokenUsage && (
+            <span>
+              Cost: <span className="text-text-primary font-medium">$0.00</span>
+            </span>
+          )}
         </div>
 
         {/* Clean Up Button */}

@@ -75,6 +75,10 @@ export interface SubAgentActivity {
   tokenUsage?: {
     input: number;
     output: number;
+    /** Tokens used to create cache entries */
+    cacheCreation?: number;
+    /** Tokens read from cache (90% discount) */
+    cacheRead?: number;
   };
 }
 

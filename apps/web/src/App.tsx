@@ -1,5 +1,5 @@
-import { useEffect, useCallback, useState } from 'react';
-import { Header } from './components/layout/Header';
+import { useEffect, useCallback, useState, useMemo } from 'react';
+import { Header, type TokenUsageStats } from './components/layout/Header';
 import { LeftSidebar } from './components/layout/LeftSidebar';
 import { ActiveAgentsPanel } from './components/layout/ActiveAgentsPanel';
 import { RightSidebar } from './components/layout/RightSidebar';
@@ -39,6 +39,40 @@ export default function App() {
   // Derived state from store
   const activeAgents = useActiveAgents();
   const orchestratorEvents = useOrchestratorEvents();
+
+  // Compute token usage by aggregating from all agent events
+  const tokenUsage = useMemo<TokenUsageStats | undefined>(() => {
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let cacheCreationTokens = 0;
+    let cacheReadTokens = 0;
+
+    for (const event of events) {
+      if (event.activity?.tokenUsage) {
+        inputTokens += event.activity.tokenUsage.input || 0;
+        outputTokens += event.activity.tokenUsage.output || 0;
+        cacheCreationTokens += event.activity.tokenUsage.cacheCreation || 0;
+        cacheReadTokens += event.activity.tokenUsage.cacheRead || 0;
+      }
+    }
+
+    // Only return stats if we have any token data
+    if (inputTokens === 0 && outputTokens === 0) {
+      return undefined;
+    }
+
+    return {
+      inputTokens,
+      outputTokens,
+      cacheCreationTokens,
+      cacheReadTokens,
+    };
+  }, [events]);
+
+  // Count parallel agents currently running (from active agents with 'working' status)
+  const parallelAgentCount = useMemo(() => {
+    return activeAgents.filter(a => a.status === 'working').length;
+  }, [activeAgents]);
 
   // Local UI state for modals
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
@@ -190,6 +224,8 @@ export default function App() {
         isExecuting={isExecuting}
         currentBranch={currentTask ? `task/${currentTask.id.slice(0, 8)}` : 'main'}
         onNewProject={onNewProject}
+        tokenUsage={tokenUsage}
+        parallelAgents={parallelAgentCount}
       />
 
       {/* Main Body */}

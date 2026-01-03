@@ -50,10 +50,17 @@ export type AIProviderRequest = z.infer<typeof AIProviderRequestSchema>;
 
 /**
  * Token usage tracking
+ *
+ * Includes cache metrics for Anthropic API prompt caching.
+ * Cache reads are 90% cheaper than regular input tokens.
  */
 export const TokenUsageSchema = z.object({
   inputTokens: z.number().int().min(0),
   outputTokens: z.number().int().min(0),
+  /** Tokens used to create cache entries (charged at 25% premium) */
+  cacheCreationInputTokens: z.number().int().min(0).optional(),
+  /** Tokens read from cache (90% discount) */
+  cacheReadInputTokens: z.number().int().min(0).optional(),
 });
 
 export type TokenUsage = z.infer<typeof TokenUsageSchema>;

@@ -3,7 +3,7 @@
 **Created**: 2026-01-03
 **Status**: IN_PROGRESS
 **Type**: Multi-Issue Enhancement Plan
-**Current Step**: Phase 4 (Design Workflow)
+**Current Step**: Phase 6 (Planning)
 
 ---
 
@@ -559,33 +559,33 @@ Issue 8 (Planning Tab) ←── Issue 1 (Active Agents Panel)
 
 ---
 
-### Phase 4: Design Workflow (Issues 4, 5)
+### Phase 4: Design Workflow (Issues 4, 5) ✓ COMPLETE
 
 **Goal:** Enforce stylesheet-first workflow with dedicated UI
 
 **Tasks:**
-1. Split design into stylesheet/screens phases
-2. Update orchestrator prompts for workflow enforcement
-3. Create Design tab with Mockups and User Flows pages
-4. Add stylesheet approval gate
-5. Integrate approval controls in Design tab
+1. [x] Split design into stylesheet/screens phases (DesignPhase type in state.ts)
+2. [x] Update orchestrator prompts for workflow enforcement (CRITICAL gate in orchestrator-thinking.ts)
+3. [x] Create Design tab with Mockups and User Flows pages (components/design/)
+4. [x] Add stylesheet approval gate (approval controls in MockupsPage)
+5. [x] Integrate approval controls in Design tab (App.tsx approval callbacks)
 
-**Estimated Scope:** 10-12 files modified/created
+**Commit:** `a795f2c feat: implement Design Workflow (Phase 4 - Issues 4, 5)`
 
 ---
 
-### Phase 5: Context & Efficiency (Issues 6, 7)
+### Phase 5: Context & Efficiency (Issues 6, 7) ✓ COMPLETE
 
 **Goal:** Handle long context and reduce token usage
 
 **Tasks:**
-1. Implement artifact-based context passing
-2. Add prompt caching for Anthropic API
-3. Implement selective context filtering
-4. Add shared context deduplication
-5. Add token usage display in UI
+1. [x] Implement artifact-based context passing (documentRef field in ContextItem)
+2. [x] Add prompt caching for Anthropic API (cache_control: ephemeral in system prompts)
+3. [x] Implement selective context filtering (AGENT_CONTEXT_FILTERS per agent type)
+4. [x] Add shared context deduplication (deduplicationKey field in ContextItem)
+5. [x] Add token usage display in UI (Header stats with cost calculation)
 
-**Estimated Scope:** 8-10 files modified/created
+**Commit:** (see below)
 
 ---
 

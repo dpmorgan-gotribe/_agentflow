@@ -253,6 +253,10 @@ export type AgentMetadata = z.infer<typeof AgentMetadataSchema>;
 
 /**
  * Context item wrapper
+ *
+ * Supports two modes:
+ * 1. Inline content - content is serialized directly (token-budgeted)
+ * 2. Document reference - documentRef points to a file (bypasses token budget)
  */
 export const ContextItemSchema = z.object({
   type: ContextTypeSchema,
@@ -262,6 +266,12 @@ export const ContextItemSchema = z.object({
     timestamp: z.date(),
     relevance: z.number().min(0).max(1).optional(),
   }),
+  /** Path to document file (bypasses token budget when set) */
+  documentRef: z.string().optional(),
+  /** Whether this context should be cached for reuse */
+  cacheable: z.boolean().optional(),
+  /** Unique ID for deduplication across agents */
+  deduplicationKey: z.string().optional(),
 });
 
 export type ContextItem = z.infer<typeof ContextItemSchema>;
