@@ -48,6 +48,8 @@ import {
   createDefaultBorderRadius,
   createDefaultShadows,
   countComponents,
+  UI_DESIGNER_OUTPUT_SCHEMA_DOC,
+  TYPOGRAPHY_EXAMPLE,
 } from '../schemas/ui-designer-output.js';
 import type { StylePackage, ComponentInventory } from '@aigentflow/langgraph';
 import {
@@ -66,6 +68,7 @@ import type { UIDesignerSpecification } from '../schemas/ui-designer-spec.js';
 import {
   UIDesignerSpecificationSchema,
   EXAMPLE_SPECIFICATION,
+  UI_DESIGNER_SPEC_SCHEMA_DOC,
 } from '../schemas/ui-designer-spec.js';
 
 /**
@@ -92,6 +95,17 @@ CORRECT (this is what you must do):
 {"projectName": "...", "pages": [...], ...}
 
 If you include ANY text outside the JSON braces, the system will fail to parse your response.
+`;
+
+/**
+ * Prefix for user prompts to reinforce JSON-only output
+ * This appears at the START of the user prompt to "sandwich" the content
+ * between two JSON format requirements (system prompt has one at the end)
+ */
+const JSON_RESPONSE_PREFIX = `CRITICAL FORMAT REQUIREMENT:
+Your response must be ONLY valid JSON - no prose, no explanations, no markdown.
+Start your response with EXACTLY: {"projectName":
+
 `;
 
 /**
@@ -347,6 +361,10 @@ IMPORTANT: The "content" field contains the actual visible text!
 5. Consistent spacing using 4px/8px grid
 6. Semantic HTML structure
 7. Keyboard navigable
+
+${UI_DESIGNER_OUTPUT_SCHEMA_DOC}
+
+${TYPOGRAPHY_EXAMPLE}
 `;
 
     if (designTokens) {
@@ -389,84 +407,11 @@ The system will use your specification to generate the actual HTML.
 For complex applications, returning full HTML would create a very large response.
 By returning only a specification (~3KB), you can design apps with unlimited screens.
 
-## Output Format
-
-Return a JSON object matching this schema:
-
-{
-  "projectName": "string - project name",
-  "projectDescription": "string - brief description (optional)",
-  "style": {
-    "mood": "minimal" | "bold" | "elegant" | "playful" | "professional" | "modern" | "classic" | "warm" | "dark",
-    "primaryColor": "#hexcolor",
-    "secondaryColor": "#hexcolor",
-    "accentColor": "#hexcolor",
-    "backgroundColor": "#ffffff",
-    "textColor": "#111827",
-    "fontHeading": "Font Name",
-    "fontBody": "Font Name",
-    "borderRadius": "none" | "small" | "medium" | "large" | "full",
-    "useDarkSections": boolean,
-    "googleFonts": ["Font:weights"]
-  },
-  "pages": [
-    {
-      "id": "page-id",
-      "name": "Page Name",
-      "path": "/url-path",
-      "description": "What this page does",
-      "layout": "full-width" | "contained" | "sidebar-left" | "sidebar-right" | "centered",
-      "sections": [
-        {
-          "type": "section-type",
-          "variant": "optional-variant",
-          "content": {
-            "heading": "optional heading",
-            "subheading": "optional subheading",
-            "buttonText": "optional CTA",
-            "buttonUrl": "/url",
-            "items": [{ "title": "Feature", "description": "..." }],
-            // ... other content fields based on section type
-          }
-        }
-      ]
-    }
-  ],
-  "sharedSections": {
-    "navbar": { "type": "navbar", "content": { "links": [...] } },
-    "footer": { "type": "footer-simple", "content": { ... } }
-  }
-}
-
-## Available Section Types
-
-HEROES: hero, hero-split, hero-minimal
-FEATURES: features-grid, features-list, features-alternating
-TESTIMONIALS: testimonials-grid, testimonials-carousel, testimonials-featured
-PRICING: pricing-cards, pricing-table
-CTA: cta-banner, cta-centered
-CONTENT: about-story, about-mission, team-grid, process-steps, faq-accordion, stats-bar
-SERVICES: services-grid, services-list, expertise-grid
-CONTACT: contact-form, contact-split, location-map, booking-cta
-NAVIGATION: navbar, navbar-transparent, footer-simple, footer-mega
-
-## Section Variants
-
-BACKGROUND: light, dark, gradient, transparent
-LAYOUT: centered, left, right, split-left, split-right
-SIZE: compact, spacious, full-height
+${UI_DESIGNER_SPEC_SCHEMA_DOC}
 
 ## Example Output
 
 ${exampleJson}
-
-## CRITICAL RULES
-
-1. Return ONLY valid JSON - no explanations, no markdown
-2. Use the exact section type names listed above
-3. Include appropriate content for each section type
-4. Keep the specification minimal - don't add unnecessary fields
-5. Focus on design decisions, not HTML implementation
 
 ${JSON_ONLY_INSTRUCTION}`;
   }
@@ -499,7 +444,9 @@ ${JSON_ONLY_INSTRUCTION}`;
     const task = request.context.task;
     const previousOutputs = request.context.previousOutputs || [];
 
-    let prompt = `## Feature Requirements:\n`;
+    // Start with JSON format reminder to prevent prose responses
+    let prompt = JSON_RESPONSE_PREFIX;
+    prompt += `## Feature Requirements:\n`;
     prompt += `Task Type: ${task.taskType}\n`;
     prompt += `Complexity: ${task.complexity}\n`;
     prompt += `Requires Backend: ${task.requiresBackend}\n`;
@@ -1114,6 +1061,24 @@ Output valid JSON with:
 4. Code snippets or class names visible
 5. Real interactive states (CSS :hover, :focus)
 6. Dark mode toggle if applicable
+
+${UI_DESIGNER_OUTPUT_SCHEMA_DOC}
+
+${TYPOGRAPHY_EXAMPLE}
+
+## Spacing Scale Example
+
+Use realistic pixel values for spacing:
+
+\`\`\`json
+{
+  "spacing": {
+    "unit": 4,
+    "scale": [0, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128]
+  }
+}
+\`\`\`
+
 ${JSON_ONLY_INSTRUCTION}`;
   }
 
@@ -1124,7 +1089,9 @@ ${JSON_ONLY_INSTRUCTION}`;
     componentInventory: ComponentInventory,
     stylePackage: StylePackage
   ): string {
-    let prompt = `Generate a mega page showcasing the following components using the "${stylePackage.name}" style:\n\n`;
+    // Start with JSON format reminder to prevent prose responses
+    let prompt = JSON_RESPONSE_PREFIX;
+    prompt += `Generate a mega page showcasing the following components using the "${stylePackage.name}" style:\n\n`;
 
     prompt += `## Component Inventory\n\n`;
 
@@ -1455,6 +1422,24 @@ Each user flow must have:
 5. Intuitive navigation patterns
 6. Loading and error state handling
 7. Empty state with helpful guidance
+
+${UI_DESIGNER_OUTPUT_SCHEMA_DOC}
+
+${TYPOGRAPHY_EXAMPLE}
+
+## Spacing Scale Example
+
+Use realistic pixel values for spacing:
+
+\`\`\`json
+{
+  "spacing": {
+    "unit": 4,
+    "scale": [0, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128]
+  }
+}
+\`\`\`
+
 ${JSON_ONLY_INSTRUCTION}`;
   }
 
@@ -1467,7 +1452,9 @@ ${JSON_ONLY_INSTRUCTION}`;
     approvedStyle: StylePackage,
     componentInventory?: ComponentInventory
   ): string {
-    let prompt = `Generate complete mockups for ALL screens using the "${approvedStyle.name}" style.\n\n`;
+    // Start with JSON format reminder to prevent prose responses
+    let prompt = JSON_RESPONSE_PREFIX;
+    prompt += `Generate complete mockups for ALL screens using the "${approvedStyle.name}" style.\n\n`;
 
     prompt += `## Screens to Design (${screens.length} total)\n\n`;
 

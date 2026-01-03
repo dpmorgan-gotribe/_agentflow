@@ -536,6 +536,25 @@ export abstract class BaseAgent {
    * - Prose mixed with JSON
    */
   protected parseJSON<T>(text: string): T {
+    // Detect prose response before attempting parse
+    const trimmed = text.trim();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      // Check for common prose indicators
+      const proseIndicators = ["I've", "Here", "I have", "I will", "Let me", "Sure", "Of course", "Certainly"];
+      const looksLikeProse = proseIndicators.some(p => trimmed.startsWith(p));
+
+      if (looksLikeProse) {
+        this.log('error', 'Claude returned prose instead of JSON', {
+          preview: trimmed.substring(0, 200),
+        });
+        throw new AgentExecutionError(
+          `Claude returned prose instead of JSON. Response starts with: "${trimmed.substring(0, 50)}..."`,
+          'PROSE_RESPONSE',
+          true // Recoverable - retry may succeed with stronger prompting
+        );
+      }
+    }
+
     // Use robust extraction
     const jsonStr = extractJSON(text);
 

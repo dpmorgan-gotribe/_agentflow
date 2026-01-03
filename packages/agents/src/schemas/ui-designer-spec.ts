@@ -597,3 +597,130 @@ export const EXAMPLE_SPECIFICATION: UIDesignerSpecification = {
     },
   },
 };
+
+// ============================================================================
+// Schema Documentation for Prompts
+// ============================================================================
+
+/**
+ * Schema documentation for inclusion in prompts.
+ * This ensures Claude knows exactly what format to return in specification mode.
+ */
+export const UI_DESIGNER_SPEC_SCHEMA_DOC = `
+## Required Specification Schema
+
+Return a JSON object with this EXACT structure:
+
+\`\`\`json
+{
+  "projectName": "string - Project name (max 100 chars)",
+  "projectDescription": "string (optional) - Brief project description",
+
+  "style": {
+    "mood": "string - One of: minimal, bold, elegant, playful, professional, modern, classic, warm, dark",
+    "primaryColor": "string - Hex color (e.g. '#1E40AF')",
+    "secondaryColor": "string - Hex color",
+    "accentColor": "string - Hex color for CTAs/highlights",
+    "backgroundColor": "string - Hex color (default '#FFFFFF')",
+    "textColor": "string - Hex color (default '#111827')",
+    "fontHeading": "string - Heading font name (e.g. 'Poppins')",
+    "fontBody": "string - Body font name (e.g. 'Inter')",
+    "borderRadius": "string - One of: none, small, medium, large, full",
+    "useDarkSections": "boolean - Whether to use dark backgrounds for some sections",
+    "googleFonts": "string[] (optional) - Fonts to load (e.g. ['Poppins:600,700'])"
+  },
+
+  "pages": [
+    {
+      "id": "string - Lowercase with hyphens (e.g. 'about-us')",
+      "name": "string - Human-readable name",
+      "path": "string - URL path starting with / (e.g. '/about')",
+      "description": "string - Brief page description",
+      "title": "string (optional) - Browser tab title",
+      "layout": "string - One of: full-width, contained, sidebar-left, sidebar-right, centered",
+      "sections": [
+        {
+          "type": "string - Section type (see list below)",
+          "variant": "string (optional) - Styling variant",
+          "content": { /* Section-specific content */ }
+        }
+      ]
+    }
+  ],
+
+  "sharedSections": {
+    "navbar": { /* Section spec for navigation */ },
+    "footer": { /* Section spec for footer */ }
+  }
+}
+\`\`\`
+
+## Section Types
+
+Available section types (use these exact strings):
+
+**Heroes**: hero, hero-split, hero-video, hero-minimal
+**Features**: features-grid, features-list, features-alternating, features-icons
+**Testimonials**: testimonials-carousel, testimonials-grid, testimonials-featured, testimonials-quotes
+**Pricing**: pricing-table, pricing-cards
+**CTAs**: cta-banner, cta-centered, cta-split
+**About**: about-story, about-mission
+**Team**: team-grid, team-featured
+**Process**: process-steps, process-horizontal
+**FAQ**: faq-accordion, faq-two-column
+**Stats**: stats-bar, stats-grid
+**Services**: services-grid, services-list, services-tabs, expertise-grid
+**Contact**: contact-form, contact-split, contact-minimal, location-map, booking-cta
+**Content**: content-text, content-image, content-gallery, content-video
+**Navigation**: navbar, navbar-transparent, navbar-centered, footer-simple, footer-mega, footer-minimal
+**Utility**: divider, banner-announcement, newsletter
+
+## Section Variants
+
+Optional variants that modify section appearance:
+
+**Background**: light, dark, gradient, image, transparent
+**Layout**: centered, left, right, split-left, split-right
+**Size**: compact, spacious, full-height
+**Style**: minimal, bordered, shadowed, rounded
+
+## CRITICAL FORMAT REQUIREMENTS
+
+1. **All page IDs must be lowercase with hyphens only** (e.g. "about-us", not "About Us")
+2. **All paths must start with /** (e.g. "/about", not "about")
+3. **All colors must be hex codes** with # prefix (e.g. "#3B82F6")
+4. **Section types must match exactly** from the list above
+5. **Keep content minimal** - just text, no HTML markup
+6. **Max 20 sections per page** - be selective
+7. **Max 50 pages total** - for larger apps, group related content
+
+## Example Section Content
+
+For features-grid:
+\`\`\`json
+{
+  "type": "features-grid",
+  "content": {
+    "heading": "Our Services",
+    "items": [
+      { "title": "Web Development", "description": "Modern websites", "icon": "globe" },
+      { "title": "Mobile Apps", "description": "iOS and Android", "icon": "smartphone" }
+    ]
+  }
+}
+\`\`\`
+
+For hero:
+\`\`\`json
+{
+  "type": "hero",
+  "variant": "dark",
+  "content": {
+    "heading": "Build Something Amazing",
+    "subheading": "We help companies transform their digital presence",
+    "buttonText": "Get Started",
+    "buttonUrl": "/contact"
+  }
+}
+\`\`\`
+`;

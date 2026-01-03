@@ -68,6 +68,63 @@ const ARRAY_FIELDS = new Set([
 ]);
 
 /**
+ * Typography fields that should be font stack strings
+ * Claude often returns these as objects like { heading: "...", body: "..." }
+ */
+const TYPOGRAPHY_STRING_FIELDS = new Set([
+  'fontFamily',
+  'headingFamily',
+  'monoFamily',
+]);
+
+/**
+ * CSS value fields that should be strings but Claude often returns as numbers
+ * e.g., "gap": 0 instead of "gap": "0"
+ */
+const CSS_VALUE_FIELDS = new Set([
+  'gap',
+  'margin',
+  'marginTop',
+  'marginRight',
+  'marginBottom',
+  'marginLeft',
+  'padding',
+  'paddingTop',
+  'paddingRight',
+  'paddingBottom',
+  'paddingLeft',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'width',
+  'height',
+  'minWidth',
+  'minHeight',
+  'maxWidth',
+  'maxHeight',
+  'borderWidth',
+  'borderRadius',
+  'fontSize',
+  'letterSpacing',
+]);
+
+/**
+ * Fields that should remain unitless even when numeric
+ * (line-height, z-index, opacity, scale ratios)
+ */
+const UNITLESS_FIELDS = new Set([
+  'lineHeight',
+  'scaleRatio',
+  'opacity',
+  'zIndex',
+  'fontWeight',
+  'order',
+  'flexGrow',
+  'flexShrink',
+]);
+
+/**
  * Convert a string to boolean if it represents a boolean value
  */
 function stringToBoolean(value: unknown): unknown {
@@ -116,6 +173,100 @@ function objectToArray(value: unknown, fieldName: string): unknown {
 }
 
 /**
+ * Convert a font object to a font stack string
+ *
+ * Claude often returns typography font fields as objects:
+ * - { heading: "Cormorant", body: "Satoshi" } -> "Cormorant, Satoshi, sans-serif"
+ * - { primary: "Inter" } -> "Inter, sans-serif"
+ * - ["Inter", "Roboto"] -> "Inter, Roboto, sans-serif"
+ * - "Inter" -> "Inter" (already correct, return as-is)
+ */
+function fontObjectToString(value: unknown): string | unknown {
+  // Already a string - return as-is
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  // Array of fonts -> join with comma and add fallback
+  if (Array.isArray(value)) {
+    const fonts = value.filter((f): f is string => typeof f === 'string');
+    const firstFont = fonts[0];
+    if (firstFont) {
+      const fallback = firstFont.toLowerCase().includes('mono') ? 'monospace' : 'sans-serif';
+      return fonts.join(', ') + ', ' + fallback;
+    }
+    return value;
+  }
+
+  // Object with font properties -> extract and join
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const fonts: string[] = [];
+
+    // Extract fonts in priority order (heading first, then body, etc.)
+    const priorityKeys = ['heading', 'display', 'primary', 'body', 'secondary', 'mono', 'code'];
+    for (const key of priorityKeys) {
+      if (key in obj && typeof obj[key] === 'string') {
+        fonts.push(obj[key] as string);
+      }
+    }
+
+    // Also include any other string values not in priority list
+    for (const [key, val] of Object.entries(obj)) {
+      if (!priorityKeys.includes(key) && typeof val === 'string') {
+        fonts.push(val);
+      }
+    }
+
+    const firstFont = fonts[0];
+    if (firstFont) {
+      // Add fallback based on first font type
+      const fallback = firstFont.toLowerCase().includes('mono') ? 'monospace' : 'sans-serif';
+      return fonts.join(', ') + ', ' + fallback;
+    }
+  }
+
+  // Return unchanged if we can't convert
+  return value;
+}
+
+/**
+ * Convert a number to a CSS value string
+ *
+ * Claude often returns CSS values as numbers:
+ * - 0 -> "0"
+ * - 16 -> "16px" (add px for non-zero numbers)
+ * - "16px" -> "16px" (already correct)
+ *
+ * @param value The value to convert
+ * @param fieldName The field name (to check if unitless)
+ */
+function toCSSValue(value: unknown, fieldName: string): string | unknown {
+  // Already a string - return as-is
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    // 0 stays as "0" (no units needed)
+    if (value === 0) {
+      return '0';
+    }
+
+    // Check if this field should be unitless
+    if (UNITLESS_FIELDS.has(fieldName)) {
+      return String(value);
+    }
+
+    // Add 'px' for dimensional values
+    return `${value}px`;
+  }
+
+  // Return unchanged if we can't convert
+  return value;
+}
+
+/**
  * Recursively sanitize JSON data to fix common LLM output issues
  */
 export function sanitizeLLMJson(data: unknown, depth = 0): unknown {
@@ -150,6 +301,18 @@ export function sanitizeLLMJson(data: unknown, depth = 0): unknown {
       // Convert objects to arrays for array fields
       if (ARRAY_FIELDS.has(key) && typeof value === 'object' && !Array.isArray(value)) {
         sanitizedValue = objectToArray(sanitizedValue, key);
+      }
+
+      // Convert typography font objects to font stack strings
+      // e.g., { heading: "Font1", body: "Font2" } -> "Font1, Font2, sans-serif"
+      if (TYPOGRAPHY_STRING_FIELDS.has(key) && typeof value === 'object') {
+        sanitizedValue = fontObjectToString(sanitizedValue);
+      }
+
+      // Convert numeric CSS values to strings
+      // e.g., "gap": 0 -> "gap": "0", "gap": 16 -> "gap": "16px"
+      if (CSS_VALUE_FIELDS.has(key) && typeof sanitizedValue === 'number') {
+        sanitizedValue = toCSSValue(sanitizedValue, key);
       }
 
       // Recursively sanitize nested values

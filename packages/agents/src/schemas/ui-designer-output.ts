@@ -21,12 +21,6 @@ import { LenientAgentTypeArraySchema } from '../types.js';
  */
 const SAFE_PATH_REGEX = /^[a-zA-Z0-9_\-./\\:]+$/;
 
-/**
- * Safe HTML content - basic XSS prevention
- * Allows alphanumeric, spaces, and common punctuation
- */
-const SAFE_CONTENT_REGEX = /^[^<>]*$/;
-
 // ============================================================================
 // Component Types
 // ============================================================================
@@ -191,13 +185,9 @@ export const UIComponentSchema: z.ZodType<UIComponent> = z.lazy(() =>
     type: UIComponentTypeSchema,
     name: z.string().min(1).max(100),
     description: z.string().max(500).optional(),
-    content: z
-      .string()
-      .max(5000)
-      .refine((c) => SAFE_CONTENT_REGEX.test(c), {
-        message: 'Content contains potentially unsafe characters',
-      })
-      .optional(),
+    // Content can contain any text - XSS prevention is handled by
+    // escapeHtml() in html-generator.ts at render time
+    content: z.string().max(5000).optional(),
     attributes: z
       .record(
         z.string().min(1).max(50),
@@ -385,10 +375,12 @@ export type Typography = z.infer<typeof TypographySchema>;
 
 /**
  * Spacing scale
+ * Note: scale can be multipliers (0-24) or actual pixel values (0-576)
+ * Claude often returns pixel values, so max is set high to accommodate both patterns
  */
 export const SpacingSchema = z.object({
   unit: z.number().int().min(1).max(32), // Base unit in px
-  scale: z.array(z.number().min(0).max(100)), // Multipliers
+  scale: z.array(z.number().min(0).max(1000)), // Spacing values (px or multipliers)
 });
 
 export type Spacing = z.infer<typeof SpacingSchema>;
@@ -704,8 +696,27 @@ export type UIDesignerRoutingHints = z.infer<typeof UIDesignerRoutingHintsSchema
 // ============================================================================
 
 /**
+ * File artifact reference - used when agent writes files directly
+ */
+export const FileArtifactRefSchema = z.object({
+  /** Relative path from project output directory */
+  path: z.string().min(1).max(500),
+  /** Type of artifact */
+  type: z.enum(['html', 'css', 'json', 'md', 'svg']),
+  /** Human-readable name */
+  name: z.string().max(200).optional(),
+});
+
+export type FileArtifactRef = z.infer<typeof FileArtifactRefSchema>;
+
+/**
  * Complete UI Designer output
  * Uses defaults for lenient parsing of Claude responses
+ *
+ * IMPORTANT: When outputDir is provided in context, the agent should:
+ * 1. Write HTML/CSS files directly to outputDir/designs/mockups/
+ * 2. Populate `artifactPaths` with file references
+ * 3. Keep `pages` minimal (just id/name/path, no nested components)
  */
 export const UIDesignerOutputSchema = z.object({
   projectName: z.string().min(1).max(100).default('Untitled Project'),
@@ -736,6 +747,16 @@ export const UIDesignerOutputSchema = z.object({
 
   // Notes for developers/reviewers
   notes: z.array(z.string().max(500)).optional(),
+
+  /**
+   * File-based artifact paths (replaces inline content)
+   * When present, workflow reads files from these paths instead of
+   * extracting content from pages/components.
+   *
+   * Keys are artifact IDs (e.g., "landing-page", "global-styles")
+   * Values are file references with path, type, and optional name
+   */
+  artifactPaths: z.record(z.string(), FileArtifactRefSchema).optional(),
 });
 
 export type UIDesignerOutput = z.infer<typeof UIDesignerOutputSchema>;
@@ -942,3 +963,119 @@ export function hasAccessibility(component: UIComponent): boolean {
 export function countAccessibleComponents(components: UIComponent[]): number {
   return flattenComponents(components).filter(hasAccessibility).length;
 }
+
+// ============================================================================
+// Schema Documentation for Prompts
+// ============================================================================
+
+/**
+ * Schema documentation for inclusion in prompts.
+ * This ensures Claude knows exactly what format to return.
+ *
+ * Include this in the UI Designer's system prompt to eliminate
+ * interpretation errors (e.g., fontFamily as object instead of string).
+ */
+export const UI_DESIGNER_OUTPUT_SCHEMA_DOC = `
+## Required Output Schema
+
+Return a JSON object with this EXACT structure:
+
+\`\`\`json
+{
+  "projectName": "string - Project name",
+  "version": "string - Semantic version, e.g. '1.0.0'",
+  "generatedAt": "string - ISO 8601 timestamp",
+
+  "pages": [
+    {
+      "id": "string - Unique identifier (alphanumeric, hyphens, underscores)",
+      "name": "string - Human-readable page name",
+      "title": "string - Page title for browser tab",
+      "description": "string - What this page does",
+      "path": "string - URL path starting with /",
+      "layout": {
+        "type": "string - One of: single-column, two-column, sidebar, centered, fullwidth",
+        "regions": []
+      },
+      "components": [/* UI components */]
+    }
+  ],
+
+  "sharedComponents": [/* Reusable components */],
+
+  "colorPalette": {
+    "primary": "string - Hex color, e.g. '#3B82F6'",
+    "secondary": "string - Hex color",
+    "accent": "string - Hex color",
+    "background": "string - Hex color, e.g. '#FFFFFF'",
+    "surface": "string - Hex color",
+    "text": "string - Hex color",
+    "textSecondary": "string - Hex color",
+    "error": "string - Hex color",
+    "warning": "string - Hex color",
+    "success": "string - Hex color",
+    "info": "string - Hex color",
+    "border": "string - Hex color (optional)",
+    "muted": "string - Hex color (optional)"
+  },
+
+  "typography": {
+    "fontFamily": "string - Font stack as SINGLE STRING, e.g. 'Inter, system-ui, sans-serif'",
+    "headingFamily": "string (optional) - Heading font stack as string",
+    "monoFamily": "string (optional) - Monospace font stack",
+    "baseFontSize": "string - Size with units, e.g. '1rem' or '16px'",
+    "scaleRatio": "number - Type scale ratio, e.g. 1.25",
+    "lineHeight": "number - Line height multiplier, e.g. 1.5"
+  },
+
+  "spacing": {
+    "unit": "number - Base spacing unit in pixels, e.g. 4",
+    "scale": "number[] - Multipliers, e.g. [0, 1, 2, 4, 6, 8, 12, 16, 24, 32]"
+  },
+
+  "routingHints": {
+    "suggestNext": "string[] - Agent types to run next",
+    "skipAgents": "string[] - Agents to skip",
+    "needsApproval": "boolean - Whether human approval is needed",
+    "hasFailures": "boolean - Whether there were failures",
+    "isComplete": "boolean - Whether design is complete"
+  }
+}
+\`\`\`
+
+## CRITICAL FORMAT REQUIREMENTS
+
+1. **fontFamily MUST be a string** like "Inter, sans-serif"
+   - WRONG: {"heading": "Cormorant Garamond", "body": "Satoshi"}
+   - CORRECT: "Cormorant Garamond, Satoshi, sans-serif"
+
+2. **headingFamily is OPTIONAL and also a string** - if you want different heading fonts, use this field
+
+3. **All colors MUST be hex strings** starting with # (e.g. "#3B82F6")
+
+4. **baseFontSize MUST include units** (e.g. "1rem" or "16px")
+
+5. **All paths MUST start with /** (e.g. "/about", "/contact")
+
+6. **lineHeight is a NUMBER** (e.g. 1.5), NOT a string or object
+`;
+
+/**
+ * Example of correctly formatted typography section
+ */
+export const TYPOGRAPHY_EXAMPLE = `
+Example of correctly formatted typography:
+
+{
+  "typography": {
+    "fontFamily": "Satoshi, system-ui, sans-serif",
+    "headingFamily": "Cormorant Garamond, Georgia, serif",
+    "monoFamily": "JetBrains Mono, monospace",
+    "baseFontSize": "1rem",
+    "scaleRatio": 1.25,
+    "lineHeight": 1.6
+  }
+}
+
+Note: fontFamily is the BODY font. Use headingFamily for different heading fonts.
+`;
