@@ -108,6 +108,10 @@ export interface Artifact {
 
 export type ArtifactType =
   | 'mockup'
+  | 'stylesheet'
+  | 'design_tokens'
+  | 'user_flow'
+  | 'diagram'
   | 'source_file'
   | 'test_file'
   | 'config_file'

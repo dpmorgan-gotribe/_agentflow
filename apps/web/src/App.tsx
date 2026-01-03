@@ -8,8 +8,8 @@ import { MainContent } from './components/layout/MainContent';
 import { ApprovalDialog } from './components/ApprovalDialog';
 import { NewProjectModal } from './components/NewProjectModal';
 import { useAppStore, useActiveAgents, useOrchestratorEvents } from './store';
-import { fetchTaskEvents, sendOrchestratorMessage } from './api';
-import type { Task, AgentEvent } from './types';
+import { fetchTaskEvents, sendOrchestratorMessage, getArtifacts, submitApproval } from './api';
+import type { Task, AgentEvent, Artifact } from './types';
 
 export default function App() {
   // Zustand store state
@@ -19,6 +19,9 @@ export default function App() {
   const approvalRequest = useAppStore((state) => state.approvalRequest);
   const activeTab = useAppStore((state) => state.activeTab);
   const isExecuting = useAppStore((state) => state.isExecuting);
+  const designPhase = useAppStore((state) => state.designPhase);
+  const stylesheetApproved = useAppStore((state) => state.stylesheetApproved);
+  const screensApproved = useAppStore((state) => state.screensApproved);
 
   // Zustand store actions
   const handleTaskCreated = useAppStore((state) => state.handleTaskCreated);
@@ -30,6 +33,8 @@ export default function App() {
   const setActiveTab = useAppStore((state) => state.setActiveTab);
   const setEvents = useAppStore((state) => state.setEvents);
   const setIsExecuting = useAppStore((state) => state.setIsExecuting);
+  const approveStylesheet = useAppStore((state) => state.approveStylesheet);
+  const approveScreens = useAppStore((state) => state.approveScreens);
 
   // Derived state from store
   const activeAgents = useActiveAgents();
@@ -37,6 +42,9 @@ export default function App() {
 
   // Local UI state for modals
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+
+  // Artifacts state
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
 
   // Restore session on mount - fetch events if we have an active task
   useEffect(() => {
@@ -60,6 +68,23 @@ export default function App() {
     }
     restoreSession();
   }, [currentTask?.id]); // Only run when task ID changes, not on every render
+
+  // Fetch artifacts when task changes or when we receive artifact events
+  useEffect(() => {
+    async function fetchArtifactsForTask() {
+      if (!currentTask) {
+        setArtifacts([]);
+        return;
+      }
+      try {
+        const taskArtifacts = await getArtifacts(currentTask.id);
+        setArtifacts(taskArtifacts);
+      } catch (error) {
+        console.error('Failed to fetch artifacts:', error);
+      }
+    }
+    fetchArtifactsForTask();
+  }, [currentTask?.id, events.length]); // Refetch when events change (new artifacts may have been created)
 
   // Memoize callbacks to prevent unnecessary re-renders
   const onTaskCreated = useCallback((task: Task) => {
@@ -117,6 +142,45 @@ export default function App() {
     }
   }, [currentTask]);
 
+  // Design approval callbacks
+  const onApproveStylesheet = useCallback(async () => {
+    if (!currentTask) return;
+    try {
+      await submitApproval(currentTask.id, true, { feedback: 'Stylesheet approved' });
+      approveStylesheet();
+    } catch (error) {
+      console.error('Failed to approve stylesheet:', error);
+    }
+  }, [currentTask, approveStylesheet]);
+
+  const onRejectStylesheet = useCallback(async (feedback: string) => {
+    if (!currentTask) return;
+    try {
+      await submitApproval(currentTask.id, false, { feedback });
+    } catch (error) {
+      console.error('Failed to reject stylesheet:', error);
+    }
+  }, [currentTask]);
+
+  const onApproveScreens = useCallback(async () => {
+    if (!currentTask) return;
+    try {
+      await submitApproval(currentTask.id, true, { feedback: 'Screens approved' });
+      approveScreens();
+    } catch (error) {
+      console.error('Failed to approve screens:', error);
+    }
+  }, [currentTask, approveScreens]);
+
+  const onRejectScreens = useCallback(async (feedback: string) => {
+    if (!currentTask) return;
+    try {
+      await submitApproval(currentTask.id, false, { feedback });
+    } catch (error) {
+      console.error('Failed to reject screens:', error);
+    }
+  }, [currentTask]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
@@ -147,6 +211,14 @@ export default function App() {
           currentTask={currentTask}
           events={events}
           onEvent={onEvent}
+          artifacts={artifacts}
+          designPhase={designPhase}
+          stylesheetApproved={stylesheetApproved}
+          screensApproved={screensApproved}
+          onApproveStylesheet={onApproveStylesheet}
+          onRejectStylesheet={onRejectStylesheet}
+          onApproveScreens={onApproveScreens}
+          onRejectScreens={onRejectScreens}
         />
 
         {/* Right Sidebar */}

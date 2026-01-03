@@ -26,6 +26,9 @@ const MAX_EVENTS_PER_TASK = 100;
 /** View tab types */
 export type ViewTab = 'activity' | 'kanban' | 'viewer' | 'design' | 'planning';
 
+/** Design workflow phase */
+export type DesignPhase = 'research' | 'stylesheet' | 'screens' | 'complete';
+
 /** Store state interface */
 interface AppState {
   // Project state
@@ -36,6 +39,11 @@ interface AppState {
   currentTask: Task | null;
   events: AgentEvent[];
   approvalRequest: ApprovalRequest | null;
+
+  // Design phase state
+  designPhase: DesignPhase;
+  stylesheetApproved: boolean;
+  screensApproved: boolean;
 
   // UI state
   activeTab: ViewTab;
@@ -52,6 +60,12 @@ interface AppState {
   setApprovalRequest: (request: ApprovalRequest | null) => void;
   setActiveTab: (tab: ViewTab) => void;
   setIsExecuting: (isExecuting: boolean) => void;
+
+  // Design phase actions
+  setDesignPhase: (phase: DesignPhase) => void;
+  approveStylesheet: () => void;
+  approveScreens: () => void;
+  resetDesignPhase: () => void;
 
   // Composite actions
   handleTaskCreated: (task: Task) => void;
@@ -138,6 +152,9 @@ export const useAppStore = create<AppState>()(
       approvalRequest: null,
       activeTab: 'activity',
       isExecuting: false,
+      designPhase: 'research',
+      stylesheetApproved: false,
+      screensApproved: false,
 
       // Basic setters
       setCurrentProjectId: (projectId) => set({ currentProjectId: projectId }),
@@ -155,6 +172,22 @@ export const useAppStore = create<AppState>()(
       setActiveTab: (tab) => set({ activeTab: tab }),
       setIsExecuting: (isExecuting) => set({ isExecuting }),
 
+      // Design phase actions
+      setDesignPhase: (phase) => set({ designPhase: phase }),
+      approveStylesheet: () => set({
+        stylesheetApproved: true,
+        designPhase: 'screens',
+      }),
+      approveScreens: () => set({
+        screensApproved: true,
+        designPhase: 'complete',
+      }),
+      resetDesignPhase: () => set({
+        designPhase: 'research',
+        stylesheetApproved: false,
+        screensApproved: false,
+      }),
+
       // Composite actions
       handleTaskCreated: (task) => set({
         currentTask: task,
@@ -163,6 +196,9 @@ export const useAppStore = create<AppState>()(
         approvalRequest: null,
         isExecuting: true,
         activeTab: 'activity',
+        designPhase: 'research',
+        stylesheetApproved: false,
+        screensApproved: false,
       }),
 
       handleProjectChange: (projectId) => set({

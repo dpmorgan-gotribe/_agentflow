@@ -117,8 +117,13 @@ Workflow cannot continue. Use when:
 ### Phase 3: Style ${styleCount === 1 ? 'Generation' : 'Competition'} (${styleCount === 1 ? 'UI Designer' : 'Parallel UI Designers'})
 ${parallelPhaseText}
 
-### Phase 4: Style ${styleCount === 1 ? 'Approval' : 'Selection'} (Approval)
+### Phase 4: Stylesheet Approval (REQUIRED GATE)
 ${styleSelectionText}
+
+**CRITICAL**: You MUST wait for stylesheet approval before proceeding to screen generation.
+- Set \`stylesheetApproved: true\` in state after approval
+- If rejected, return to Phase 3 with rejection feedback
+- NEVER skip this approval gate
 
 ### Phase 5: Full Design (Parallel UI Designers)
 - **PARALLELIZE screen generation** with up to ${maxParallel} UI designers
@@ -265,6 +270,10 @@ export function buildThinkingContext(state: {
   error?: string | null;
   userMessages?: Array<{ id: string; content: string; timestamp: string }>;
   lastProcessedMessageIndex?: number;
+  designPhase?: 'research' | 'stylesheet' | 'screens' | 'complete';
+  stylesheetApproved?: boolean;
+  screensApproved?: boolean;
+  screenMockups?: Array<{ id: string; name: string; path: string }>;
 }): string {
   const sections: string[] = [];
 
@@ -354,6 +363,19 @@ export function buildThinkingContext(state: {
   // Current error
   if (state.error) {
     sections.push(`## Current Error\n${state.error}`);
+  }
+
+  // Design phase tracking
+  if (state.designPhase) {
+    const phaseInfo = [
+      `Current Phase: ${state.designPhase.toUpperCase()}`,
+      `Stylesheet Approved: ${state.stylesheetApproved ? 'YES ✓' : 'NO (required before screens)'}`,
+      `Screens Approved: ${state.screensApproved ? 'YES ✓' : 'NO'}`,
+    ];
+    if (state.screenMockups && state.screenMockups.length > 0) {
+      phaseInfo.push(`Screen Mockups Generated: ${state.screenMockups.length}`);
+    }
+    sections.push(`## Design Phase Status\n${phaseInfo.join('\n')}`);
   }
 
   return sections.join('\n\n');

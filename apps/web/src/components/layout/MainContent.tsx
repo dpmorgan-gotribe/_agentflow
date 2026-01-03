@@ -1,16 +1,39 @@
-import type { Task, AgentEvent } from '../../types';
-import type { ViewTab } from '../../store';
+import type { Task, AgentEvent, Artifact } from '../../types';
+import type { ViewTab, DesignPhase } from '../../store';
 import { AgentFeed } from '../AgentFeed';
 import { DesignPreview } from '../DesignPreview';
+import { DesignPage } from '../design';
 
 interface MainContentProps {
   activeTab: ViewTab;
   currentTask: Task | null;
   events: AgentEvent[];
   onEvent: (event: AgentEvent) => void;
+  // Design phase props
+  artifacts: Artifact[];
+  designPhase: DesignPhase;
+  stylesheetApproved: boolean;
+  screensApproved: boolean;
+  onApproveStylesheet: () => void;
+  onRejectStylesheet: (feedback: string) => void;
+  onApproveScreens: () => void;
+  onRejectScreens: (feedback: string) => void;
 }
 
-export function MainContent({ activeTab, currentTask, events, onEvent }: MainContentProps) {
+export function MainContent({
+  activeTab,
+  currentTask,
+  events,
+  onEvent,
+  artifacts,
+  designPhase,
+  stylesheetApproved,
+  screensApproved,
+  onApproveStylesheet,
+  onRejectStylesheet,
+  onApproveScreens,
+  onRejectScreens,
+}: MainContentProps) {
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-bg-primary">
       {/* Content Header */}
@@ -69,13 +92,17 @@ export function MainContent({ activeTab, currentTask, events, onEvent }: MainCon
         )}
 
         {activeTab === 'design' && (
-          <div className="h-full flex items-center justify-center text-text-muted">
-            <div className="text-center">
-              <div className="text-4xl mb-4">🎨</div>
-              <p className="text-sm">Design Assets</p>
-              <p className="text-xs mt-2">Mockups, Stylesheets, and User Flows</p>
-            </div>
-          </div>
+          <DesignPage
+            taskId={currentTask?.id}
+            artifacts={artifacts}
+            designPhase={designPhase}
+            stylesheetApproved={stylesheetApproved}
+            screensApproved={screensApproved}
+            onApproveStylesheet={onApproveStylesheet}
+            onRejectStylesheet={onRejectStylesheet}
+            onApproveScreens={onApproveScreens}
+            onRejectScreens={onRejectScreens}
+          />
         )}
 
         {activeTab === 'planning' && (

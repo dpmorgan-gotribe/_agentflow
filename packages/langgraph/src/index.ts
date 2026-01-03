@@ -40,6 +40,8 @@ export {
   type HookExecution,
   type WorkflowSettings,
   type UserMessage,
+  type DesignPhase,
+  type ScreenMockup,
 } from './state.js';
 
 // Graphs
