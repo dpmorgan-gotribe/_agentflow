@@ -9,7 +9,7 @@ import { ApprovalDialog } from './components/ApprovalDialog';
 import { NewProjectModal } from './components/NewProjectModal';
 import { useAppStore, useActiveAgents, useOrchestratorEvents } from './store';
 import { fetchTaskEvents, sendOrchestratorMessage, getArtifacts, submitApproval } from './api';
-import type { Task, AgentEvent, Artifact } from './types';
+import type { Task, AgentEvent, Artifact, ProjectPlan } from './types';
 
 export default function App() {
   // Zustand store state
@@ -79,6 +79,33 @@ export default function App() {
 
   // Artifacts state
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+
+  // Extract project plan from PM agent events
+  const projectPlan = useMemo<ProjectPlan | null>(() => {
+    // Find the last project_manager agent event with plan data
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i];
+      if (event.agent === 'project_manager' && event.activity?.response) {
+        try {
+          // Try to parse plan from response
+          const response = event.activity.response;
+          // Look for JSON in the response
+          const jsonMatch = response.match(/```json\n?([\s\S]*?)\n?```/) ||
+                           response.match(/\{[\s\S]*"epics"[\s\S]*\}/);
+          if (jsonMatch) {
+            const jsonStr = jsonMatch[1] || jsonMatch[0];
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.epics && Array.isArray(parsed.epics)) {
+              return parsed as ProjectPlan;
+            }
+          }
+        } catch {
+          // Continue to next event if parsing fails
+        }
+      }
+    }
+    return null;
+  }, [events]);
 
   // Restore session on mount - fetch events if we have an active task
   useEffect(() => {
@@ -215,6 +242,13 @@ export default function App() {
     }
   }, [currentTask]);
 
+  // Navigate to design tab and show specific mockup
+  const onNavigateToDesign = useCallback((mockupPath: string) => {
+    console.log('Navigate to design:', mockupPath);
+    setActiveTab('design');
+    // Could store mockupPath in state to highlight/scroll to it
+  }, [setActiveTab]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
@@ -255,6 +289,8 @@ export default function App() {
           onRejectStylesheet={onRejectStylesheet}
           onApproveScreens={onApproveScreens}
           onRejectScreens={onRejectScreens}
+          projectPlan={projectPlan}
+          onNavigateToDesign={onNavigateToDesign}
         />
 
         {/* Right Sidebar */}

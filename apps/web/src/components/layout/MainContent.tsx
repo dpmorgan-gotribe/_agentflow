@@ -1,8 +1,9 @@
-import type { Task, AgentEvent, Artifact } from '../../types';
+import type { Task, AgentEvent, Artifact, ProjectPlan } from '../../types';
 import type { ViewTab, DesignPhase } from '../../store';
 import { AgentFeed } from '../AgentFeed';
 import { DesignPreview } from '../DesignPreview';
 import { DesignPage } from '../design';
+import { PlanningPage } from '../planning/PlanningPage';
 
 interface MainContentProps {
   activeTab: ViewTab;
@@ -18,6 +19,9 @@ interface MainContentProps {
   onRejectStylesheet: (feedback: string) => void;
   onApproveScreens: () => void;
   onRejectScreens: (feedback: string) => void;
+  // Planning props
+  projectPlan: ProjectPlan | null;
+  onNavigateToDesign?: (mockupPath: string) => void;
 }
 
 export function MainContent({
@@ -33,6 +37,8 @@ export function MainContent({
   onRejectStylesheet,
   onApproveScreens,
   onRejectScreens,
+  projectPlan,
+  onNavigateToDesign,
 }: MainContentProps) {
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-bg-primary">
@@ -106,13 +112,10 @@ export function MainContent({
         )}
 
         {activeTab === 'planning' && (
-          <div className="h-full flex items-center justify-center text-text-muted">
-            <div className="text-center">
-              <div className="text-4xl mb-4">📊</div>
-              <p className="text-sm">Project Planning</p>
-              <p className="text-xs mt-2">Epics, Features, and Tasks</p>
-            </div>
-          </div>
+          <PlanningPage
+            plan={projectPlan}
+            onNavigateToDesign={onNavigateToDesign}
+          />
         )}
       </div>
     </main>

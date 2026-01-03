@@ -368,3 +368,117 @@ export interface ExtendedAgentEvent extends AgentEvent {
     feedback?: string;
   };
 }
+
+// ============================================================================
+// Planning Types (Phase 6)
+// ============================================================================
+
+/** Task type categories */
+export type PlanningTaskType =
+  | 'design'
+  | 'frontend'
+  | 'backend'
+  | 'database'
+  | 'testing'
+  | 'integration'
+  | 'documentation'
+  | 'devops'
+  | 'review';
+
+/** Complexity levels */
+export type Complexity = 'trivial' | 'simple' | 'moderate' | 'complex' | 'epic';
+
+/** Priority levels */
+export type Priority = 'critical' | 'high' | 'medium' | 'low';
+
+/** Risk severity */
+export type RiskSeverity = 'low' | 'medium' | 'high';
+
+/** Risk definition */
+export interface Risk {
+  description: string;
+  mitigation: string;
+  severity: RiskSeverity;
+}
+
+/** Design reference linking task to mockups */
+export interface TaskDesignReference {
+  screenId?: string;
+  mockupPath?: string;
+  componentIds?: string[];
+  componentNames?: string[];
+  designSpecPath?: string;
+  cssClasses?: string[];
+  implementationNotes?: string;
+  responsiveBreakpoints?: ('mobile' | 'tablet' | 'desktop' | 'wide')[];
+  statesToImplement?: string[];
+}
+
+/** Task - atomic work unit */
+export interface PlanningTask {
+  id: string;
+  title: string;
+  description: string;
+  type: PlanningTaskType;
+  complexity: Complexity;
+  dependencies: string[];
+  acceptanceCriteria: string[];
+  assignedAgents: AgentType[];
+  complianceRelevant: boolean;
+  complianceNotes?: string;
+  estimatedTokens?: number;
+  tags: string[];
+  designReference?: TaskDesignReference;
+}
+
+/** Feature - group of related tasks */
+export interface Feature {
+  id: string;
+  title: string;
+  description: string;
+  userStory: string;
+  tasks: PlanningTask[];
+  acceptanceCriteria: string[];
+  priority: Priority;
+  dependencies: string[];
+  complianceRelevant: boolean;
+}
+
+/** Epic - large initiative */
+export interface Epic {
+  id: string;
+  title: string;
+  description: string;
+  objective: string;
+  features: Feature[];
+  successMetrics: string[];
+  risks: Risk[];
+}
+
+/** Work breakdown summary */
+export interface WorkBreakdownSummary {
+  totalEpics: number;
+  totalFeatures: number;
+  totalTasks: number;
+  complexityDistribution: Record<Complexity, number>;
+  taskTypeDistribution: Record<PlanningTaskType, number>;
+  estimatedTotalEffort: string;
+  criticalPath: string[];
+  complianceTaskCount: number;
+}
+
+/** Blocker definition */
+export interface Blocker {
+  taskId: string;
+  reason: string;
+  resolution: string;
+}
+
+/** Complete project plan from PM agent */
+export interface ProjectPlan {
+  epics: Epic[];
+  summary: WorkBreakdownSummary;
+  suggestedOrder: string[];
+  parallelizable: string[][];
+  blockers: Blocker[];
+}
