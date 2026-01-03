@@ -1,8 +1,9 @@
 # AgentFlow Comprehensive Improvements Plan
 
 **Created**: 2026-01-03
-**Status**: AWAITING_APPROVAL
+**Status**: IN_PROGRESS
 **Type**: Multi-Issue Enhancement Plan
+**Current Step**: Phase 4 (Design Workflow)
 
 ---
 
@@ -511,48 +512,50 @@ Issue 8 (Planning Tab) ←── Issue 1 (Active Agents Panel)
 
 ## Implementation Phases
 
-### Phase 1: Foundation (Issues 10, 9)
+### Phase 1: Foundation (Issues 10, 9) ✓ COMPLETE
 
 **Goal:** Establish persistent state and explicit project creation
 
 **Tasks:**
-1. Implement Zustand store with localStorage persistence
-2. Add event persistence in backend
-3. Create New Project modal and API endpoint
-4. Decouple project creation from task submission
-5. Add reconnection/replay logic for SSE
+1. [x] Implement Zustand store with localStorage persistence
+2. [x] Add event persistence in backend (events stored per task)
+3. [x] Create New Project modal and API endpoint
+4. [x] Decouple project creation from task submission
+5. [x] Add reconnection/replay logic for SSE (ReplaySubject with 50 events)
 
-**Estimated Scope:** 8-10 files modified/created
+**Commit:** `5725f85 feat: implement Phase 1 foundation (persistence and new project)`
 
 ---
 
-### Phase 2: Activity Visibility (Issues 1, 2)
+### Phase 2: Activity Visibility (Issues 1, 2) ✓ COMPLETE
 
 **Goal:** Show complete sub-agent activity
 
 **Tasks:**
-1. Refactor ActiveAgentsPanel for multiple instances
-2. Enhance activity extraction in agent-adapter
-3. Add executionId to all streaming events
-4. Create detailed AgentCard component
-5. Add activity history endpoint
+1. [x] Refactor ActiveAgentsPanel for multiple instances (executionId as unique key)
+2. [x] Enhance activity extraction in agent-adapter (metrics, artifacts as tools)
+3. [x] Add executionId to all streaming events (parallel agent events)
+4. [x] Create detailed AgentCard component (expandable thinking/tools/hooks/response)
+5. [x] Add activity history endpoint (events persisted in Zustand store with localStorage)
 
-**Estimated Scope:** 6-8 files modified/created
+**Commit:** `70512ce feat: implement Phase 2 activity visibility improvements`
 
 ---
 
-### Phase 3: Orchestrator Interaction (Issue 3)
+### Phase 3: Orchestrator Interaction (Issue 3) ✓ COMPLETE
 
 **Goal:** Enable conversation with orchestrator
 
 **Tasks:**
-1. Create OrchestratorChat component
-2. Add orchestrator message API endpoint
-3. Update orchestrator prompts for user interrupts
-4. Add user messages to workflow state
-5. Implement real-time thinking display
+1. [x] Create OrchestratorChat component
+2. [x] Add orchestrator message API endpoint
+3. [x] Update orchestrator prompts for user interrupts
+4. [x] Add user messages to workflow state
+5. [x] Implement real-time thinking display
 
-**Estimated Scope:** 8-10 files modified/created
+**Commits:**
+- `a7ea2b7 feat: add orchestrator chat interface (Phase 3 - Orchestrator Interaction)`
+- `848c3b5 feat: add user message support in workflow state and orchestrator prompts`
 
 ---
 
