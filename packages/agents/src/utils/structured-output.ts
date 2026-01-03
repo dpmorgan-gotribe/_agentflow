@@ -52,58 +52,60 @@ Remember: Output ONLY the JSON object, nothing else.`;
  * - Clean JSON: {"key": "value"}
  * - Markdown wrapped: ```json\n{"key": "value"}\n```
  * - Prose + JSON: "Here is the result:\n{"key": "value"}"
+ * - JSON followed by explanation text
  * - Multiple JSON blocks (takes first complete one)
  */
 export function extractJSON(text: string): string {
   // Trim whitespace
-  let cleaned = text.trim();
+  const cleaned = text.trim();
 
-  // If already starts with { and ends with }, likely clean JSON
-  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
-    return cleaned;
+  // Fast path: If starts with { or [ and is valid JSON, use it directly
+  if (cleaned.startsWith('{') || cleaned.startsWith('[')) {
+    try {
+      JSON.parse(cleaned);
+      return cleaned;
+    } catch {
+      // Continue to more robust extraction
+    }
   }
 
-  // If already starts with [ and ends with ], likely clean JSON array
-  if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
-    return cleaned;
-  }
-
-  // Try to extract from markdown code block
+  // Try to extract from markdown code block first
   const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlockMatch?.[1]) {
     const extracted = codeBlockMatch[1].trim();
     if (extracted.startsWith('{') || extracted.startsWith('[')) {
+      try {
+        JSON.parse(extracted);
+        return extracted;
+      } catch {
+        // Continue to balanced extraction
+      }
+    }
+  }
+
+  // Use balanced JSON extraction for objects (handles JSON followed by text)
+  if (cleaned.includes('{')) {
+    const extracted = extractBalancedJSON(cleaned, '{', '}');
+    try {
+      JSON.parse(extracted);
       return extracted;
-    }
-  }
-
-  // Try to find JSON object in text
-  const jsonObjectMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (jsonObjectMatch) {
-    // Validate it's actually parseable
-    const potential = jsonObjectMatch[0];
-    try {
-      JSON.parse(potential);
-      return potential;
     } catch {
-      // Try to find a balanced JSON object
-      return extractBalancedJSON(cleaned, '{', '}');
+      // Continue to array check
     }
   }
 
-  // Try to find JSON array in text
-  const jsonArrayMatch = cleaned.match(/\[[\s\S]*\]/);
-  if (jsonArrayMatch) {
-    const potential = jsonArrayMatch[0];
+  // Use balanced JSON extraction for arrays
+  if (cleaned.includes('[')) {
+    const extracted = extractBalancedJSON(cleaned, '[', ']');
     try {
-      JSON.parse(potential);
-      return potential;
+      JSON.parse(extracted);
+      return extracted;
     } catch {
-      return extractBalancedJSON(cleaned, '[', ']');
+      // Fall through
     }
   }
 
-  // Return as-is if no JSON found
+  // Return as-is if no valid JSON found
   return cleaned;
 }
 
