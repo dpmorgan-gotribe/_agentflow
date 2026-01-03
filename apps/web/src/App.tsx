@@ -7,7 +7,7 @@ import { BottomBar } from './components/layout/BottomBar';
 import { MainContent } from './components/layout/MainContent';
 import { ApprovalDialog } from './components/ApprovalDialog';
 import { NewProjectModal } from './components/NewProjectModal';
-import { useAppStore, useActiveAgents, useOrchestratorEvents } from './store';
+import { useAppStore, useActiveAgents, useOrchestratorEvents } from './store/index';
 import { fetchTaskEvents, sendOrchestratorMessage, getArtifacts, submitApproval } from './api';
 import type { Task, AgentEvent, Artifact, ProjectPlan } from './types';
 

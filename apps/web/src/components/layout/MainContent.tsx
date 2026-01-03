@@ -1,5 +1,5 @@
 import type { Task, AgentEvent, Artifact, ProjectPlan } from '../../types';
-import type { ViewTab, DesignPhase } from '../../store';
+import type { ViewTab, DesignPhase } from '../../store/index';
 import { AgentFeed } from '../AgentFeed';
 import { DesignPreview } from '../DesignPreview';
 import { DesignPage } from '../design';
