@@ -523,15 +523,17 @@ export function useTaskStream(
 
     eventSource.onmessage = handleMessage;
 
-    eventSource.onerror = (error) => {
+    eventSource.onerror = () => {
       // Don't reconnect if this was a manual close
       if (isManualCloseRef.current) {
         console.log('SSE closed manually, not reconnecting');
         return;
       }
 
-      // Check if the connection was closed (readyState === 2)
-      if (eventSource.readyState === EventSource.CLOSED) {
+      const readyState = eventSource.readyState;
+
+      // CLOSED (2): Connection was terminated
+      if (readyState === EventSource.CLOSED) {
         console.log('SSE connection closed, attempting reconnect...');
 
         // Check if this was an immediate close (server doesn't recognize task)
@@ -557,8 +559,13 @@ export function useTaskStream(
           reconnectDelayRef.current * RECONNECT_MULTIPLIER,
           RECONNECT_MAX_DELAY_MS
         );
+      } else if (readyState === EventSource.CONNECTING) {
+        // CONNECTING (0): Connection attempt in progress, browser will auto-retry
+        // This is normal behavior during network instability - don't spam console
+        console.log('SSE connection interrupted, browser will auto-reconnect...');
       } else {
-        console.error('SSE connection error:', error);
+        // OPEN (1): Unusual to get error while open, log for debugging
+        console.warn('SSE error while connection open - unexpected state');
       }
     };
 
