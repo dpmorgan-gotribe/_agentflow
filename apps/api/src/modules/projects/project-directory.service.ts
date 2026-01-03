@@ -4,9 +4,12 @@
  * Manages project directories including creation, git initialization,
  * and artifact file management. Creates a structured project folder
  * that multi-agent systems can use for context.
+ *
+ * When DATABASE_URL is configured, projects are also inserted into
+ * PostgreSQL to satisfy foreign key constraints from the tasks table.
  */
 
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, Optional } from '@nestjs/common';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -15,6 +18,11 @@ import {
   generateUniqueSlug,
   type ProjectNameResult,
 } from './project-name-extractor.js';
+import { DATABASE_TOKEN } from '../database/index.js';
+import {
+  ProjectRepository,
+  type Database,
+} from '@aigentflow/database';
 
 /**
  * Base directory for all projects (at repository root, not in apps/api)
@@ -68,6 +76,17 @@ export class ProjectDirectoryService implements OnModuleInit {
   private existingProjects = new Set<string>();
   private projectMap = new Map<string, ProjectMetadata>();
 
+  /**
+   * Whether database mode is active (for FK constraint satisfaction)
+   */
+  private readonly useDatabase: boolean;
+
+  constructor(
+    @Optional() @Inject(DATABASE_TOKEN) private readonly db: Database | null
+  ) {
+    this.useDatabase = this.db !== null;
+  }
+
   async onModuleInit(): Promise<void> {
     await this.loadExistingProjects();
   }
@@ -115,11 +134,13 @@ export class ProjectDirectoryService implements OnModuleInit {
    *
    * @param projectId - UUID of the project
    * @param prompt - User prompt to extract name from
+   * @param tenantId - Tenant ID for database insertion (required when DATABASE_URL is configured)
    * @returns Project info with path
    */
   async getOrCreateProject(
     projectId: string,
-    prompt: string
+    prompt: string,
+    tenantId?: string
   ): Promise<ProjectInfo> {
     // Check if project already exists by ID
     const existing = this.projectMap.get(projectId);
@@ -158,6 +179,11 @@ export class ProjectDirectoryService implements OnModuleInit {
     // Save metadata
     await this.saveMetadata(projectPath, metadata);
 
+    // Insert into database if configured (for FK constraint satisfaction)
+    if (this.useDatabase && tenantId) {
+      await this.insertProjectToDatabase(projectId, tenantId, nameResult.name, prompt);
+    }
+
     // Track project
     this.existingProjects.add(slug);
     this.projectMap.set(projectId, metadata);
@@ -173,6 +199,36 @@ export class ProjectDirectoryService implements OnModuleInit {
       path: projectPath,
       isNew: true,
     };
+  }
+
+  /**
+   * Insert project into PostgreSQL database
+   * This satisfies the FK constraint from the tasks table
+   */
+  private async insertProjectToDatabase(
+    projectId: string,
+    tenantId: string,
+    name: string,
+    description: string
+  ): Promise<void> {
+    if (!this.db) return;
+
+    try {
+      const repo = new ProjectRepository(this.db, tenantId);
+      await repo.create({
+        id: projectId,
+        tenantId,
+        name,
+        description,
+        status: 'active',
+      });
+      this.logger.debug(`Inserted project ${projectId} into database for tenant ${tenantId}`);
+    } catch (error) {
+      // Log but don't throw - file system is the source of truth
+      // The database insert failing shouldn't block project creation
+      this.logger.error(`Failed to insert project into database: ${error}`);
+      throw error; // Re-throw to prevent task creation with invalid FK
+    }
   }
 
   /**
@@ -407,9 +463,10 @@ coverage/
    *
    * @param name - Project name
    * @param description - Optional project description
+   * @param tenantId - Tenant ID for database insertion (required when DATABASE_URL is configured)
    * @returns Project metadata
    */
-  async createProject(name: string, description?: string): Promise<ProjectMetadata> {
+  async createProject(name: string, description?: string, tenantId?: string): Promise<ProjectMetadata> {
     const id = crypto.randomUUID();
     const slug = generateUniqueSlug(name, this.existingProjects);
 
@@ -433,6 +490,11 @@ coverage/
 
     // Save metadata
     await this.saveMetadata(projectPath, metadata);
+
+    // Insert into database if configured (for FK constraint satisfaction)
+    if (this.useDatabase && tenantId) {
+      await this.insertProjectToDatabase(id, tenantId, name, description || '');
+    }
 
     // Track project
     this.existingProjects.add(slug);

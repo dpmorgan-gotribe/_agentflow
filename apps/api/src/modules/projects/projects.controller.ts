@@ -16,7 +16,8 @@ import {
   BadRequestException,
   Query,
 } from '@nestjs/common';
-import { AuthGuard } from '../../common/guards/auth.guard.js';
+import { AuthGuard, type TenantContext } from '../../common/guards/auth.guard.js';
+import { Tenant } from '../../common/decorators/tenant.decorator.js';
 import { ProjectDirectoryService, type ProjectMetadata } from './project-directory.service.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -57,6 +58,7 @@ export class ProjectsController {
    */
   @Post()
   async createProject(
+    @Tenant() tenant: TenantContext,
     @Body() body: { name: string; description?: string }
   ): Promise<ProjectMetadata> {
     if (!body.name || typeof body.name !== 'string') {
@@ -74,7 +76,8 @@ export class ProjectsController {
 
     return this.projectDirectoryService.createProject(
       trimmedName,
-      body.description?.trim()
+      body.description?.trim(),
+      tenant.tenantId
     );
   }
 

@@ -142,7 +142,8 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
 
     try {
       // Create project directory at workflow start
-      const project = await this.projectDir.getOrCreateProject(projectId, prompt);
+      // Pass tenantId for database insertion (FK constraint satisfaction)
+      const project = await this.projectDir.getOrCreateProject(projectId, prompt, tenantId);
       this.logger.log(
         `Project directory: ${project.slug} (${project.isNew ? 'created' : 'existing'})`
       );
