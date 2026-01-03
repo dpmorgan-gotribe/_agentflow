@@ -444,7 +444,32 @@ export const OrchestratorState = Annotation.Root({
     reducer: lastValue,
     default: () => DEFAULT_WORKFLOW_SETTINGS,
   }),
+
+  // ============================================================
+  // USER INTERACTION STATE CHANNELS
+  // ============================================================
+
+  // User messages sent during workflow execution (accumulated)
+  userMessages: Annotation<UserMessage[]>({
+    reducer: appendReducer,
+    default: () => [],
+  }),
+
+  // Index of last user message that was processed by orchestrator
+  lastProcessedMessageIndex: Annotation<number>({
+    reducer: lastValue,
+    default: () => -1,
+  }),
 });
+
+/**
+ * User message sent during workflow
+ */
+export interface UserMessage {
+  id: string;
+  content: string;
+  timestamp: string;
+}
 
 /**
  * Workflow settings for configurable parameters
@@ -537,5 +562,8 @@ export function createInitialState(input: {
     megaPagePreviews: [],
     // Workflow settings
     workflowSettings: settings,
+    // User interaction
+    userMessages: [],
+    lastProcessedMessageIndex: -1,
   };
 }

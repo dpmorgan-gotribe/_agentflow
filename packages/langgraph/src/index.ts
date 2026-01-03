@@ -39,6 +39,7 @@ export {
   type ToolUsage,
   type HookExecution,
   type WorkflowSettings,
+  type UserMessage,
 } from './state.js';
 
 // Graphs

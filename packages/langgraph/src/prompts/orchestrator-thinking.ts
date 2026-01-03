@@ -202,6 +202,27 @@ Respond with a JSON object:
 }
 \`\`\`
 
+## User Messages
+
+Users can send messages during workflow execution to provide guidance, ask questions, or request changes.
+
+When you receive user messages:
+1. **Read carefully** - Understand what the user is asking
+2. **Acknowledge** - Reference the user's message in your reasoning
+3. **Adapt** - Adjust your next action based on the user's input
+4. **Respond** - Include relevant response in your reasoning for the user to see
+
+Common user message patterns:
+- **Questions**: "What's happening?" → Explain current state and next steps
+- **Guidance**: "Focus on mobile first" → Incorporate into agent instructions
+- **Priority changes**: "Skip the architecture step" → Adjust workflow phases
+- **Feedback during approval**: "Make it more colorful" → Pass to relevant agent
+
+If user message requires immediate action:
+- Acknowledge in reasoning
+- Dispatch to appropriate agent with user's feedback in context
+- Or return to previous agent with modifications
+
 ## Important Rules
 
 1. **Always think step by step** - Explain your reasoning before deciding
@@ -212,7 +233,8 @@ Respond with a JSON object:
 5. **Never repeat rejected styles** - Track rejections and avoid their characteristics
 6. **Approval at key gates** - Style selection and design review need human input
 7. **Context efficiency** - Only pass relevant context to each agent
-8. **Maximum ${maxParallel} parallel agents** - Never dispatch more than ${maxParallel} agents at once`;
+8. **Maximum ${maxParallel} parallel agents** - Never dispatch more than ${maxParallel} agents at once
+9. **Respond to user messages** - When users send messages, acknowledge and adapt accordingly`;
 }
 
 /**
@@ -241,11 +263,36 @@ export function buildThinkingContext(state: {
   styleIteration?: number;
   approvalResponse?: { approved: boolean; selectedOption?: string; feedback?: string } | null;
   error?: string | null;
+  userMessages?: Array<{ id: string; content: string; timestamp: string }>;
+  lastProcessedMessageIndex?: number;
 }): string {
   const sections: string[] = [];
 
   // Current prompt/task
   sections.push(`## Current Task\n${state.prompt}`);
+
+  // Pending user messages (not yet processed)
+  if (state.userMessages && state.userMessages.length > 0) {
+    const lastProcessed = state.lastProcessedMessageIndex ?? -1;
+    const pendingMessages = state.userMessages.slice(lastProcessed + 1);
+
+    if (pendingMessages.length > 0) {
+      const messageList = pendingMessages.map((m) => {
+        const time = new Date(m.timestamp).toLocaleTimeString('en-US', { hour12: false });
+        return `[${time}] ${m.content}`;
+      }).join('\n');
+      sections.push(`## ⚡ USER MESSAGES (RESPOND TO THESE)\n${messageList}`);
+    }
+
+    // Show all messages as context
+    if (state.userMessages.length > pendingMessages.length) {
+      const allMessages = state.userMessages.map((m) => {
+        const time = new Date(m.timestamp).toLocaleTimeString('en-US', { hour12: false });
+        return `[${time}] ${m.content}`;
+      }).join('\n');
+      sections.push(`## All User Messages\n${allMessages}`);
+    }
+  }
 
   // Analysis results
   if (state.analysis) {
