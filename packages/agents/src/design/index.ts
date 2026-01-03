@@ -32,3 +32,30 @@ export {
   generateComponentDoc,
   slugify,
 } from './html-generator.js';
+
+// Specification-driven generation (scalable)
+export {
+  generateCSS,
+  generateCSSVariables as generateSpecCSSVariables,
+  generateSectionHTML,
+  generatePageHTML as generateSpecPageHTML,
+  generateAllPages,
+  generateSinglePage,
+  type GeneratedFile,
+  type GenerationResult,
+} from './spec-to-html.js';
+
+// Section templates
+export {
+  TEMPLATES,
+  getTemplate,
+  renderSection,
+  getAvailableSectionTypes,
+  wrapSection,
+  renderButton,
+  renderHeading,
+  renderIcon,
+  type TemplateContext,
+  type TemplateFunction,
+  type Template,
+} from './templates/index.js';

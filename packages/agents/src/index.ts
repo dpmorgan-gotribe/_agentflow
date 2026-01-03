@@ -616,6 +616,41 @@ export {
   type FullDesignOutput,
 } from './schemas/ui-designer-output.js';
 
+// UI Designer Specification schema (scalable generation)
+export {
+  // Section types
+  SectionTypeSchema,
+  SectionVariantSchema,
+  SectionContentSchema,
+  SectionSpecSchema,
+  // Page specification
+  PageLayoutSchema as SpecPageLayoutSchema,
+  PageSpecSchema,
+  // Style specification
+  DesignMoodSchema,
+  StyleSpecSchema,
+  // Complete specification
+  UIDesignerSpecificationSchema,
+  // Helper functions
+  createPageSpec,
+  createSectionSpec,
+  createDefaultStyleSpec,
+  validateSpecification,
+  estimateSpecSize,
+  getUsedSectionTypes,
+  EXAMPLE_SPECIFICATION,
+  // Types
+  type SectionType,
+  type SectionVariant,
+  type SectionContent,
+  type SectionSpec,
+  type PageLayout as SpecPageLayout,
+  type PageSpec,
+  type DesignMood,
+  type StyleSpec,
+  type UIDesignerSpecification,
+} from './schemas/ui-designer-spec.js';
+
 // Competitive design schemas
 export {
   DesignStyleSchema,

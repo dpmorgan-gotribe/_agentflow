@@ -38,6 +38,7 @@ import type {
   FullDesignOutput,
   ScreenMockup,
   UserFlowDiagram,
+  FileArtifactRef,
 } from '../schemas/ui-designer-output.js';
 import {
   UIDesignerOutputSchema,
@@ -53,7 +54,19 @@ import {
   generatePageHTML,
   generateComponentDoc,
   slugify,
+  // Specification-driven generation
+  generateAllPages,
+  generateCSS,
 } from '../design/index.js';
+import {
+  writeArtifactFile,
+  hasOutputDir,
+} from '../utils/file-writer.js';
+import type { UIDesignerSpecification } from '../schemas/ui-designer-spec.js';
+import {
+  UIDesignerSpecificationSchema,
+  EXAMPLE_SPECIFICATION,
+} from '../schemas/ui-designer-spec.js';
 
 /**
  * Strong JSON-only instruction to prevent Claude from responding with prose
@@ -155,6 +168,16 @@ interface UIDesignerRequest extends AgentRequest {
    * User flows for navigation mapping (from analyst)
    */
   userFlows?: UserFlowDefinition[];
+  /**
+   * Use specification mode for scalable generation
+   * When true, returns minimal spec that agent converts to full HTML
+   * Automatically enabled for complex apps (>5 screens)
+   */
+  useSpecificationMode?: boolean;
+  /**
+   * Estimated number of screens (used to auto-enable spec mode)
+   */
+  estimatedScreenCount?: number;
 }
 
 /**
@@ -198,6 +221,12 @@ export class UIDesignerAgent extends BaseAgent {
           inputTypes: ['approved_style', 'screens', 'user_flows', 'component_inventory'],
           outputTypes: ['screen_mockups', 'user_flow_diagrams', 'global_css', 'handoff_notes'],
         },
+        {
+          name: 'specification_generation',
+          description: 'Generate design specification for scalable HTML generation (for complex apps)',
+          inputTypes: ['requirements', 'feature_spec'],
+          outputTypes: ['design_specification'],
+        },
       ],
       requiredContext: [
         { type: ContextTypeEnum.CURRENT_TASK, required: true },
@@ -211,11 +240,36 @@ export class UIDesignerAgent extends BaseAgent {
   }
 
   /**
+   * Check if specification mode should be used
+   * Auto-enabled for complex apps (>5 screens)
+   */
+  private shouldUseSpecificationMode(request?: UIDesignerRequest): boolean {
+    // Explicit flag takes precedence
+    if (request?.useSpecificationMode !== undefined) {
+      return request.useSpecificationMode;
+    }
+    // Auto-enable for complex apps
+    if (request?.estimatedScreenCount && request.estimatedScreenCount > 5) {
+      return true;
+    }
+    // Auto-enable for full design mode with many screens
+    if (request?.screens && request.screens.length > 5) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Build system prompt for UI design
-   * Overridden to support regular mockups, mega page, and full design generation
+   * Overridden to support regular mockups, mega page, full design, and specification mode
    */
   protected buildSystemPrompt(context: AgentContext, request?: AgentRequest): string {
     const uiRequest = request as UIDesignerRequest | undefined;
+
+    // Check for specification mode (scalable generation for complex apps)
+    if (this.shouldUseSpecificationMode(uiRequest)) {
+      return this.buildSpecificationSystemPrompt(uiRequest);
+    }
 
     // Check for full design mode (Sprint 5)
     if (uiRequest?.isFullDesignRequest && uiRequest.approvedStylePackage) {
@@ -310,6 +364,111 @@ IMPORTANT: The "content" field contains the actual visible text!
     prompt += JSON_ONLY_INSTRUCTION;
 
     return prompt;
+  }
+
+  /**
+   * Build system prompt for specification mode (scalable generation)
+   * Asks Claude to return a minimal specification instead of full HTML
+   */
+  private buildSpecificationSystemPrompt(_request?: UIDesignerRequest): string {
+    const exampleJson = JSON.stringify(EXAMPLE_SPECIFICATION, null, 2);
+
+    return `You are an expert UI/UX designer creating a DESIGN SPECIFICATION.
+
+## IMPORTANT: You are NOT generating HTML directly!
+
+Instead, you are creating a SPECIFICATION that describes:
+1. What pages to create
+2. What sections each page contains
+3. Style preferences (colors, fonts, mood)
+
+The system will use your specification to generate the actual HTML.
+
+## Why Specification Mode?
+
+For complex applications, returning full HTML would create a very large response.
+By returning only a specification (~3KB), you can design apps with unlimited screens.
+
+## Output Format
+
+Return a JSON object matching this schema:
+
+{
+  "projectName": "string - project name",
+  "projectDescription": "string - brief description (optional)",
+  "style": {
+    "mood": "minimal" | "bold" | "elegant" | "playful" | "professional" | "modern" | "classic" | "warm" | "dark",
+    "primaryColor": "#hexcolor",
+    "secondaryColor": "#hexcolor",
+    "accentColor": "#hexcolor",
+    "backgroundColor": "#ffffff",
+    "textColor": "#111827",
+    "fontHeading": "Font Name",
+    "fontBody": "Font Name",
+    "borderRadius": "none" | "small" | "medium" | "large" | "full",
+    "useDarkSections": boolean,
+    "googleFonts": ["Font:weights"]
+  },
+  "pages": [
+    {
+      "id": "page-id",
+      "name": "Page Name",
+      "path": "/url-path",
+      "description": "What this page does",
+      "layout": "full-width" | "contained" | "sidebar-left" | "sidebar-right" | "centered",
+      "sections": [
+        {
+          "type": "section-type",
+          "variant": "optional-variant",
+          "content": {
+            "heading": "optional heading",
+            "subheading": "optional subheading",
+            "buttonText": "optional CTA",
+            "buttonUrl": "/url",
+            "items": [{ "title": "Feature", "description": "..." }],
+            // ... other content fields based on section type
+          }
+        }
+      ]
+    }
+  ],
+  "sharedSections": {
+    "navbar": { "type": "navbar", "content": { "links": [...] } },
+    "footer": { "type": "footer-simple", "content": { ... } }
+  }
+}
+
+## Available Section Types
+
+HEROES: hero, hero-split, hero-minimal
+FEATURES: features-grid, features-list, features-alternating
+TESTIMONIALS: testimonials-grid, testimonials-carousel, testimonials-featured
+PRICING: pricing-cards, pricing-table
+CTA: cta-banner, cta-centered
+CONTENT: about-story, about-mission, team-grid, process-steps, faq-accordion, stats-bar
+SERVICES: services-grid, services-list, expertise-grid
+CONTACT: contact-form, contact-split, location-map, booking-cta
+NAVIGATION: navbar, navbar-transparent, footer-simple, footer-mega
+
+## Section Variants
+
+BACKGROUND: light, dark, gradient, transparent
+LAYOUT: centered, left, right, split-left, split-right
+SIZE: compact, spacious, full-height
+
+## Example Output
+
+${exampleJson}
+
+## CRITICAL RULES
+
+1. Return ONLY valid JSON - no explanations, no markdown
+2. Use the exact section type names listed above
+3. Include appropriate content for each section type
+4. Keep the specification minimal - don't add unnecessary fields
+5. Focus on design decisions, not HTML implementation
+
+${JSON_ONLY_INSTRUCTION}`;
   }
 
   /**
@@ -408,10 +567,108 @@ Output valid JSON only matching the UIDesignerOutput schema.`;
   }
 
   /**
+   * Store for specification when in spec mode
+   * Used to pass spec from parseResponse to processResult
+   */
+  private _parsedSpecification?: UIDesignerSpecification;
+
+  /**
+   * Try to parse response as a specification (for scalable generation)
+   * Returns undefined if not a valid specification
+   */
+  private tryParseAsSpecification(text: string): UIDesignerSpecification | undefined {
+    try {
+      const parsed = this.parseJSON<unknown>(text);
+
+      // Check if it looks like a specification (has style and pages array)
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        'style' in parsed &&
+        'pages' in parsed &&
+        typeof (parsed as Record<string, unknown>)['style'] === 'object' &&
+        'mood' in ((parsed as Record<string, unknown>)['style'] as Record<string, unknown>)
+      ) {
+        const result = UIDesignerSpecificationSchema.safeParse(parsed);
+        if (result.success) {
+          this.log('info', 'Parsed response as specification', {
+            pageCount: result.data.pages.length,
+          });
+          return result.data;
+        }
+      }
+    } catch {
+      // Not a valid specification, continue with normal parsing
+    }
+    return undefined;
+  }
+
+  /**
+   * Convert a specification to UIDesignerOutput format
+   * This provides backward compatibility with the existing output format
+   */
+  private specificationToOutput(spec: UIDesignerSpecification): UIDesignerOutput {
+    return {
+      projectName: spec.projectName,
+      version: spec.metadata?.version || '1.0.0',
+      generatedAt: spec.metadata?.generatedAt || new Date().toISOString(),
+      pages: [], // Pages will be generated in processResult
+      sharedComponents: [],
+      colorPalette: {
+        primary: spec.style.primaryColor,
+        secondary: spec.style.secondaryColor,
+        accent: spec.style.accentColor,
+        background: spec.style.backgroundColor,
+        surface: spec.style.backgroundColor,
+        text: spec.style.textColor,
+        textSecondary: spec.style.textColor,
+        error: '#EF4444',
+        warning: '#F59E0B',
+        success: '#10B981',
+        info: spec.style.primaryColor,
+        border: '#E5E7EB',
+        muted: '#9CA3AF',
+      },
+      typography: {
+        fontFamily: spec.style.fontBody,
+        headingFamily: spec.style.fontHeading,
+        monoFamily: 'ui-monospace, monospace',
+        baseFontSize: '1rem',
+        scaleRatio: 1.25,
+        lineHeight: 1.5,
+        letterSpacing: 'normal',
+      },
+      spacing: createDefaultSpacing(),
+      borderRadius: createDefaultBorderRadius(),
+      shadows: createDefaultShadows(),
+      routingHints: {
+        suggestNext: [AgentTypeEnum.FRONTEND_DEV],
+        skipAgents: [],
+        needsApproval: true,
+        hasFailures: false,
+        isComplete: false,
+      },
+    };
+  }
+
+  /**
    * Parse LLM response into structured output
+   * Supports both specification format and full UIDesignerOutput format
    */
   protected parseResponse(response: AIProviderResponse): UIDesignerOutput {
     const text = this.extractTextContent(response);
+
+    // Try to parse as specification first (for scalable generation)
+    const spec = this.tryParseAsSpecification(text);
+    if (spec) {
+      // Store spec for use in processResult
+      this._parsedSpecification = spec;
+      // Return a minimal UIDesignerOutput
+      return this.specificationToOutput(spec);
+    }
+
+    // Standard parsing for non-specification output
+    this._parsedSpecification = undefined;
     const parsed = this.parseJSON<UIDesignerOutput>(text);
 
     // Add defaults if missing
@@ -449,13 +706,21 @@ Output valid JSON only matching the UIDesignerOutput schema.`;
 
   /**
    * Process result and generate artifacts
-   * Overridden to support regular mockups, mega page, and full design generation
+   * Overridden to support regular mockups, mega page, full design, and specification mode
+   *
+   * When outputDir is available, writes files directly to disk for scalability
    */
   protected async processResult(
     parsed: UIDesignerOutput,
     request: AgentRequest
   ): Promise<{ result: UIDesignerOutput; artifacts: Artifact[] }> {
     const uiRequest = request as UIDesignerRequest;
+
+    // Check for specification mode (scalable generation)
+    // This must be checked BEFORE other modes since parseResponse sets _parsedSpecification
+    if (this._parsedSpecification) {
+      return this.processSpecificationResult(this._parsedSpecification, parsed, uiRequest);
+    }
 
     // Check for full design mode (Sprint 5)
     if (uiRequest.isFullDesignRequest || parsed.fullDesign) {
@@ -468,26 +733,44 @@ Output valid JSON only matching the UIDesignerOutput schema.`;
     }
 
     const artifacts: Artifact[] = [];
-    const projectId = request.context.projectId || 'default';
-    const outputDir = `${projectId}/designs/mockups`;
+    const outputDir = request.context.outputDir;
+    const relativeDir = 'designs/mockups';
+    const artifactPaths: Record<string, FileArtifactRef> = {};
 
     // Generate HTML for each page
     for (const page of parsed.pages) {
       const html = generatePageHTML(page, parsed);
       const fileName = `${slugify(page.name)}.html`;
-      const filePath = `${outputDir}/${fileName}`;
+      const relativePath = `${relativeDir}/${fileName}`;
 
+      // Write to file if outputDir is available
+      if (hasOutputDir(outputDir)) {
+        const result = await writeArtifactFile(outputDir, relativePath, html);
+        if (result.success) {
+          artifactPaths[`page-${page.id}`] = {
+            path: relativePath,
+            type: 'html',
+            name: page.name,
+          };
+          this.log('debug', `Wrote mockup file: ${result.relativePath}`, { size: result.size });
+        } else {
+          this.log('error', `Failed to write mockup file: ${result.error}`);
+        }
+      }
+
+      // Create artifact with content (for backward compat when no outputDir)
       artifacts.push({
         id: this.generateArtifactId(),
         type: ArtifactTypeEnum.MOCKUP,
-        path: filePath,
-        content: html,
+        path: hasOutputDir(outputDir) ? `${outputDir}/${relativePath}` : relativePath,
+        content: hasOutputDir(outputDir) ? `[File written to ${relativePath}]` : html,
         metadata: {
           pageId: page.id,
           pageName: page.name,
           pagePath: page.path,
           componentCount: countComponents(page.components),
           generatedAt: parsed.generatedAt,
+          writtenToFile: hasOutputDir(outputDir),
         },
       });
     }
@@ -495,23 +778,61 @@ Output valid JSON only matching the UIDesignerOutput schema.`;
     // Generate component library documentation
     if (parsed.sharedComponents.length > 0) {
       const componentDoc = generateComponentDoc(parsed.sharedComponents);
+      const relativePath = `${relativeDir}/components.md`;
+
+      if (hasOutputDir(outputDir)) {
+        const result = await writeArtifactFile(outputDir, relativePath, componentDoc);
+        if (result.success) {
+          artifactPaths['components'] = {
+            path: relativePath,
+            type: 'md',
+            name: 'Component Library',
+          };
+        }
+      }
+
       artifacts.push({
         id: this.generateArtifactId(),
         type: ArtifactTypeEnum.DOCUMENTATION,
-        path: `${outputDir}/components.md`,
-        content: componentDoc,
+        path: hasOutputDir(outputDir) ? `${outputDir}/${relativePath}` : relativePath,
+        content: hasOutputDir(outputDir) ? `[File written to ${relativePath}]` : componentDoc,
         metadata: {
           componentCount: parsed.sharedComponents.length,
+          writtenToFile: hasOutputDir(outputDir),
         },
       });
     }
 
-    // Generate design spec JSON
+    // Generate design spec JSON (minimal version when writing to files)
+    const designSpec = hasOutputDir(outputDir)
+      ? {
+          projectName: parsed.projectName,
+          version: parsed.version,
+          generatedAt: parsed.generatedAt,
+          pageCount: parsed.pages.length,
+          sharedComponentCount: parsed.sharedComponents.length,
+          artifactPaths,
+        }
+      : parsed;
+    const designSpecContent = JSON.stringify(designSpec, null, 2);
+    const designSpecPath = `${relativeDir}/design-spec.json`;
+
+    if (hasOutputDir(outputDir)) {
+      const result = await writeArtifactFile(outputDir, designSpecPath, designSpecContent);
+      if (result.success) {
+        artifactPaths['design-spec'] = {
+          path: designSpecPath,
+          type: 'json',
+          name: 'Design Specification',
+        };
+      }
+    }
+
     artifacts.push({
       id: this.generateArtifactId(),
       type: ArtifactTypeEnum.CONFIG_FILE,
-      path: `${outputDir}/design-spec.json`,
-      content: JSON.stringify(parsed, null, 2),
+      path: hasOutputDir(outputDir) ? `${outputDir}/${designSpecPath}` : designSpecPath,
+      content: hasOutputDir(outputDir) ? `[File written to ${designSpecPath}]` : designSpecContent,
       metadata: {
         pageCount: parsed.pages.length,
         sharedComponentCount: parsed.sharedComponents.length,
@@ -519,10 +840,155 @@ Output valid JSON only matching the UIDesignerOutput schema.`;
           (sum, page) => sum + countComponents(page.components),
           0
         ),
+        writtenToFile: hasOutputDir(outputDir),
       },
     });
 
-    return { result: parsed, artifacts };
+    // Add artifactPaths to result for workflow to read
+    const resultWithPaths: UIDesignerOutput = {
+      ...parsed,
+      artifactPaths: Object.keys(artifactPaths).length > 0 ? artifactPaths : undefined,
+    };
+
+    return { result: resultWithPaths, artifacts };
+  }
+
+  /**
+   * Process specification result - generate HTML from spec using templates
+   * This is the scalable generation mode for complex apps
+   */
+  protected async processSpecificationResult(
+    spec: UIDesignerSpecification,
+    parsed: UIDesignerOutput,
+    request: UIDesignerRequest
+  ): Promise<{ result: UIDesignerOutput; artifacts: Artifact[] }> {
+    const artifacts: Artifact[] = [];
+    const outputDir = request.context.outputDir;
+    const artifactPaths: Record<string, FileArtifactRef> = {};
+
+    this.log('info', 'Processing specification mode result', {
+      projectName: spec.projectName,
+      pageCount: spec.pages.length,
+      hasSharedSections: !!spec.sharedSections,
+    });
+
+    // Generate all pages from specification using templates
+    const generationResult = generateAllPages(spec);
+
+    this.log('info', 'Generated files from specification', {
+      fileCount: generationResult.files.length,
+      totalSize: generationResult.metadata.totalSizeBytes,
+      pageCount: generationResult.metadata.pageCount,
+    });
+
+    // Write all generated files
+    for (const file of generationResult.files) {
+      if (hasOutputDir(outputDir)) {
+        const result = await writeArtifactFile(outputDir, file.path, file.content);
+        if (result.success) {
+          artifactPaths[file.path] = {
+            path: file.path,
+            type: file.type as 'html' | 'css' | 'json' | 'md',
+            name: file.path.split('/').pop() || file.path,
+          };
+          this.log('debug', `Wrote file: ${result.relativePath}`, { size: result.size });
+        } else {
+          this.log('error', `Failed to write file: ${result.error}`);
+        }
+      }
+
+      // Determine artifact type based on file type
+      const artifactType = file.type === 'html'
+        ? ArtifactTypeEnum.MOCKUP
+        : file.type === 'css'
+          ? ArtifactTypeEnum.STYLESHEET
+          : ArtifactTypeEnum.CONFIG_FILE;
+
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type: artifactType,
+        path: hasOutputDir(outputDir) ? `${outputDir}/${file.path}` : file.path,
+        content: hasOutputDir(outputDir) ? `[File written to ${file.path}]` : file.content,
+        metadata: {
+          fileType: file.type,
+          generatedAt: generationResult.metadata.generatedAt,
+          writtenToFile: hasOutputDir(outputDir),
+        },
+      });
+    }
+
+    // Build pages array for UIDesignerOutput from specification
+    // Map spec layout types to UIDesigner layout types
+    const mapLayoutType = (specLayout: string): 'single-column' | 'fullwidth' | 'centered' | 'sidebar' => {
+      switch (specLayout) {
+        case 'full-width': return 'fullwidth';
+        case 'centered': return 'centered';
+        case 'sidebar-left':
+        case 'sidebar-right': return 'sidebar';
+        default: return 'single-column';
+      }
+    };
+
+    const pages: MockupPage[] = spec.pages.map((page) => ({
+      id: page.id,
+      name: page.name,
+      title: page.name,
+      description: page.description || '',
+      path: page.path,
+      layout: {
+        type: mapLayoutType(page.layout || 'contained'),
+        regions: [],
+      },
+      components: [], // Templates handle component rendering
+    }));
+
+    // Generate design specification JSON
+    const designSpecContent = JSON.stringify({
+      projectName: spec.projectName,
+      projectDescription: spec.projectDescription,
+      style: spec.style,
+      pageCount: spec.pages.length,
+      generatedFiles: generationResult.files.map((f) => ({
+        path: f.path,
+        type: f.type,
+        size: f.content.length,
+      })),
+      generatedAt: generationResult.metadata.generatedAt,
+      generationMode: 'specification',
+    }, null, 2);
+
+    const specPath = 'designs/mockups/design-spec.json';
+    if (hasOutputDir(outputDir)) {
+      const result = await writeArtifactFile(outputDir, specPath, designSpecContent);
+      if (result.success) {
+        artifactPaths['design-spec'] = { path: specPath, type: 'json', name: 'Design Specification' };
+      }
+    }
+
+    artifacts.push({
+      id: this.generateArtifactId(),
+      type: ArtifactTypeEnum.CONFIG_FILE,
+      path: hasOutputDir(outputDir) ? `${outputDir}/${specPath}` : specPath,
+      content: hasOutputDir(outputDir) ? `[File written to ${specPath}]` : designSpecContent,
+      metadata: {
+        pageCount: spec.pages.length,
+        generationMode: 'specification',
+        writtenToFile: hasOutputDir(outputDir),
+      },
+    });
+
+    // Update the parsed output with actual pages and artifact paths
+    const resultWithData: UIDesignerOutput = {
+      ...parsed,
+      projectName: spec.projectName,
+      pages,
+      artifactPaths: Object.keys(artifactPaths).length > 0 ? artifactPaths : undefined,
+    };
+
+    // Clear the stored specification after processing
+    this._parsedSpecification = undefined;
+
+    return { result: resultWithData, artifacts };
   }
 
   /**
@@ -709,69 +1175,118 @@ Output valid JSON matching the UIDesignerOutput schema with megaPage populated.`
 
   /**
    * Process mega page result and generate artifacts
+   * Writes files directly when outputDir is available
    */
   protected async processMegaPageResult(
     parsed: UIDesignerOutput,
     request: UIDesignerRequest
   ): Promise<{ result: UIDesignerOutput; artifacts: Artifact[] }> {
     const artifacts: Artifact[] = [];
-    const projectId = request.context.projectId || 'default';
+    const outputDir = request.context.outputDir;
     const styleId = request.stylePackage?.id || 'default';
-    const outputDir = `${projectId}/designs/mega-pages/${styleId}`;
+    const relativeDir = `designs/mega-pages/${styleId}`;
+    const artifactPaths: Record<string, FileArtifactRef> = {};
 
     if (parsed.megaPage) {
-      // Generate HTML file
+      const megaPageHtml = this.buildMegaPageHTML(parsed.megaPage);
+      const megaPagePath = `${relativeDir}/mega-page.html`;
+      const cssPath = `${relativeDir}/styles.css`;
+      const showcasePath = `${relativeDir}/component-showcase.json`;
+      const assetsPath = `${relativeDir}/assets.json`;
+
+      // Write files if outputDir is available
+      if (hasOutputDir(outputDir)) {
+        const htmlResult = await writeArtifactFile(outputDir, megaPagePath, megaPageHtml);
+        if (htmlResult.success) {
+          artifactPaths['mega-page'] = { path: megaPagePath, type: 'html', name: 'Mega Page' };
+        }
+
+        const cssResult = await writeArtifactFile(outputDir, cssPath, parsed.megaPage.css);
+        if (cssResult.success) {
+          artifactPaths['styles'] = { path: cssPath, type: 'css', name: 'Styles' };
+        }
+
+        const showcaseContent = JSON.stringify(parsed.megaPage.componentShowcase, null, 2);
+        const showcaseResult = await writeArtifactFile(outputDir, showcasePath, showcaseContent);
+        if (showcaseResult.success) {
+          artifactPaths['component-showcase'] = { path: showcasePath, type: 'json', name: 'Component Showcase' };
+        }
+
+        const assetsContent = JSON.stringify(parsed.megaPage.assets, null, 2);
+        const assetsResult = await writeArtifactFile(outputDir, assetsPath, assetsContent);
+        if (assetsResult.success) {
+          artifactPaths['assets'] = { path: assetsPath, type: 'json', name: 'Assets Manifest' };
+        }
+
+        this.log('debug', `Wrote mega page files to ${relativeDir}`, {
+          files: Object.keys(artifactPaths).length,
+        });
+      }
+
+      // Generate HTML file artifact
       artifacts.push({
         id: this.generateArtifactId(),
         type: ArtifactTypeEnum.MOCKUP,
-        path: `${outputDir}/mega-page.html`,
-        content: this.buildMegaPageHTML(parsed.megaPage),
+        path: hasOutputDir(outputDir) ? `${outputDir}/${megaPagePath}` : megaPagePath,
+        content: hasOutputDir(outputDir) ? `[File written to ${megaPagePath}]` : megaPageHtml,
         metadata: {
           stylePackageId: parsed.megaPage.stylePackageId,
           stylePackageName: parsed.megaPage.stylePackageName,
           componentCount: parsed.megaPage.componentShowcase.length,
           isInteractive: parsed.megaPage.isInteractive,
           generatedAt: parsed.megaPage.generatedAt,
+          writtenToFile: hasOutputDir(outputDir),
         },
       });
 
-      // Generate CSS file
+      // Generate CSS file artifact
       artifacts.push({
         id: this.generateArtifactId(),
         type: ArtifactTypeEnum.STYLESHEET,
-        path: `${outputDir}/styles.css`,
-        content: parsed.megaPage.css,
+        path: hasOutputDir(outputDir) ? `${outputDir}/${cssPath}` : cssPath,
+        content: hasOutputDir(outputDir) ? `[File written to ${cssPath}]` : parsed.megaPage.css,
         metadata: {
           stylePackageId: parsed.megaPage.stylePackageId,
           includesDarkMode: parsed.megaPage.includesDarkMode,
+          writtenToFile: hasOutputDir(outputDir),
         },
       });
 
-      // Generate component showcase JSON
+      // Generate component showcase JSON artifact
+      const showcaseContent = JSON.stringify(parsed.megaPage.componentShowcase, null, 2);
       artifacts.push({
         id: this.generateArtifactId(),
         type: ArtifactTypeEnum.CONFIG_FILE,
-        path: `${outputDir}/component-showcase.json`,
-        content: JSON.stringify(parsed.megaPage.componentShowcase, null, 2),
+        path: hasOutputDir(outputDir) ? `${outputDir}/${showcasePath}` : showcasePath,
+        content: hasOutputDir(outputDir) ? `[File written to ${showcasePath}]` : showcaseContent,
         metadata: {
           componentCount: parsed.megaPage.componentShowcase.length,
+          writtenToFile: hasOutputDir(outputDir),
         },
       });
 
-      // Generate asset manifest
+      // Generate asset manifest artifact
+      const assetsContent = JSON.stringify(parsed.megaPage.assets, null, 2);
       artifacts.push({
         id: this.generateArtifactId(),
         type: ArtifactTypeEnum.CONFIG_FILE,
-        path: `${outputDir}/assets.json`,
-        content: JSON.stringify(parsed.megaPage.assets, null, 2),
+        path: hasOutputDir(outputDir) ? `${outputDir}/${assetsPath}` : assetsPath,
+        content: hasOutputDir(outputDir) ? `[File written to ${assetsPath}]` : assetsContent,
         metadata: {
           fontCount: parsed.megaPage.assets.fonts.length,
           hasIcons: !!parsed.megaPage.assets.icons,
+          writtenToFile: hasOutputDir(outputDir),
         },
       });
     }
 
-    return { result: parsed, artifacts };
+    // Add artifactPaths to result
+    const resultWithPaths: UIDesignerOutput = {
+      ...parsed,
+      artifactPaths: Object.keys(artifactPaths).length > 0 ? artifactPaths : undefined,
+    };
+
+    return { result: resultWithPaths, artifacts };
   }
 
   /**
@@ -1020,55 +1535,74 @@ Output valid JSON matching the UIDesignerOutput schema with fullDesign populated
 
   /**
    * Process full design result and generate artifacts
+   * Writes files directly when outputDir is available
    */
   protected async processFullDesignResult(
     parsed: UIDesignerOutput,
     request: UIDesignerRequest
   ): Promise<{ result: UIDesignerOutput; artifacts: Artifact[] }> {
     const artifacts: Artifact[] = [];
-    const projectId = request.context.projectId || 'default';
+    const outputDir = request.context.outputDir;
     const styleId = request.approvedStylePackage?.id || 'approved';
-    const outputDir = `${projectId}/designs/full-design/${styleId}`;
+    const relativeDir = `designs/full-design/${styleId}`;
+    const artifactPaths: Record<string, FileArtifactRef> = {};
 
     const fullDesign = parsed.fullDesign;
     if (!fullDesign) {
       return { result: parsed, artifacts };
     }
 
-    // Escape HTML helper
-    const escapeHtml = (str: string): string => {
-      return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    // Helper to add artifact (writes file if outputDir available)
+    const addArtifact = async (
+      type: typeof ArtifactTypeEnum[keyof typeof ArtifactTypeEnum],
+      relativePath: string,
+      content: string,
+      artifactKey: string,
+      fileType: 'html' | 'css' | 'json' | 'md',
+      name: string,
+      metadata: Record<string, unknown>
+    ) => {
+      if (hasOutputDir(outputDir)) {
+        const result = await writeArtifactFile(outputDir, relativePath, content);
+        if (result.success) {
+          artifactPaths[artifactKey] = { path: relativePath, type: fileType, name };
+        }
+      }
+
+      artifacts.push({
+        id: this.generateArtifactId(),
+        type,
+        path: hasOutputDir(outputDir) ? `${outputDir}/${relativePath}` : relativePath,
+        content: hasOutputDir(outputDir) ? `[File written to ${relativePath}]` : content,
+        metadata: { ...metadata, writtenToFile: hasOutputDir(outputDir) },
+      });
     };
 
     // Generate global CSS file
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.STYLESHEET,
-      path: `${outputDir}/global.css`,
-      content: fullDesign.globalCss,
-      metadata: {
-        stylePackageId: fullDesign.stylePackageId,
-        generatedAt: fullDesign.generatedAt,
-      },
-    });
+    await addArtifact(
+      ArtifactTypeEnum.STYLESHEET,
+      `${relativeDir}/global.css`,
+      fullDesign.globalCss,
+      'global-css',
+      'css',
+      'Global CSS',
+      { stylePackageId: fullDesign.stylePackageId, generatedAt: fullDesign.generatedAt }
+    );
 
     // Generate HTML for each screen
     for (const screen of fullDesign.screens) {
-      const screenDir = `${outputDir}/screens/${screen.id}`;
+      const screenDir = `${relativeDir}/screens/${screen.id}`;
 
       // Main screen HTML
       const screenHtml = this.buildScreenHTML(screen, fullDesign);
-      artifacts.push({
-        id: this.generateArtifactId(),
-        type: ArtifactTypeEnum.MOCKUP,
-        path: `${screenDir}/${slugify(screen.name)}.html`,
-        content: screenHtml,
-        metadata: {
+      await addArtifact(
+        ArtifactTypeEnum.MOCKUP,
+        `${screenDir}/${slugify(screen.name)}.html`,
+        screenHtml,
+        `screen-${screen.id}`,
+        'html',
+        screen.name,
+        {
           screenId: screen.id,
           screenName: screen.name,
           category: screen.category,
@@ -1076,68 +1610,59 @@ Output valid JSON matching the UIDesignerOutput schema with fullDesign populated
           responsiveVariantCount: screen.responsiveVariants.length,
           componentsUsed: screen.componentsUsed,
           connectedScreens: screen.connectedScreens,
-        },
-      });
+        }
+      );
 
       // State variant HTML files
       for (const state of screen.states) {
-        artifacts.push({
-          id: this.generateArtifactId(),
-          type: ArtifactTypeEnum.MOCKUP,
-          path: `${screenDir}/states/${state.name}.html`,
-          content: this.buildStateHTML(state, screen, fullDesign),
-          metadata: {
-            screenId: screen.id,
-            stateName: state.name,
-            conditions: state.conditions,
-          },
-        });
+        await addArtifact(
+          ArtifactTypeEnum.MOCKUP,
+          `${screenDir}/states/${state.name}.html`,
+          this.buildStateHTML(state, screen, fullDesign),
+          `screen-${screen.id}-state-${state.name}`,
+          'html',
+          `${screen.name} - ${state.name}`,
+          { screenId: screen.id, stateName: state.name, conditions: state.conditions }
+        );
       }
 
       // Responsive variant HTML files
       for (const variant of screen.responsiveVariants) {
-        artifacts.push({
-          id: this.generateArtifactId(),
-          type: ArtifactTypeEnum.MOCKUP,
-          path: `${screenDir}/responsive/${variant.breakpoint}.html`,
-          content: this.buildResponsiveHTML(variant, screen, fullDesign),
-          metadata: {
-            screenId: screen.id,
-            breakpoint: variant.breakpoint,
-            minWidth: variant.minWidth,
-          },
-        });
+        await addArtifact(
+          ArtifactTypeEnum.MOCKUP,
+          `${screenDir}/responsive/${variant.breakpoint}.html`,
+          this.buildResponsiveHTML(variant, screen, fullDesign),
+          `screen-${screen.id}-${variant.breakpoint}`,
+          'html',
+          `${screen.name} - ${variant.breakpoint}`,
+          { screenId: screen.id, breakpoint: variant.breakpoint, minWidth: variant.minWidth }
+        );
       }
     }
 
     // Generate user flow diagrams
     for (const flow of fullDesign.userFlows) {
-      // Mermaid diagram file
       if (flow.mermaidDiagram) {
-        artifacts.push({
-          id: this.generateArtifactId(),
-          type: ArtifactTypeEnum.DOCUMENTATION,
-          path: `${outputDir}/flows/${flow.id}.md`,
-          content: this.buildFlowMarkdown(flow),
-          metadata: {
-            flowId: flow.id,
-            flowName: flow.name,
-            stepCount: flow.steps.length,
-          },
-        });
+        await addArtifact(
+          ArtifactTypeEnum.DOCUMENTATION,
+          `${relativeDir}/flows/${flow.id}.md`,
+          this.buildFlowMarkdown(flow),
+          `flow-${flow.id}`,
+          'md',
+          flow.name,
+          { flowId: flow.id, flowName: flow.name, stepCount: flow.steps.length }
+        );
       }
 
-      // Flow JSON for programmatic access
-      artifacts.push({
-        id: this.generateArtifactId(),
-        type: ArtifactTypeEnum.CONFIG_FILE,
-        path: `${outputDir}/flows/${flow.id}.json`,
-        content: JSON.stringify(flow, null, 2),
-        metadata: {
-          flowId: flow.id,
-          flowName: flow.name,
-        },
-      });
+      await addArtifact(
+        ArtifactTypeEnum.CONFIG_FILE,
+        `${relativeDir}/flows/${flow.id}.json`,
+        JSON.stringify(flow, null, 2),
+        `flow-${flow.id}-json`,
+        'json',
+        `${flow.name} JSON`,
+        { flowId: flow.id, flowName: flow.name }
+      );
     }
 
     // Generate shared components documentation
@@ -1151,15 +1676,15 @@ Output valid JSON matching the UIDesignerOutput schema with fullDesign populated
         }
         componentDoc += `\`\`\`html\n${comp.html}\n\`\`\`\n\n`;
       }
-      artifacts.push({
-        id: this.generateArtifactId(),
-        type: ArtifactTypeEnum.DOCUMENTATION,
-        path: `${outputDir}/shared-components.md`,
-        content: componentDoc,
-        metadata: {
-          componentCount: fullDesign.sharedComponents.length,
-        },
-      });
+      await addArtifact(
+        ArtifactTypeEnum.DOCUMENTATION,
+        `${relativeDir}/shared-components.md`,
+        componentDoc,
+        'shared-components',
+        'md',
+        'Shared Components',
+        { componentCount: fullDesign.sharedComponents.length }
+      );
     }
 
     // Generate handoff notes
@@ -1171,32 +1696,60 @@ Output valid JSON matching the UIDesignerOutput schema with fullDesign populated
       for (const note of fullDesign.handoffNotes) {
         handoffDoc += `- ${note}\n`;
       }
-      artifacts.push({
-        id: this.generateArtifactId(),
-        type: ArtifactTypeEnum.DOCUMENTATION,
-        path: `${outputDir}/handoff-notes.md`,
-        content: handoffDoc,
-        metadata: {
-          noteCount: fullDesign.handoffNotes.length,
-        },
-      });
+      await addArtifact(
+        ArtifactTypeEnum.DOCUMENTATION,
+        `${relativeDir}/handoff-notes.md`,
+        handoffDoc,
+        'handoff-notes',
+        'md',
+        'Handoff Notes',
+        { noteCount: fullDesign.handoffNotes.length }
+      );
     }
 
-    // Generate design spec JSON
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.CONFIG_FILE,
-      path: `${outputDir}/design-spec.json`,
-      content: JSON.stringify(fullDesign, null, 2),
-      metadata: {
+    // Generate design spec JSON (minimal when writing to files)
+    const designSpec = hasOutputDir(outputDir)
+      ? {
+          stylePackageId: fullDesign.stylePackageId,
+          stylePackageName: fullDesign.stylePackageName,
+          generatedAt: fullDesign.generatedAt,
+          screenCount: fullDesign.screens.length,
+          flowCount: fullDesign.userFlows.length,
+          sharedComponentCount: fullDesign.sharedComponents.length,
+          artifactPaths,
+        }
+      : fullDesign;
+
+    await addArtifact(
+      ArtifactTypeEnum.CONFIG_FILE,
+      `${relativeDir}/design-spec.json`,
+      JSON.stringify(designSpec, null, 2),
+      'design-spec',
+      'json',
+      'Design Specification',
+      {
         screenCount: fullDesign.screens.length,
         flowCount: fullDesign.userFlows.length,
         sharedComponentCount: fullDesign.sharedComponents.length,
         stylePackageId: fullDesign.stylePackageId,
-      },
-    });
+      }
+    );
 
-    return { result: parsed, artifacts };
+    if (hasOutputDir(outputDir)) {
+      this.log('debug', `Wrote full design files to ${relativeDir}`, {
+        files: Object.keys(artifactPaths).length,
+        screens: fullDesign.screens.length,
+        flows: fullDesign.userFlows.length,
+      });
+    }
+
+    // Add artifactPaths to result
+    const resultWithPaths: UIDesignerOutput = {
+      ...parsed,
+      artifactPaths: Object.keys(artifactPaths).length > 0 ? artifactPaths : undefined,
+    };
+
+    return { result: resultWithPaths, artifacts };
   }
 
   /**
