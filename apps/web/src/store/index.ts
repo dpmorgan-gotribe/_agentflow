@@ -8,6 +8,7 @@
  * - Approval requests
  */
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
@@ -39,10 +40,6 @@ interface AppState {
   // UI state
   activeTab: ViewTab;
   isExecuting: boolean;
-
-  // Derived state helpers
-  getActiveAgents: () => ActiveAgent[];
-  getOrchestratorEvents: () => ExtendedAgentEvent[];
 
   // Actions
   setCurrentProjectId: (projectId: string | null) => void;
@@ -142,10 +139,6 @@ export const useAppStore = create<AppState>()(
       activeTab: 'activity',
       isExecuting: false,
 
-      // Derived state helpers
-      getActiveAgents: () => computeActiveAgents(get().events),
-      getOrchestratorEvents: () => computeOrchestratorEvents(get().events),
-
       // Basic setters
       setCurrentProjectId: (projectId) => set({ currentProjectId: projectId }),
       setProjects: (projects) => set({ projects }),
@@ -238,14 +231,26 @@ export const useAppStore = create<AppState>()(
   )
 );
 
-/** Hook to get active agents (computed from events) */
+/**
+ * Hook to get active agents (computed from events)
+ *
+ * Uses useMemo to cache the computed result and prevent infinite re-renders.
+ * Only recomputes when events array reference changes.
+ */
 export function useActiveAgents(): ActiveAgent[] {
-  return useAppStore((state) => state.getActiveAgents());
+  const events = useAppStore((state) => state.events);
+  return useMemo(() => computeActiveAgents(events), [events]);
 }
 
-/** Hook to get orchestrator events (computed from events) */
+/**
+ * Hook to get orchestrator events (computed from events)
+ *
+ * Uses useMemo to cache the computed result and prevent infinite re-renders.
+ * Only recomputes when events array reference changes.
+ */
 export function useOrchestratorEvents(): ExtendedAgentEvent[] {
-  return useAppStore((state) => state.getOrchestratorEvents());
+  const events = useAppStore((state) => state.events);
+  return useMemo(() => computeOrchestratorEvents(events), [events]);
 }
 
 /** Hook to check if there's an active session to restore */
