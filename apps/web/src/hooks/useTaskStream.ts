@@ -405,14 +405,15 @@ function parseStreamData(data: StreamData): ExtendedAgentEvent {
       }
     : undefined;
 
-  // Extract parallel execution data
-  const parallelExecution = data.type?.startsWith('workflow.parallel')
+  // Extract parallel execution data (with executionId for unique instance tracking)
+  const parallelExecution = data.type?.startsWith('workflow.parallel') || data.executionId
     ? {
         type: data.type === 'workflow.parallel_started' ? 'started' as const
           : data.type === 'workflow.parallel_agent_completed' ? 'agent_completed' as const
           : 'completed' as const,
         agents: data.agents,
         agentId: data.agentId,
+        executionId: data.executionId,
         success: data.success,
         remainingAgents: data.remainingAgents,
         totalAgents: data.totalAgents,

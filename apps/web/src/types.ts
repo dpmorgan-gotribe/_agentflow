@@ -338,6 +338,8 @@ export interface ExtendedAgentEvent extends AgentEvent {
     type: 'started' | 'agent_completed' | 'completed';
     agents?: string[];
     agentId?: string;
+    /** Unique execution ID for this parallel agent instance */
+    executionId?: string;
     success?: boolean;
     remainingAgents?: number;
     totalAgents?: number;

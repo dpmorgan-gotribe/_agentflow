@@ -277,6 +277,13 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
                 artifacts: Array<{ id: string; type: string; path: string; content?: string }>;
                 error?: string;
                 stylePackageId?: string;
+                activity?: {
+                  thinking?: string;
+                  tools?: Array<{ name: string; input?: string; output?: string; duration?: number }>;
+                  hooks?: Array<{ name: string; type: 'pre' | 'post'; status: 'success' | 'failed' | 'skipped'; message?: string }>;
+                  response?: string;
+                  tokenUsage?: { input: number; output: number };
+                };
               }> | undefined;
 
               if (parallelResults && parallelResults.length > 0) {
@@ -296,15 +303,18 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
                 // Write artifacts for each parallel agent
                 for (const result of parallelResults) {
                   if (result.success && result.artifacts && result.artifacts.length > 0) {
-                    // Emit individual agent completed event
+                    // Emit individual agent completed event with activity and executionId
                     eventSubject.next(
                       createStreamEvent('workflow.agent_completed', {
                         taskId,
                         agentId: result.agentId,
+                        executionId: result.executionId,
                         success: result.success,
                         artifactCount: result.artifacts.length,
                         reasoning: `Agent ${result.agentId} (parallel) completed with ${result.artifacts.length} artifact(s)`,
                         stylePackageId: result.stylePackageId,
+                        // Include sub-agent activity for parallel agents
+                        activity: result.activity,
                       })
                     );
 
@@ -326,15 +336,17 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
                       );
                     });
                   } else if (!result.success) {
-                    // Emit failure event
+                    // Emit failure event with executionId
                     eventSubject.next(
                       createStreamEvent('workflow.agent_completed', {
                         taskId,
                         agentId: result.agentId,
+                        executionId: result.executionId,
                         success: false,
                         artifactCount: 0,
                         reasoning: `Agent ${result.agentId} (parallel) failed: ${result.error}`,
                         stylePackageId: result.stylePackageId,
+                        activity: result.activity,
                       })
                     );
                   }

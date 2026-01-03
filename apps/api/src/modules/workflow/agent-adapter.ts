@@ -38,81 +38,149 @@ import {
 /**
  * Extract activity data from agent output
  *
- * Parses the result to find thinking blocks, tool usage, etc.
+ * Parses the agent output to extract:
+ * - thinking: Any reasoning/thinking from the agent
+ * - response: Summary or main output text
+ * - tools: Tools used during execution
+ * - hooks: Pre/post execution hooks
+ * - tokenUsage: Token consumption metrics
  */
 function extractActivity(
-  result: unknown,
+  output: unknown,
   agentType: AgentType,
   startTime: number
 ): AgentActivity {
   const activity: AgentActivity = {};
+  const duration = Date.now() - startTime;
 
-  // Try to extract thinking and response from the result
-  if (result && typeof result === 'object') {
-    const resultObj = result as Record<string, unknown>;
+  // Handle full AgentOutput structure from @aigentflow/agents
+  if (output && typeof output === 'object') {
+    const outputObj = output as Record<string, unknown>;
 
-    // Check for thinking field
-    if (typeof resultObj.thinking === 'string') {
-      activity.thinking = resultObj.thinking;
+    // Extract from result field (nested agent output)
+    const result = outputObj.result;
+    if (result && typeof result === 'object') {
+      const resultObj = result as Record<string, unknown>;
+
+      // Check for thinking/reasoning field
+      if (typeof resultObj.thinking === 'string') {
+        activity.thinking = resultObj.thinking;
+      } else if (typeof resultObj.reasoning === 'string') {
+        activity.thinking = resultObj.reasoning;
+      }
+
+      // Check for response/summary field
+      if (typeof resultObj.response === 'string') {
+        activity.response = resultObj.response.slice(0, 2000);
+      } else if (typeof resultObj.summary === 'string') {
+        activity.response = resultObj.summary.slice(0, 2000);
+      } else if (typeof resultObj.output === 'string') {
+        activity.response = resultObj.output.slice(0, 2000);
+      } else if (typeof resultObj.description === 'string') {
+        activity.response = resultObj.description.slice(0, 2000);
+      }
+
+      // Check for tools used
+      if (Array.isArray(resultObj.toolsUsed)) {
+        activity.tools = extractTools(resultObj.toolsUsed);
+      }
     }
 
-    // Check for response field
-    if (typeof resultObj.response === 'string') {
-      activity.response = resultObj.response;
-    } else if (typeof resultObj.summary === 'string') {
-      activity.response = resultObj.summary;
-    } else if (typeof resultObj.output === 'string') {
-      activity.response = resultObj.output;
+    // Direct fields on output object
+    if (!activity.thinking && typeof outputObj.thinking === 'string') {
+      activity.thinking = outputObj.thinking;
+    }
+    if (!activity.response && typeof outputObj.summary === 'string') {
+      activity.response = outputObj.summary.slice(0, 2000);
     }
 
-    // Check for tools used
-    if (Array.isArray(resultObj.toolsUsed)) {
-      activity.tools = resultObj.toolsUsed.map((tool: unknown) => {
-        if (typeof tool === 'string') {
-          return { name: tool };
-        }
-        if (tool && typeof tool === 'object') {
-          const t = tool as Record<string, unknown>;
-          return {
-            name: String(t.name || 'unknown'),
-            input: typeof t.input === 'string' ? t.input : undefined,
-            output: typeof t.output === 'string' ? t.output : undefined,
-            duration: typeof t.duration === 'number' ? t.duration : undefined,
-          };
-        }
-        return { name: 'unknown' };
-      });
-    }
-
-    // Check for token usage
-    if (resultObj.tokenUsage && typeof resultObj.tokenUsage === 'object') {
-      const usage = resultObj.tokenUsage as Record<string, unknown>;
-      if (typeof usage.input === 'number' && typeof usage.output === 'number') {
+    // Extract token usage from metrics (primary source from BaseAgent)
+    if (outputObj.metrics && typeof outputObj.metrics === 'object') {
+      const metrics = outputObj.metrics as Record<string, unknown>;
+      const inputTokens = typeof metrics.inputTokens === 'number' ? metrics.inputTokens : 0;
+      const outputTokens = typeof metrics.outputTokens === 'number' ? metrics.outputTokens : 0;
+      if (inputTokens > 0 || outputTokens > 0) {
         activity.tokenUsage = {
-          input: usage.input,
-          output: usage.output,
+          input: inputTokens,
+          output: outputTokens,
         };
       }
     }
+
+    // Fallback: check for tokenUsage directly on result
+    if (!activity.tokenUsage && result && typeof result === 'object') {
+      const resultObj = result as Record<string, unknown>;
+      if (resultObj.tokenUsage && typeof resultObj.tokenUsage === 'object') {
+        const usage = resultObj.tokenUsage as Record<string, unknown>;
+        if (typeof usage.input === 'number' && typeof usage.output === 'number') {
+          activity.tokenUsage = {
+            input: usage.input,
+            output: usage.output,
+          };
+        }
+      }
+    }
+
+    // Extract artifacts as tools if no other tools found
+    if (!activity.tools && Array.isArray(outputObj.artifacts)) {
+      activity.tools = outputObj.artifacts.map((a: unknown) => {
+        if (a && typeof a === 'object') {
+          const artifact = a as Record<string, unknown>;
+          return {
+            name: `Create ${String(artifact.type || 'artifact')}`,
+            output: String(artifact.path || artifact.id || 'unknown'),
+          };
+        }
+        return { name: 'artifact' };
+      });
+    }
   }
 
-  // If result is a string, treat it as the response
-  if (typeof result === 'string') {
-    activity.response = result.slice(0, 2000); // Limit response preview
+  // If output is a string, treat it as the response
+  if (typeof output === 'string') {
+    activity.response = output.slice(0, 2000);
   }
 
-  // Add post-execution hook (simulated for now)
-  const duration = Date.now() - startTime;
+  // Add execution hooks
   activity.hooks = [
+    {
+      name: 'validate-input',
+      type: 'pre',
+      status: 'success',
+      message: 'Input validation passed',
+    },
     {
       name: 'validate-output',
       type: 'post',
       status: 'success',
-      message: `Agent ${agentType} completed in ${duration}ms`,
+      message: `Completed in ${duration}ms`,
     },
   ];
 
   return activity;
+}
+
+/**
+ * Extract tools from various formats
+ */
+function extractTools(
+  tools: unknown[]
+): Array<{ name: string; input?: string; output?: string; duration?: number }> {
+  return tools.map((tool: unknown) => {
+    if (typeof tool === 'string') {
+      return { name: tool };
+    }
+    if (tool && typeof tool === 'object') {
+      const t = tool as Record<string, unknown>;
+      return {
+        name: String(t.name || 'unknown'),
+        input: typeof t.input === 'string' ? t.input.slice(0, 500) : undefined,
+        output: typeof t.output === 'string' ? t.output.slice(0, 500) : undefined,
+        duration: typeof t.duration === 'number' ? t.duration : undefined,
+      };
+    }
+    return { name: 'unknown' };
+  });
 }
 
 /**

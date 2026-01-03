@@ -75,34 +75,40 @@ function computeActiveAgents(events: AgentEvent[]): ActiveAgent[] {
     // Skip system and orchestrator (only show sub-agents)
     if (!agentType || agentType === 'system' || agentType === 'orchestrator') continue;
 
-    // Use executionId if available (for parallel agents), otherwise use agent type
+    // Use executionId if available (for parallel agents), otherwise use agent type + timestamp
     const extEvent = event as ExtendedAgentEvent;
-    const key = extEvent.parallelExecution?.agentId
-      ? `${agentType}-${extEvent.parallelExecution.agentId}`
+    const executionId = extEvent.parallelExecution?.agentId;
+    const key = executionId
+      ? `${agentType}-${executionId}`
       : agentType;
 
     if (event.status === 'agent_working' || event.status === 'analyzing') {
       // Agent started working - add to map
+      const existing = agentMap.get(key);
       agentMap.set(key, {
         type: agentType,
         status: 'working',
-        startedAt: agentMap.get(key)?.startedAt || event.timestamp,
+        startedAt: existing?.startedAt || event.timestamp,
         message: event.message?.split('\n')[0],
         artifactCount: event.artifacts?.length,
-        executionId: extEvent.parallelExecution?.agentId,
-        activity: extEvent.activity,
+        executionId,
+        // Preserve existing activity or use new activity
+        activity: extEvent.activity || existing?.activity,
       });
     } else if (event.status === 'completed' || event.status === 'failed') {
-      // Agent finished - update status instead of removing
+      // Agent finished - update status and merge activity
       const existing = agentMap.get(key);
-      if (existing) {
-        agentMap.set(key, {
-          ...existing,
-          status: event.status === 'completed' ? 'completed' : 'failed',
-          message: event.message?.split('\n')[0],
-          artifactCount: event.artifacts?.length,
-        });
-      }
+      agentMap.set(key, {
+        type: agentType,
+        status: event.status === 'completed' ? 'completed' : 'failed',
+        startedAt: existing?.startedAt || event.timestamp,
+        completedAt: event.timestamp,
+        message: event.message?.split('\n')[0],
+        artifactCount: event.artifacts?.length,
+        executionId: existing?.executionId || executionId,
+        // Merge activity: prefer new activity, fall back to existing
+        activity: extEvent.activity || existing?.activity,
+      });
     }
   }
 
