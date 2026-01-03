@@ -585,7 +585,7 @@ Issue 8 (Planning Tab) ←── Issue 1 (Active Agents Panel)
 4. [x] Add shared context deduplication (deduplicationKey field in ContextItem)
 5. [x] Add token usage display in UI (Header stats with cost calculation)
 
-**Commit:** (see below)
+**Commit:** `2131506 feat: implement Context & Efficiency improvements (Phase 5 - Issues 6, 7)`
 
 ---
 
