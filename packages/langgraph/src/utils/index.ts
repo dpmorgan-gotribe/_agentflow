@@ -21,4 +21,10 @@ export {
   type WorkflowCompletedData,
   type WorkflowFailedData,
   type WorkflowErrorData,
+  // Incremental agent activity events
+  type AgentContextLoadedData,
+  type AgentThinkingData,
+  type AgentToolStartedData,
+  type AgentToolCompletedData,
+  type AgentResponseData,
 } from './streaming.js';

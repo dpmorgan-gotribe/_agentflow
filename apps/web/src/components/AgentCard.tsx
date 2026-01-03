@@ -8,8 +8,8 @@
  * - Token usage metrics
  */
 
-import { useState } from 'react';
-import type { ActiveAgent, AgentType, ToolUsage, HookExecution } from '../types';
+import { useState, useEffect, useRef } from 'react';
+import type { ActiveAgent, AgentType, ToolUsage, HookExecution, SubAgentActivity } from '../types';
 
 /** Agent display names and icons */
 const AGENT_INFO: Record<AgentType, { name: string; icon: string }> = {
@@ -109,6 +109,57 @@ function HookItem({ hook }: { hook: HookExecution }) {
   );
 }
 
+/** Context display */
+function ContextSection({ activity }: { activity: SubAgentActivity }) {
+  const contextTypes = activity.contextTypes || [];
+  const itemCount = activity.contextItemCount || 0;
+  const tokens = activity.contextTokens;
+
+  if (itemCount === 0 && contextTypes.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="text-2xs text-text-muted">Items loaded:</span>
+        <span className="text-2xs font-mono text-text-secondary">{itemCount}</span>
+      </div>
+      {contextTypes.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {contextTypes.map((type) => (
+            <span
+              key={type}
+              className="text-2xs px-1.5 py-0.5 rounded bg-accent-primary/20 text-accent-primary"
+            >
+              {type}
+            </span>
+          ))}
+        </div>
+      )}
+      {tokens !== undefined && tokens > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="text-2xs text-text-muted">Total tokens:</span>
+          <span className="text-2xs font-mono text-text-secondary">{tokens.toLocaleString()}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Streaming indicator */
+function StreamingIndicator() {
+  return (
+    <span className="inline-flex items-center gap-1 text-2xs text-accent-primary">
+      <span className="relative flex h-1.5 w-1.5">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-primary opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-primary"></span>
+      </span>
+      streaming
+    </span>
+  );
+}
+
 /** Collapsible section */
 function Section({
   title,
@@ -153,15 +204,32 @@ function Section({
 
 export function AgentCard({ agent, isExpanded, onToggleExpand }: AgentCardProps) {
   const info = AGENT_INFO[agent.type] || { name: agent.type, icon: '🤖' };
-  const hasActivity = agent.activity && (
-    agent.activity.thinking ||
-    (agent.activity.tools && agent.activity.tools.length > 0) ||
-    (agent.activity.hooks && agent.activity.hooks.length > 0) ||
-    agent.activity.response
+  const activity = agent.activity;
+
+  // Check if there's any activity content to show
+  const hasActivity = activity && (
+    activity.thinking ||
+    (activity.tools && activity.tools.length > 0) ||
+    (activity.hooks && activity.hooks.length > 0) ||
+    activity.response ||
+    (activity.contextItemCount && activity.contextItemCount > 0)
   );
+
+  // Check if activity is still streaming
+  const isStreaming = activity?.isStreaming ?? false;
 
   // Instance identifier for parallel agents
   const instanceId = agent.executionId ? agent.executionId.slice(0, 6) : null;
+
+  // Auto-scroll ref for streaming content
+  const thinkingRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll thinking section when streaming
+  useEffect(() => {
+    if (isStreaming && thinkingRef.current) {
+      thinkingRef.current.scrollTop = thinkingRef.current.scrollHeight;
+    }
+  }, [activity?.thinking, isStreaming]);
 
   return (
     <div
@@ -206,7 +274,9 @@ export function AgentCard({ agent, isExpanded, onToggleExpand }: AgentCardProps)
               📦 {agent.artifactCount}
             </span>
           )}
-          {agent.status === 'working' && (
+          {/* Streaming indicator */}
+          {isStreaming && <StreamingIndicator />}
+          {agent.status === 'working' && !isStreaming && (
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-warning opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-status-warning"></span>
@@ -227,22 +297,37 @@ export function AgentCard({ agent, isExpanded, onToggleExpand }: AgentCardProps)
       </div>
 
       {/* Expanded Activity Details */}
-      {isExpanded && hasActivity && agent.activity && (
+      {isExpanded && hasActivity && activity && (
         <div className="border-t border-border-primary/50">
+          {/* Context */}
+          {(activity.contextItemCount && activity.contextItemCount > 0) && (
+            <Section title="Context" icon="📋" count={activity.contextItemCount}>
+              <ContextSection activity={activity} />
+            </Section>
+          )}
+
           {/* Thinking */}
-          {agent.activity.thinking && (
+          {activity.thinking && (
             <Section title="Thinking" icon="🧠" defaultOpen>
-              <div className="bg-bg-tertiary rounded p-2 text-2xs text-text-secondary whitespace-pre-wrap max-h-32 overflow-auto">
-                {agent.activity.thinking}
+              <div
+                ref={thinkingRef}
+                className={`bg-bg-tertiary rounded p-2 text-2xs text-text-secondary whitespace-pre-wrap max-h-32 overflow-auto ${
+                  isStreaming ? 'border-l-2 border-accent-primary' : ''
+                }`}
+              >
+                {activity.thinking}
+                {isStreaming && activity.thinking && (
+                  <span className="inline-block w-1 h-3 ml-0.5 bg-accent-primary animate-pulse" />
+                )}
               </div>
             </Section>
           )}
 
           {/* Tools */}
-          {agent.activity.tools && agent.activity.tools.length > 0 && (
-            <Section title="Tools" icon="🔧" count={agent.activity.tools.length}>
+          {activity.tools && activity.tools.length > 0 && (
+            <Section title="Tools" icon="🔧" count={activity.tools.length}>
               <div className="space-y-1">
-                {agent.activity.tools.map((tool, i) => (
+                {activity.tools.map((tool, i) => (
                   <ToolItem key={`${tool.name}-${i}`} tool={tool} />
                 ))}
               </div>
@@ -250,10 +335,10 @@ export function AgentCard({ agent, isExpanded, onToggleExpand }: AgentCardProps)
           )}
 
           {/* Hooks */}
-          {agent.activity.hooks && agent.activity.hooks.length > 0 && (
-            <Section title="Hooks" icon="🪝" count={agent.activity.hooks.length}>
+          {activity.hooks && activity.hooks.length > 0 && (
+            <Section title="Hooks" icon="🪝" count={activity.hooks.length}>
               <div className="space-y-0.5">
-                {agent.activity.hooks.map((hook, i) => (
+                {activity.hooks.map((hook, i) => (
                   <HookItem key={`${hook.name}-${i}`} hook={hook} />
                 ))}
               </div>
@@ -261,25 +346,32 @@ export function AgentCard({ agent, isExpanded, onToggleExpand }: AgentCardProps)
           )}
 
           {/* Response */}
-          {agent.activity.response && (
+          {activity.response && (
             <Section title="Response" icon="💬">
-              <div className="bg-bg-tertiary rounded p-2 text-2xs text-text-secondary whitespace-pre-wrap max-h-40 overflow-auto">
-                {agent.activity.response.slice(0, 1000)}
-                {agent.activity.response.length > 1000 && '...'}
+              <div
+                className={`bg-bg-tertiary rounded p-2 text-2xs text-text-secondary whitespace-pre-wrap max-h-40 overflow-auto ${
+                  isStreaming ? 'border-l-2 border-accent-primary' : ''
+                }`}
+              >
+                {activity.response.slice(0, 1000)}
+                {activity.response.length > 1000 && '...'}
+                {isStreaming && activity.response && (
+                  <span className="inline-block w-1 h-3 ml-0.5 bg-accent-primary animate-pulse" />
+                )}
               </div>
             </Section>
           )}
 
           {/* Token Usage */}
-          {agent.activity.tokenUsage && (
+          {activity.tokenUsage && (
             <div className="flex items-center justify-between px-2 py-1.5 border-t border-border-primary/50 bg-bg-tertiary/30">
               <span className="text-2xs text-text-muted">Token Usage</span>
               <div className="flex items-center gap-3 text-2xs">
                 <span className="text-text-secondary">
-                  ↓ {agent.activity.tokenUsage.input.toLocaleString()}
+                  ↓ {activity.tokenUsage.input.toLocaleString()}
                 </span>
                 <span className="text-text-secondary">
-                  ↑ {agent.activity.tokenUsage.output.toLocaleString()}
+                  ↑ {activity.tokenUsage.output.toLocaleString()}
                 </span>
               </div>
             </div>

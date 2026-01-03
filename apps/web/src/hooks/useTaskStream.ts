@@ -124,6 +124,27 @@ interface StreamData {
   rejectionCount?: number;
   maxRejections?: number;
   rejectedStyleIds?: string[];
+
+  // ============================================================================
+  // Incremental Agent Activity Fields (Live Streaming)
+  // ============================================================================
+
+  // Context loaded
+  contextItemCount?: number;
+  contextTypes?: string[];
+  contextTokens?: number;
+
+  // Tool usage
+  toolName?: string;
+  toolId?: string;
+  toolInput?: string;
+  toolOutput?: string;
+  duration?: number;
+
+  // Response streaming
+  response?: string;
+  isPartial?: boolean;
+  chunk?: number;
 }
 
 /**
@@ -166,6 +187,13 @@ function mapTypeToStatus(type: string | undefined, status: TaskStatus | undefine
     case 'workflow.error':
       return 'failed';
     case 'artifact_created':
+      return 'agent_working';
+    // Incremental agent activity events (all indicate agent is working)
+    case 'workflow.agent_context_loaded':
+    case 'workflow.agent_thinking':
+    case 'workflow.agent_tool_started':
+    case 'workflow.agent_tool_completed':
+    case 'workflow.agent_response':
       return 'agent_working';
     default:
       return 'pending';
@@ -310,6 +338,45 @@ function formatEventMessage(data: StreamData): string {
       }
       return 'Artifact created';
 
+    // Incremental agent activity events
+    case 'workflow.agent_context_loaded': {
+      const count = data.contextItemCount ?? 0;
+      const types = data.contextTypes?.join(', ') || 'unknown';
+      const tokens = data.contextTokens ? ` (${data.contextTokens} tokens)` : '';
+      return `📋 Context loaded: ${count} items (${types})${tokens}`;
+    }
+
+    case 'workflow.agent_thinking': {
+      const thinking = data.thinking || 'Processing...';
+      const step = data.step ? `[Step ${data.step}] ` : '';
+      const partial = data.isPartial ? ' ▸' : '';
+      return `🧠 ${step}${thinking}${partial}`;
+    }
+
+    case 'workflow.agent_tool_started': {
+      const toolName = data.toolName || 'unknown';
+      const input = data.toolInput ? `\n  → ${data.toolInput.slice(0, 100)}...` : '';
+      return `🔧 Using tool: ${toolName}${input}`;
+    }
+
+    case 'workflow.agent_tool_completed': {
+      const toolName = data.toolName || 'unknown';
+      const success = data.success !== false;
+      const duration = data.duration ? ` (${data.duration}ms)` : '';
+      const status = success ? '✓' : '✗';
+      const output = data.toolOutput ? `\n  ← ${data.toolOutput.slice(0, 100)}...` : '';
+      const error = data.error ? `\n  ⚠ ${data.error}` : '';
+      return `🔧 ${status} ${toolName}${duration}${output}${error}`;
+    }
+
+    case 'workflow.agent_response': {
+      const response = data.response || '';
+      const partial = data.isPartial ? ' ▸' : '';
+      const chunk = data.chunk ? `[${data.chunk}] ` : '';
+      const preview = response.length > 200 ? response.slice(0, 200) + '...' : response;
+      return `💬 ${chunk}${preview}${partial}`;
+    }
+
     default: {
       // Fallback to checking agentOutputs
       const lastOutput = agentOutputs?.[agentOutputs.length - 1];
@@ -384,8 +451,8 @@ function parseStreamData(data: StreamData): ExtendedAgentEvent {
   // Use API timestamp if provided, otherwise use current time
   const timestamp = data.timestamp || new Date().toISOString();
 
-  // Extract activity data
-  const activity: SubAgentActivity | undefined = data.activity
+  // Extract activity data - handle both final activity and incremental updates
+  let activity: SubAgentActivity | undefined = data.activity
     ? {
         thinking: data.activity.thinking,
         tools: data.activity.tools as ToolUsage[] | undefined,
@@ -394,6 +461,60 @@ function parseStreamData(data: StreamData): ExtendedAgentEvent {
         tokenUsage: data.activity.tokenUsage,
       }
     : undefined;
+
+  // Handle incremental activity events - create activity object from event data
+  const eventType = data.type;
+  if (eventType?.startsWith('workflow.agent_')) {
+    // Initialize activity if not present
+    if (!activity) {
+      activity = { isStreaming: true };
+    }
+
+    switch (eventType) {
+      case 'workflow.agent_context_loaded':
+        activity.contextItemCount = data.contextItemCount;
+        activity.contextTypes = data.contextTypes;
+        activity.contextTokens = data.contextTokens;
+        activity.isStreaming = true;
+        break;
+
+      case 'workflow.agent_thinking':
+        activity.thinking = data.thinking;
+        activity.isStreaming = data.isPartial ?? true;
+        break;
+
+      case 'workflow.agent_tool_started':
+        // Add tool to tools array (if not already tracking)
+        if (!activity.tools) activity.tools = [];
+        activity.tools.push({
+          name: data.toolName || 'unknown',
+          input: data.toolInput,
+        });
+        activity.isStreaming = true;
+        break;
+
+      case 'workflow.agent_tool_completed':
+        // Update the last tool in the array with completion data
+        if (activity.tools && activity.tools.length > 0) {
+          const lastTool = activity.tools[activity.tools.length - 1];
+          if (lastTool.name === data.toolName) {
+            lastTool.output = data.toolOutput;
+            lastTool.duration = data.duration;
+          }
+        }
+        activity.isStreaming = true;
+        break;
+
+      case 'workflow.agent_response':
+        activity.response = data.response;
+        activity.isStreaming = data.isPartial ?? false;
+        break;
+
+      case 'workflow.agent_completed':
+        activity.isStreaming = false;
+        break;
+    }
+  }
 
   // Extract thinking orchestrator data
   const thinking: ThinkingStep | undefined = data.type === 'workflow.orchestrator_thinking'

@@ -224,6 +224,29 @@ export class WorkflowService implements OnModuleInit, OnApplicationShutdown {
                     reasoning: `Starting agent: ${stateUpdate.currentAgent}`,
                   })
                 );
+
+                // Emit context_loaded event (context is built before agent execution)
+                eventSubject.next(
+                  createStreamEvent('workflow.agent_context_loaded', {
+                    taskId,
+                    agentId: stateUpdate.currentAgent,
+                    contextItemCount: 2, // CURRENT_TASK + WORKFLOW_SETTINGS
+                    contextTypes: ['current_task', 'workflow_settings'],
+                    reasoning: `Context loaded for ${stateUpdate.currentAgent}`,
+                  })
+                );
+
+                // Emit thinking event (agent is processing)
+                eventSubject.next(
+                  createStreamEvent('workflow.agent_thinking', {
+                    taskId,
+                    agentId: stateUpdate.currentAgent,
+                    thinking: `Analyzing task and generating response...`,
+                    isPartial: true,
+                    step: 1,
+                    reasoning: `${stateUpdate.currentAgent} is processing the request`,
+                  })
+                );
               }
               break;
 

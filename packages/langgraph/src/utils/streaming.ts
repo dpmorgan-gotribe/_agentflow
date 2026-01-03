@@ -28,7 +28,13 @@ export type StreamEventType =
   // Style competition events
   | 'workflow.style_competition'
   | 'workflow.style_selected'
-  | 'workflow.style_rejected';
+  | 'workflow.style_rejected'
+  // Incremental agent activity events (live streaming)
+  | 'workflow.agent_context_loaded'
+  | 'workflow.agent_thinking'
+  | 'workflow.agent_tool_started'
+  | 'workflow.agent_tool_completed'
+  | 'workflow.agent_response';
 
 /**
  * Stream event structure
@@ -58,7 +64,13 @@ export type StreamEventData =
   | ParallelCompletedData
   | StyleCompetitionData
   | StyleSelectedData
-  | StyleRejectedData;
+  | StyleRejectedData
+  // Incremental agent activity
+  | AgentContextLoadedData
+  | AgentThinkingData
+  | AgentToolStartedData
+  | AgentToolCompletedData
+  | AgentResponseData;
 
 /**
  * Base event data with optional reasoning/message field
@@ -241,6 +253,71 @@ export interface StyleRejectedData extends BaseEventData {
   rejectedStyleIds: string[];
 }
 
+// ============================================================================
+// Incremental Agent Activity Events (Live Streaming)
+// ============================================================================
+
+export interface AgentContextLoadedData extends BaseEventData {
+  /** Agent that loaded context */
+  agentId: string;
+  /** Number of context items loaded */
+  contextItemCount: number;
+  /** Types of context loaded */
+  contextTypes: string[];
+  /** Total tokens in context */
+  contextTokens?: number;
+}
+
+export interface AgentThinkingData extends BaseEventData {
+  /** Agent that is thinking */
+  agentId: string;
+  /** Current thinking/reasoning content */
+  thinking: string;
+  /** Whether this is a partial update (more coming) */
+  isPartial?: boolean;
+  /** Thinking step number (for multi-step reasoning) */
+  step?: number;
+}
+
+export interface AgentToolStartedData extends BaseEventData {
+  /** Agent using the tool */
+  agentId: string;
+  /** Tool being invoked */
+  toolName: string;
+  /** Tool invocation ID (for matching start/complete) */
+  toolId: string;
+  /** Tool input (truncated for display) */
+  toolInput?: string;
+}
+
+export interface AgentToolCompletedData extends BaseEventData {
+  /** Agent that used the tool */
+  agentId: string;
+  /** Tool that was invoked */
+  toolName: string;
+  /** Tool invocation ID (matches start event) */
+  toolId: string;
+  /** Whether tool succeeded */
+  success: boolean;
+  /** Tool output (truncated for display) */
+  toolOutput?: string;
+  /** Error if tool failed */
+  error?: string;
+  /** Duration in milliseconds */
+  duration?: number;
+}
+
+export interface AgentResponseData extends BaseEventData {
+  /** Agent providing the response */
+  agentId: string;
+  /** Response content (may be partial) */
+  response: string;
+  /** Whether this is a partial response (streaming) */
+  isPartial?: boolean;
+  /** Response chunk number for streaming */
+  chunk?: number;
+}
+
 /**
  * Extra event data that can be passed to createStreamEvent
  */
@@ -295,6 +372,19 @@ export interface ExtraEventData {
   rejectionCount?: number;
   maxRejections?: number;
   rejectedStyleIds?: string[];
+
+  // Incremental agent activity fields
+  contextItemCount?: number;
+  contextTypes?: string[];
+  contextTokens?: number;
+  isPartial?: boolean;
+  toolName?: string;
+  toolId?: string;
+  toolInput?: string;
+  toolOutput?: string;
+  duration?: number;
+  response?: string;
+  chunk?: number;
 }
 
 /**
@@ -532,6 +622,75 @@ export function createStreamEvent(
           feedback: extra.feedback,
           rejectedStyleIds: state.rejectedStyles?.map(r => r.styleId) ?? extra.rejectedStyleIds ?? [],
         }) as StyleRejectedData,
+      };
+
+    // Incremental agent activity events
+    case 'workflow.agent_context_loaded':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          agentId: state.currentAgent ?? extra.agentId ?? '',
+          contextItemCount: extra.contextItemCount ?? 0,
+          contextTypes: extra.contextTypes ?? [],
+          contextTokens: extra.contextTokens,
+        }) as AgentContextLoadedData,
+      };
+
+    case 'workflow.agent_thinking':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          agentId: state.currentAgent ?? extra.agentId ?? '',
+          thinking: extra.thinking ?? '',
+          isPartial: extra.isPartial,
+          step: extra.step,
+        }) as AgentThinkingData,
+      };
+
+    case 'workflow.agent_tool_started':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          agentId: state.currentAgent ?? extra.agentId ?? '',
+          toolName: extra.toolName ?? '',
+          toolId: extra.toolId ?? '',
+          toolInput: extra.toolInput,
+        }) as AgentToolStartedData,
+      };
+
+    case 'workflow.agent_tool_completed':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          agentId: state.currentAgent ?? extra.agentId ?? '',
+          toolName: extra.toolName ?? '',
+          toolId: extra.toolId ?? '',
+          success: extra.success ?? true,
+          toolOutput: extra.toolOutput,
+          error: extra.error,
+          duration: extra.duration,
+        }) as AgentToolCompletedData,
+      };
+
+    case 'workflow.agent_response':
+      return {
+        type,
+        timestamp,
+        data: withExtra({
+          taskId: state.taskId ?? extra.taskId ?? '',
+          agentId: state.currentAgent ?? extra.agentId ?? '',
+          response: extra.response ?? '',
+          isPartial: extra.isPartial,
+          chunk: extra.chunk,
+        }) as AgentResponseData,
       };
 
     default:

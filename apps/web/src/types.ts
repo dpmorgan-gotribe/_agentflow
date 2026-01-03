@@ -80,6 +80,35 @@ export interface SubAgentActivity {
     /** Tokens read from cache (90% discount) */
     cacheRead?: number;
   };
+  // Incremental activity fields (live streaming)
+  /** Context items loaded for the agent */
+  contextItemCount?: number;
+  /** Types of context loaded */
+  contextTypes?: string[];
+  /** Total tokens in context */
+  contextTokens?: number;
+  /** Whether activity is still streaming */
+  isStreaming?: boolean;
+}
+
+/** Live tool usage update (streaming) */
+export interface LiveToolUpdate {
+  toolId: string;
+  toolName: string;
+  status: 'started' | 'completed' | 'failed';
+  input?: string;
+  output?: string;
+  error?: string;
+  duration?: number;
+  timestamp: string;
+}
+
+/** Live thinking update (streaming) */
+export interface LiveThinkingUpdate {
+  step: number;
+  thinking: string;
+  isPartial: boolean;
+  timestamp: string;
 }
 
 /** Real-time event from SSE stream */

@@ -1003,6 +1003,65 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
           error: data.error,
         };
 
+      // Incremental agent activity events (live streaming)
+      case 'workflow.agent_context_loaded':
+        return {
+          message: reasoning || `Context loaded: ${data.contextItemCount} items (${(data.contextTypes as string[] || []).join(', ')})`,
+          agent: data.agentId,
+          agentId: data.agentId,
+          currentAgent: data.agentId,
+          contextItemCount: data.contextItemCount,
+          contextTypes: data.contextTypes,
+          contextTokens: data.contextTokens,
+        };
+
+      case 'workflow.agent_thinking':
+        return {
+          message: reasoning || data.thinking,
+          agent: data.agentId,
+          agentId: data.agentId,
+          currentAgent: data.agentId,
+          thinking: data.thinking,
+          isPartial: data.isPartial,
+          step: data.step,
+        };
+
+      case 'workflow.agent_tool_started':
+        return {
+          message: reasoning || `Using tool: ${data.toolName}`,
+          agent: data.agentId,
+          agentId: data.agentId,
+          currentAgent: data.agentId,
+          toolName: data.toolName,
+          toolId: data.toolId,
+          toolInput: data.toolInput,
+        };
+
+      case 'workflow.agent_tool_completed':
+        return {
+          message: reasoning || `Tool ${data.toolName} ${data.success ? 'completed' : 'failed'}${data.duration ? ` (${data.duration}ms)` : ''}`,
+          agent: data.agentId,
+          agentId: data.agentId,
+          currentAgent: data.agentId,
+          toolName: data.toolName,
+          toolId: data.toolId,
+          success: data.success,
+          toolOutput: data.toolOutput,
+          error: data.error,
+          duration: data.duration,
+        };
+
+      case 'workflow.agent_response':
+        return {
+          message: reasoning || (data.isPartial ? `[Streaming...] ${(data.response as string || '').slice(0, 100)}` : 'Response received'),
+          agent: data.agentId,
+          agentId: data.agentId,
+          currentAgent: data.agentId,
+          response: data.response,
+          isPartial: data.isPartial,
+          chunk: data.chunk,
+        };
+
       default:
         return { ...data, message: reasoning || JSON.stringify(data).slice(0, 200) };
     }
