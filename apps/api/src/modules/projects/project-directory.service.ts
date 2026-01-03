@@ -403,6 +403,47 @@ coverage/
   }
 
   /**
+   * Create a new project explicitly with a name
+   *
+   * @param name - Project name
+   * @param description - Optional project description
+   * @returns Project metadata
+   */
+  async createProject(name: string, description?: string): Promise<ProjectMetadata> {
+    const id = crypto.randomUUID();
+    const slug = generateUniqueSlug(name, this.existingProjects);
+
+    // Create project directory
+    const projectPath = path.join(PROJECTS_BASE_DIR, slug);
+    await this.createProjectStructure(projectPath);
+
+    // Initialize git
+    await this.initGitRepo(projectPath);
+
+    // Create metadata
+    const metadata: ProjectMetadata = {
+      id,
+      name,
+      slug,
+      prompt: description || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'active',
+    };
+
+    // Save metadata
+    await this.saveMetadata(projectPath, metadata);
+
+    // Track project
+    this.existingProjects.add(slug);
+    this.projectMap.set(id, metadata);
+
+    this.logger.log(`Created project: ${name} (${slug})`);
+
+    return metadata;
+  }
+
+  /**
    * Get the absolute path to a project
    */
   getProjectPath(projectId: string): string | null {

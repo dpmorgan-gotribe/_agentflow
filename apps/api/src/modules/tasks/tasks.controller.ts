@@ -110,6 +110,21 @@ export class TasksController {
     return this.tasksService.getStatus(tenant.tenantId, id);
   }
 
+  @Get(':id/events')
+  @ApiOperation({ summary: 'Get stored events for a task (for session restoration)' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of stored events',
+  })
+  @ApiResponse({ status: 404, description: 'Task not found' })
+  async getEvents(
+    @Tenant() tenant: TenantContext,
+    @Param('id', ParseUUIDPipe) id: string
+  ): Promise<unknown[]> {
+    return this.tasksService.getStoredEvents(tenant.tenantId, id);
+  }
+
   @Sse(':id/stream')
   @ApiOperation({ summary: 'Stream task execution events via SSE' })
   @ApiParam({ name: 'id', description: 'Task ID' })

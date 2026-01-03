@@ -28,10 +28,13 @@ import {
   initStorage,
   loadTasks,
   loadAllArtifacts,
+  loadAllEvents,
   saveTasks,
   saveArtifacts,
+  saveEvents,
   type PersistedTask,
   type PersistedArtifact,
+  type PersistedEvent,
 } from './file-storage';
 import {
   TaskRepository,
@@ -94,6 +97,9 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   // SSE event streams (always in-memory for real-time updates)
   private readonly eventStreams = new Map<string, Subject<MessageEvent>>();
   private readonly eventHistory = new Map<string, EventHistoryEntry[]>();
+
+  // File-persisted events (survives server restarts)
+  private readonly persistedEvents = new Map<string, PersistedEvent[]>();
 
   // Keep event history for 5 minutes for replay
   private readonly EVENT_HISTORY_TTL_MS = 5 * 60 * 1000;
@@ -198,8 +204,14 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
         );
       }
 
+      // Load events
+      const persistedEvents = await loadAllEvents();
+      for (const [taskId, events] of persistedEvents) {
+        this.persistedEvents.set(taskId, events);
+      }
+
       this.logger.log(
-        `Loaded ${this.tasks.size} tasks and ${this.artifacts.size} artifact groups from disk`
+        `Loaded ${this.tasks.size} tasks, ${this.artifacts.size} artifact groups, and ${this.persistedEvents.size} event groups from disk`
       );
     } catch (error) {
       this.logger.error('Failed to load persisted data:', error);
@@ -575,6 +587,48 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
       content: a.content,
       createdAt: a.createdAt.toISOString(),
     }));
+  }
+
+  /**
+   * Get stored events for a task (for session restoration after page refresh)
+   *
+   * Returns events from:
+   * 1. In-memory event history (if within TTL) - for active sessions
+   * 2. File-persisted events - for restoration after server restart
+   *
+   * This allows the frontend to restore its state after a page refresh
+   * or even after a server restart.
+   */
+  async getStoredEvents(tenantId: string, taskId: string): Promise<unknown[]> {
+    // Verify task belongs to tenant
+    await this.findOne(tenantId, taskId);
+
+    const history = this.eventHistory.get(taskId) || [];
+    const now = Date.now();
+
+    // First, try in-memory history (within TTL)
+    const memoryEvents = history
+      .filter((entry) => now - entry.timestamp < this.EVENT_HISTORY_TTL_MS)
+      .map((entry) => {
+        try {
+          return JSON.parse(entry.event.data as string);
+        } catch {
+          return { type: 'unknown', raw: entry.event.data };
+        }
+      });
+
+    // If we have in-memory events, return them
+    if (memoryEvents.length > 0) {
+      return memoryEvents;
+    }
+
+    // Otherwise, fall back to file-persisted events (only in file mode)
+    if (!this.useDatabase) {
+      const persisted = this.persistedEvents.get(taskId) || [];
+      return persisted.map((e) => e.data);
+    }
+
+    return [];
   }
 
   /**
@@ -970,10 +1024,29 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
 
     // Store in history for replay
     const taskId = data.taskId as string;
+    const timestamp = Date.now();
     if (taskId) {
       const history = this.eventHistory.get(taskId) || [];
-      history.push({ event, timestamp: Date.now() });
+      history.push({ event, timestamp });
       this.eventHistory.set(taskId, history);
+
+      // Also persist to disk for session restoration (only in file mode)
+      if (!this.useDatabase) {
+        const persistedEvent: PersistedEvent = {
+          type: data.type as string,
+          taskId,
+          timestamp,
+          data,
+        };
+        const existing = this.persistedEvents.get(taskId) || [];
+        existing.push(persistedEvent);
+        this.persistedEvents.set(taskId, existing);
+
+        // Async persist to disk (don't block)
+        saveEvents(taskId, existing).catch((err) => {
+          this.logger.error(`Failed to persist events for task ${taskId}:`, err);
+        });
+      }
     }
   }
 

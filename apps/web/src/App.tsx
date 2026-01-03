@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Header } from './components/layout/Header';
 import { LeftSidebar } from './components/layout/LeftSidebar';
 import { ActiveAgentsPanel } from './components/layout/ActiveAgentsPanel';
@@ -6,120 +6,112 @@ import { RightSidebar } from './components/layout/RightSidebar';
 import { BottomBar } from './components/layout/BottomBar';
 import { MainContent } from './components/layout/MainContent';
 import { ApprovalDialog } from './components/ApprovalDialog';
-import type { Task, AgentEvent, ApprovalRequest, ActiveAgent, AgentType, ExtendedAgentEvent } from './types';
-
-type ViewTab = 'activity' | 'kanban' | 'viewer';
+import { NewProjectModal } from './components/NewProjectModal';
+import { useAppStore, useActiveAgents, useOrchestratorEvents } from './store';
+import { fetchTaskEvents } from './api';
+import type { Task, AgentEvent } from './types';
 
 export default function App() {
-  // Project state
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  // Zustand store state
+  const currentProjectId = useAppStore((state) => state.currentProjectId);
+  const currentTask = useAppStore((state) => state.currentTask);
+  const events = useAppStore((state) => state.events);
+  const approvalRequest = useAppStore((state) => state.approvalRequest);
+  const activeTab = useAppStore((state) => state.activeTab);
+  const isExecuting = useAppStore((state) => state.isExecuting);
 
-  // Task state
-  const [currentTask, setCurrentTask] = useState<Task | null>(null);
-  const [events, setEvents] = useState<AgentEvent[]>([]);
-  const [approvalRequest, setApprovalRequest] = useState<ApprovalRequest | null>(null);
+  // Zustand store actions
+  const handleTaskCreated = useAppStore((state) => state.handleTaskCreated);
+  const handleProjectChange = useAppStore((state) => state.handleProjectChange);
+  const handleEvent = useAppStore((state) => state.handleEvent);
+  const handleApprovalComplete = useAppStore((state) => state.handleApprovalComplete);
+  const handlePause = useAppStore((state) => state.handlePause);
+  const handleStop = useAppStore((state) => state.handleStop);
+  const setActiveTab = useAppStore((state) => state.setActiveTab);
+  const setEvents = useAppStore((state) => state.setEvents);
+  const setIsExecuting = useAppStore((state) => state.setIsExecuting);
 
-  // UI state
-  const [activeTab, setActiveTab] = useState<ViewTab>('activity');
-  const [isExecuting, setIsExecuting] = useState(false);
+  // Derived state from store
+  const activeAgents = useActiveAgents();
+  const orchestratorEvents = useOrchestratorEvents();
 
-  // Derived state for orchestrator events (for right sidebar)
-  const orchestratorEvents = useMemo((): ExtendedAgentEvent[] =>
-    (events as ExtendedAgentEvent[])
-      .filter((e) => e.agent === 'orchestrator' || e.agent === 'system')
-      .slice(-20),
-    [events]
-  );
+  // Local UI state for modals
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
 
-  // Derive active agents from events - only show currently working sub-agents
-  // Agents are removed when they complete or fail
-  const activeAgents = useMemo((): ActiveAgent[] => {
-    const agentMap = new Map<AgentType, ActiveAgent>();
-
-    for (const event of events) {
-      const agentType = event.agent;
-      // Skip system and orchestrator (only show sub-agents)
-      if (!agentType || agentType === 'system' || agentType === 'orchestrator') continue;
-
-      if (event.status === 'agent_working' || event.status === 'analyzing') {
-        // Agent started working - add to map
-        agentMap.set(agentType, {
-          type: agentType,
-          status: 'working',
-          startedAt: agentMap.get(agentType)?.startedAt || event.timestamp,
-          message: event.message?.split('\n')[0],
-          artifactCount: event.artifacts?.length,
-        });
-      } else if (event.status === 'completed' || event.status === 'failed') {
-        // Agent finished - remove from active agents
-        agentMap.delete(agentType);
+  // Restore session on mount - fetch events if we have an active task
+  useEffect(() => {
+    async function restoreSession() {
+      if (currentTask && events.length === 0) {
+        try {
+          // Fetch events from backend
+          const storedEvents = await fetchTaskEvents(currentTask.id);
+          if (storedEvents.length > 0) {
+            setEvents(storedEvents);
+            // Check if task is still executing
+            const lastEvent = storedEvents[storedEvents.length - 1];
+            if (lastEvent.status !== 'completed' && lastEvent.status !== 'failed') {
+              setIsExecuting(true);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to restore session events:', error);
+        }
       }
     }
+    restoreSession();
+  }, [currentTask?.id]); // Only run when task ID changes, not on every render
 
-    // Return only working agents, sorted by start time
-    return Array.from(agentMap.values()).sort(
-      (a, b) => new Date(a.startedAt || 0).getTime() - new Date(b.startedAt || 0).getTime()
-    );
-  }, [events]);
+  // Memoize callbacks to prevent unnecessary re-renders
+  const onTaskCreated = useCallback((task: Task) => {
+    handleTaskCreated(task);
+  }, [handleTaskCreated]);
 
-  const handleTaskCreated = useCallback((task: Task) => {
-    setCurrentTask(task);
-    setCurrentProjectId(task.projectId); // Set the project from the task
-    setEvents([]);
-    setApprovalRequest(null);
-    setIsExecuting(true);
-    setActiveTab('activity');
+  const onProjectChange = useCallback((projectId: string) => {
+    handleProjectChange(projectId);
+  }, [handleProjectChange]);
+
+  const onEvent = useCallback((event: AgentEvent) => {
+    handleEvent(event);
+  }, [handleEvent]);
+
+  const onApprovalComplete = useCallback(() => {
+    handleApprovalComplete();
+  }, [handleApprovalComplete]);
+
+  const onPause = useCallback(() => {
+    handlePause();
+  }, [handlePause]);
+
+  const onStop = useCallback(() => {
+    handleStop();
+  }, [handleStop]);
+
+  const onTabChange = useCallback((tab: typeof activeTab) => {
+    setActiveTab(tab);
+  }, [setActiveTab]);
+
+  const onNewProject = useCallback(() => {
+    setIsNewProjectModalOpen(true);
   }, []);
 
-  const handleProjectChange = useCallback((projectId: string) => {
-    setCurrentProjectId(projectId);
-    // Clear current task when switching projects
-    setCurrentTask(null);
-    setEvents([]);
-    setApprovalRequest(null);
-    setIsExecuting(false);
+  const onNewProjectClose = useCallback(() => {
+    setIsNewProjectModalOpen(false);
   }, []);
 
-  const handleEvent = useCallback((event: AgentEvent) => {
-    setEvents((prev) => [...prev, event]);
-
-    // Check for approval request
-    if (event.status === 'awaiting_approval' && event.approvalRequest) {
-      setApprovalRequest(event.approvalRequest);
-      setIsExecuting(false);
-    }
-
-    // Check for completion
-    if (event.status === 'completed' || event.status === 'failed') {
-      setIsExecuting(false);
-    }
-  }, []);
-
-  const handleApprovalComplete = useCallback(() => {
-    setApprovalRequest(null);
-    setIsExecuting(true);
-  }, []);
-
-  const handlePause = useCallback(() => {
-    setIsExecuting(false);
-    // TODO: Call API to pause task
-  }, []);
-
-  const handleStop = useCallback(() => {
-    setIsExecuting(false);
-    setCurrentTask(null);
-    setEvents([]);
-    // TODO: Call API to stop task
-  }, []);
+  const onNewProjectCreated = useCallback((projectId: string) => {
+    setIsNewProjectModalOpen(false);
+    handleProjectChange(projectId);
+  }, [handleProjectChange]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
       <Header
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={onTabChange}
         isExecuting={isExecuting}
         currentBranch={currentTask ? `task/${currentTask.id.slice(0, 8)}` : 'main'}
+        onNewProject={onNewProject}
       />
 
       {/* Main Body */}
@@ -127,7 +119,7 @@ export default function App() {
         {/* Left Sidebar - Project, Git, Files */}
         <LeftSidebar
           currentProjectId={currentProjectId}
-          onProjectChange={handleProjectChange}
+          onProjectChange={onProjectChange}
           activeWorktreeCount={currentTask ? 1 : 0}
           currentTaskId={currentTask?.id}
         />
@@ -140,7 +132,7 @@ export default function App() {
           activeTab={activeTab}
           currentTask={currentTask}
           events={events}
-          onEvent={handleEvent}
+          onEvent={onEvent}
         />
 
         {/* Right Sidebar */}
@@ -153,11 +145,12 @@ export default function App() {
 
       {/* Bottom Bar */}
       <BottomBar
-        onTaskCreated={handleTaskCreated}
-        disabled={isExecuting}
+        onTaskCreated={onTaskCreated}
+        disabled={isExecuting || !currentProjectId}
         isExecuting={isExecuting}
-        onPause={handlePause}
-        onStop={handleStop}
+        onPause={onPause}
+        onStop={onStop}
+        currentProjectId={currentProjectId}
       />
 
       {/* Approval Dialog */}
@@ -165,9 +158,16 @@ export default function App() {
         <ApprovalDialog
           taskId={currentTask.id}
           request={approvalRequest}
-          onComplete={handleApprovalComplete}
+          onComplete={onApprovalComplete}
         />
       )}
+
+      {/* New Project Modal */}
+      <NewProjectModal
+        isOpen={isNewProjectModalOpen}
+        onClose={onNewProjectClose}
+        onProjectCreated={onNewProjectCreated}
+      />
     </div>
   );
 }

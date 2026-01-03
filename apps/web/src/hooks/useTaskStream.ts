@@ -345,8 +345,126 @@ function extractSelfReview(data: StreamData): SelfReviewSummary | undefined {
 }
 
 /**
+ * Parse SSE data into ExtendedAgentEvent
+ */
+function parseStreamData(data: StreamData): ExtendedAgentEvent {
+  const lastOutput = data.agentOutputs?.[data.agentOutputs.length - 1];
+
+  // Map artifacts with proper type casting
+  const artifacts: ArtifactRef[] | undefined = lastOutput?.artifacts?.map((a) => ({
+    id: a.id,
+    type: a.type as ArtifactType,
+    name: a.path.split('/').pop() || a.id,
+  }));
+
+  // Also include artifact from artifact_created events
+  if (data.artifact && !artifacts?.some(a => a.id === data.artifact?.id)) {
+    const artifactRefs = artifacts || [];
+    artifactRefs.push({
+      id: data.artifact.id,
+      type: data.artifact.type as ArtifactType,
+      name: data.artifact.name,
+    });
+  }
+
+  // Map approval request with proper type casting
+  const approvalRequest: ApprovalRequest | undefined = data.approvalRequest
+    ? {
+        type: data.approvalRequest.type,
+        description: data.approvalRequest.description,
+        artifacts: data.approvalRequest.artifacts.map((a) => ({
+          id: a.id,
+          type: a.type as ArtifactType,
+          name: a.name,
+        })),
+      }
+    : undefined;
+
+  // Use API timestamp if provided, otherwise use current time
+  const timestamp = data.timestamp || new Date().toISOString();
+
+  // Extract activity data
+  const activity: SubAgentActivity | undefined = data.activity
+    ? {
+        thinking: data.activity.thinking,
+        tools: data.activity.tools as ToolUsage[] | undefined,
+        hooks: data.activity.hooks as HookExecution[] | undefined,
+        response: data.activity.response,
+        tokenUsage: data.activity.tokenUsage,
+      }
+    : undefined;
+
+  // Extract thinking orchestrator data
+  const thinking: ThinkingStep | undefined = data.type === 'workflow.orchestrator_thinking'
+    ? {
+        step: data.step ?? 1,
+        thinking: data.thinking ?? '',
+        action: data.action ?? 'dispatch',
+        targets: data.targets,
+        timestamp,
+      }
+    : undefined;
+
+  // Extract parallel execution data
+  const parallelExecution = data.type?.startsWith('workflow.parallel')
+    ? {
+        type: data.type === 'workflow.parallel_started' ? 'started' as const
+          : data.type === 'workflow.parallel_agent_completed' ? 'agent_completed' as const
+          : 'completed' as const,
+        agents: data.agents,
+        agentId: data.agentId,
+        success: data.success,
+        remainingAgents: data.remainingAgents,
+        totalAgents: data.totalAgents,
+        successfulAgents: data.successfulAgents,
+        failedAgents: data.failedAgents,
+        isStyleCompetition: data.isStyleCompetition,
+      }
+    : undefined;
+
+  // Extract style competition data
+  const styleCompetition = data.type?.startsWith('workflow.style')
+    ? {
+        type: data.type === 'workflow.style_competition' ? 'competition' as const
+          : data.type === 'workflow.style_selected' ? 'selected' as const
+          : 'rejected' as const,
+        styleCount: data.styleCount,
+        styleNames: data.styleNames,
+        previewPaths: data.previewPaths,
+        selectedStyleId: data.selectedStyleId,
+        selectedStyleName: data.selectedStyleName,
+        rejectionCount: data.rejectionCount,
+        maxRejections: data.maxRejections,
+        feedback: data.feedback,
+      }
+    : undefined;
+
+  return {
+    agent: extractAgentName(data),
+    status: mapTypeToStatus(data.type, data.status),
+    message: formatEventMessage(data),
+    timestamp,
+    artifacts,
+    approvalRequest,
+    selfReview: extractSelfReview(data),
+    activity,
+    thinking,
+    parallelExecution,
+    styleCompetition,
+  };
+}
+
+/** Reconnection config */
+const RECONNECT_INITIAL_DELAY_MS = 1000;
+const RECONNECT_MAX_DELAY_MS = 30000;
+const RECONNECT_MULTIPLIER = 2;
+
+/**
  * Hook for connecting to task SSE stream
- * Supports extended events for thinking orchestrator, parallel execution, and style competition
+ * Supports:
+ * - Extended events for thinking orchestrator, parallel execution, and style competition
+ * - Automatic reconnection with exponential backoff
+ * - Event replay on reconnection (from server's event history)
  */
 export function useTaskStream(
   taskId: string | undefined,
@@ -354,6 +472,10 @@ export function useTaskStream(
 ): void {
   const eventSourceRef = useRef<EventSource | null>(null);
   const onEventRef = useRef(onEvent);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectDelayRef = useRef(RECONNECT_INITIAL_DELAY_MS);
+  const lastEventTimestampRef = useRef<string | null>(null);
+  const isManualCloseRef = useRef(false);
 
   // Keep callback ref updated
   useEffect(() => {
@@ -363,110 +485,13 @@ export function useTaskStream(
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
       const data: StreamData = JSON.parse(event.data);
-      const lastOutput = data.agentOutputs?.[data.agentOutputs.length - 1];
+      const agentEvent = parseStreamData(data);
 
-      // Map artifacts with proper type casting
-      const artifacts: ArtifactRef[] | undefined = lastOutput?.artifacts?.map((a) => ({
-        id: a.id,
-        type: a.type as ArtifactType,
-        name: a.path.split('/').pop() || a.id,
-      }));
+      // Track last event timestamp for deduplication on reconnect
+      lastEventTimestampRef.current = agentEvent.timestamp;
 
-      // Also include artifact from artifact_created events
-      if (data.artifact && !artifacts?.some(a => a.id === data.artifact?.id)) {
-        const artifactRefs = artifacts || [];
-        artifactRefs.push({
-          id: data.artifact.id,
-          type: data.artifact.type as ArtifactType,
-          name: data.artifact.name,
-        });
-      }
-
-      // Map approval request with proper type casting
-      const approvalRequest: ApprovalRequest | undefined = data.approvalRequest
-        ? {
-            type: data.approvalRequest.type,
-            description: data.approvalRequest.description,
-            artifacts: data.approvalRequest.artifacts.map((a) => ({
-              id: a.id,
-              type: a.type as ArtifactType,
-              name: a.name,
-            })),
-          }
-        : undefined;
-
-      // Use API timestamp if provided, otherwise use current time
-      const timestamp = data.timestamp || new Date().toISOString();
-
-      // Extract activity data
-      const activity: SubAgentActivity | undefined = data.activity
-        ? {
-            thinking: data.activity.thinking,
-            tools: data.activity.tools as ToolUsage[] | undefined,
-            hooks: data.activity.hooks as HookExecution[] | undefined,
-            response: data.activity.response,
-            tokenUsage: data.activity.tokenUsage,
-          }
-        : undefined;
-
-      // Extract thinking orchestrator data
-      const thinking: ThinkingStep | undefined = data.type === 'workflow.orchestrator_thinking'
-        ? {
-            step: data.step ?? 1,
-            thinking: data.thinking ?? '',
-            action: data.action ?? 'dispatch',
-            targets: data.targets,
-            timestamp,
-          }
-        : undefined;
-
-      // Extract parallel execution data
-      const parallelExecution = data.type?.startsWith('workflow.parallel')
-        ? {
-            type: data.type === 'workflow.parallel_started' ? 'started' as const
-              : data.type === 'workflow.parallel_agent_completed' ? 'agent_completed' as const
-              : 'completed' as const,
-            agents: data.agents,
-            agentId: data.agentId,
-            success: data.success,
-            remainingAgents: data.remainingAgents,
-            totalAgents: data.totalAgents,
-            successfulAgents: data.successfulAgents,
-            failedAgents: data.failedAgents,
-            isStyleCompetition: data.isStyleCompetition,
-          }
-        : undefined;
-
-      // Extract style competition data
-      const styleCompetition = data.type?.startsWith('workflow.style')
-        ? {
-            type: data.type === 'workflow.style_competition' ? 'competition' as const
-              : data.type === 'workflow.style_selected' ? 'selected' as const
-              : 'rejected' as const,
-            styleCount: data.styleCount,
-            styleNames: data.styleNames,
-            previewPaths: data.previewPaths,
-            selectedStyleId: data.selectedStyleId,
-            selectedStyleName: data.selectedStyleName,
-            rejectionCount: data.rejectionCount,
-            maxRejections: data.maxRejections,
-            feedback: data.feedback,
-          }
-        : undefined;
-
-      const agentEvent: ExtendedAgentEvent = {
-        agent: extractAgentName(data),
-        status: mapTypeToStatus(data.type, data.status),
-        message: formatEventMessage(data),
-        timestamp,
-        artifacts,
-        approvalRequest,
-        selfReview: extractSelfReview(data),
-        activity,
-        thinking,
-        parallelExecution,
-        styleCompetition,
-      };
+      // Reset reconnect delay on successful message
+      reconnectDelayRef.current = RECONNECT_INITIAL_DELAY_MS;
 
       console.log('SSE Event received:', { type: data.type, message: agentEvent.message, agent: agentEvent.agent });
       onEventRef.current(agentEvent);
@@ -475,24 +500,95 @@ export function useTaskStream(
     }
   }, []);
 
-  useEffect(() => {
-    if (!taskId) return;
-
+  const connect = useCallback((taskIdToConnect: string) => {
     // Close existing connection
     eventSourceRef.current?.close();
 
-    // Open new SSE connection
-    const eventSource = new EventSource(getTaskStreamUrl(taskId));
+    // Clear any pending reconnect
+    if (reconnectTimeoutRef.current !== null) {
+      window.clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
+    console.log(`SSE connecting to task: ${taskIdToConnect}`);
+    const eventSource = new EventSource(getTaskStreamUrl(taskIdToConnect));
     eventSourceRef.current = eventSource;
+    isManualCloseRef.current = false;
+
+    eventSource.onopen = () => {
+      console.log('SSE connection opened');
+      reconnectDelayRef.current = RECONNECT_INITIAL_DELAY_MS;
+    };
 
     eventSource.onmessage = handleMessage;
 
-    eventSource.onerror = () => {
-      console.error('SSE connection error, will retry...');
+    eventSource.onerror = (error) => {
+      // Don't reconnect if this was a manual close
+      if (isManualCloseRef.current) {
+        console.log('SSE closed manually, not reconnecting');
+        return;
+      }
+
+      // Check if the connection was closed (readyState === 2)
+      if (eventSource.readyState === EventSource.CLOSED) {
+        console.log('SSE connection closed, attempting reconnect...');
+
+        // Check if this was an immediate close (server doesn't recognize task)
+        // In this case, emit an error event to inform the user
+        onEventRef.current({
+          agent: 'system',
+          status: 'failed',
+          message: 'Connection lost. The task may no longer exist on the server (e.g., after server restart). Please create a new task.',
+          timestamp: new Date().toISOString(),
+        });
+
+        // Schedule reconnect with exponential backoff
+        const delay = reconnectDelayRef.current;
+        console.log(`Reconnecting in ${delay}ms...`);
+
+        reconnectTimeoutRef.current = window.setTimeout(() => {
+          reconnectTimeoutRef.current = null;
+          connect(taskIdToConnect);
+        }, delay);
+
+        // Increase delay for next attempt (capped at max)
+        reconnectDelayRef.current = Math.min(
+          reconnectDelayRef.current * RECONNECT_MULTIPLIER,
+          RECONNECT_MAX_DELAY_MS
+        );
+      } else {
+        console.error('SSE connection error:', error);
+      }
     };
 
+    return eventSource;
+  }, [handleMessage]);
+
+  useEffect(() => {
+    if (!taskId) {
+      // Close connection and clear reconnect timer
+      isManualCloseRef.current = true;
+      eventSourceRef.current?.close();
+      if (reconnectTimeoutRef.current !== null) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    // Reset state for new task
+    lastEventTimestampRef.current = null;
+    reconnectDelayRef.current = RECONNECT_INITIAL_DELAY_MS;
+
+    connect(taskId);
+
     return () => {
-      eventSource.close();
+      isManualCloseRef.current = true;
+      eventSourceRef.current?.close();
+      if (reconnectTimeoutRef.current !== null) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
     };
-  }, [taskId, handleMessage]);
+  }, [taskId, connect]);
 }

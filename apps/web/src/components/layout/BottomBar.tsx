@@ -8,6 +8,7 @@ interface BottomBarProps {
   isExecuting: boolean;
   onPause: () => void;
   onStop: () => void;
+  currentProjectId: string | null;
 }
 
 export function BottomBar({
@@ -16,6 +17,7 @@ export function BottomBar({
   isExecuting,
   onPause,
   onStop,
+  currentProjectId,
 }: BottomBarProps) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,11 +33,11 @@ export function BottomBar({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim() || disabled || loading) return;
+    if (!prompt.trim() || disabled || loading || !currentProjectId) return;
 
     setLoading(true);
     try {
-      const task = await createTask(prompt);
+      const task = await createTask(prompt, currentProjectId);
       onTaskCreated(task);
       setPrompt('');
       setIsExpanded(false);
@@ -45,6 +47,9 @@ export function BottomBar({
       setLoading(false);
     }
   };
+
+  // Show message when no project is selected
+  const noProjectSelected = !currentProjectId;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     // Ctrl+Enter or Cmd+Enter to submit
@@ -123,8 +128,8 @@ Examples:
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
               onClick={handleInputClick}
-              placeholder="Tell the orchestrator what to do..."
-              disabled={disabled || loading}
+              placeholder={noProjectSelected ? "Create or select a project first..." : "Tell the orchestrator what to do..."}
+              disabled={disabled || loading || noProjectSelected}
               className="w-full py-2 px-4 pr-16 bg-bg-input border border-border-primary rounded-lg text-text-primary text-sm placeholder-text-muted outline-none transition-all focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/30 disabled:opacity-50 cursor-pointer"
             />
           )}

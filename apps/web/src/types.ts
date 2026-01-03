@@ -242,6 +242,10 @@ export interface ActiveAgent {
   completedAt?: string;
   message?: string;
   artifactCount?: number;
+  /** Unique execution ID for parallel agent instances */
+  executionId?: string;
+  /** Full activity details (thinking, tools, hooks, response) */
+  activity?: SubAgentActivity;
 }
 
 // ============================================================================

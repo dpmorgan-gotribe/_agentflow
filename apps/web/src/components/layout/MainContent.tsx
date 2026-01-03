@@ -1,9 +1,10 @@
 import type { Task, AgentEvent } from '../../types';
+import type { ViewTab } from '../../store';
 import { AgentFeed } from '../AgentFeed';
 import { DesignPreview } from '../DesignPreview';
 
 interface MainContentProps {
-  activeTab: 'activity' | 'kanban' | 'viewer';
+  activeTab: ViewTab;
   currentTask: Task | null;
   events: AgentEvent[];
   onEvent: (event: AgentEvent) => void;
@@ -15,11 +16,11 @@ export function MainContent({ activeTab, currentTask, events, onEvent }: MainCon
       {/* Content Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-bg-secondary border-b border-border-primary">
         <h1 className="text-sm font-semibold text-text-primary uppercase tracking-wide">
-          {activeTab === 'activity'
-            ? 'Agent Activity'
-            : activeTab === 'kanban'
-              ? 'Task Board'
-              : 'Design Viewer'}
+          {activeTab === 'activity' && 'Agent Activity'}
+          {activeTab === 'kanban' && 'Task Board'}
+          {activeTab === 'viewer' && 'Design Viewer'}
+          {activeTab === 'design' && 'Design Assets'}
+          {activeTab === 'planning' && 'Project Planning'}
         </h1>
         {currentTask && (
           <>
@@ -64,6 +65,26 @@ export function MainContent({ activeTab, currentTask, events, onEvent }: MainCon
         {activeTab === 'viewer' && (
           <div className="h-full p-4">
             <DesignPreview taskId={currentTask?.id} fullWidth />
+          </div>
+        )}
+
+        {activeTab === 'design' && (
+          <div className="h-full flex items-center justify-center text-text-muted">
+            <div className="text-center">
+              <div className="text-4xl mb-4">🎨</div>
+              <p className="text-sm">Design Assets</p>
+              <p className="text-xs mt-2">Mockups, Stylesheets, and User Flows</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'planning' && (
+          <div className="h-full flex items-center justify-center text-text-muted">
+            <div className="text-center">
+              <div className="text-4xl mb-4">📊</div>
+              <p className="text-sm">Project Planning</p>
+              <p className="text-xs mt-2">Epics, Features, and Tasks</p>
+            </div>
           </div>
         )}
       </div>

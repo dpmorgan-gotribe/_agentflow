@@ -17,6 +17,7 @@ const logger = new Logger('FileStorage');
 const DATA_DIR = '.aigentflow/data';
 const TASKS_FILE = 'tasks.json';
 const ARTIFACTS_DIR = 'artifacts';
+const EVENTS_DIR = 'events';
 
 /**
  * Stored task structure (serializable)
@@ -51,12 +52,23 @@ export interface PersistedArtifact {
 }
 
 /**
+ * Stored event structure (serializable)
+ */
+export interface PersistedEvent {
+  type: string;
+  taskId: string;
+  timestamp: number;
+  data: Record<string, unknown>;
+}
+
+/**
  * Initialize the storage directory structure
  */
 export async function initStorage(): Promise<void> {
   const dirs = [
     DATA_DIR,
     path.join(DATA_DIR, ARTIFACTS_DIR),
+    path.join(DATA_DIR, EVENTS_DIR),
   ];
 
   for (const dir of dirs) {
@@ -218,4 +230,79 @@ export async function deleteTaskArtifacts(taskId: string): Promise<void> {
  */
 export function getDataDir(): string {
   return DATA_DIR;
+}
+
+/**
+ * Load events for a specific task
+ */
+export async function loadEvents(taskId: string): Promise<PersistedEvent[]> {
+  const eventsPath = path.join(DATA_DIR, EVENTS_DIR, `${taskId}.json`);
+
+  try {
+    const data = await fs.readFile(eventsPath, 'utf-8');
+    return JSON.parse(data) as PersistedEvent[];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      logger.error(`Failed to load events for task ${taskId}:`, error);
+    }
+    return [];
+  }
+}
+
+/**
+ * Load all events for all tasks
+ */
+export async function loadAllEvents(): Promise<Map<string, PersistedEvent[]>> {
+  const eventsDir = path.join(DATA_DIR, EVENTS_DIR);
+  const events = new Map<string, PersistedEvent[]>();
+
+  try {
+    const files = await fs.readdir(eventsDir);
+
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        const taskId = file.replace('.json', '');
+        const taskEvents = await loadEvents(taskId);
+        if (taskEvents.length > 0) {
+          events.set(taskId, taskEvents);
+        }
+      }
+    }
+
+    const totalEvents = Array.from(events.values()).reduce((sum, arr) => sum + arr.length, 0);
+    logger.log(`Loaded ${totalEvents} events for ${events.size} tasks`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      logger.error('Failed to load events:', error);
+    }
+  }
+
+  return events;
+}
+
+/**
+ * Save events for a specific task
+ */
+export async function saveEvents(taskId: string, events: PersistedEvent[]): Promise<void> {
+  const eventsPath = path.join(DATA_DIR, EVENTS_DIR, `${taskId}.json`);
+
+  try {
+    await fs.writeFile(eventsPath, JSON.stringify(events, null, 2), 'utf-8');
+  } catch (error) {
+    logger.error(`Failed to save events for task ${taskId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Delete events for a task
+ */
+export async function deleteTaskEvents(taskId: string): Promise<void> {
+  const eventsPath = path.join(DATA_DIR, EVENTS_DIR, `${taskId}.json`);
+
+  try {
+    await fs.unlink(eventsPath).catch(() => {});
+  } catch (error) {
+    logger.warn(`Failed to delete events for task ${taskId}:`, error);
+  }
 }

@@ -1,4 +1,4 @@
-import type { Task, Artifact } from './types';
+import type { Task, Artifact, AgentEvent, Project } from './types';
 
 const API_BASE = '/api/v1';
 
@@ -35,11 +35,11 @@ async function fetchApi<T>(
 /**
  * Create a new task from user prompt
  */
-export async function createTask(prompt: string): Promise<Task> {
+export async function createTask(prompt: string, projectId: string): Promise<Task> {
   return fetchApi<Task>('/tasks', {
     method: 'POST',
     body: JSON.stringify({
-      projectId: '123e4567-e89b-12d3-a456-426614174000', // Dev project UUID
+      projectId,
       prompt,
     }),
   });
@@ -171,6 +171,38 @@ export async function resetSettings(): Promise<WorkflowSettings> {
     method: 'POST',
     body: JSON.stringify({}),
   });
+}
+
+/**
+ * Fetch stored events for a task
+ * Used to restore session after page refresh
+ */
+export async function fetchTaskEvents(taskId: string): Promise<AgentEvent[]> {
+  return fetchApi<AgentEvent[]>(`/tasks/${taskId}/events`);
+}
+
+/**
+ * Get all projects
+ */
+export async function getProjects(): Promise<Project[]> {
+  return fetchApi<Project[]>('/projects');
+}
+
+/**
+ * Create a new project
+ */
+export async function createProject(name: string, description?: string): Promise<Project> {
+  return fetchApi<Project>('/projects', {
+    method: 'POST',
+    body: JSON.stringify({ name, description }),
+  });
+}
+
+/**
+ * Get a project by ID
+ */
+export async function getProject(projectId: string): Promise<Project> {
+  return fetchApi<Project>(`/projects/${projectId}`);
 }
 
 /**

@@ -3,18 +3,21 @@ import { triggerShutdown, cleanupProjects } from '../../api';
 
 interface HeaderProps {
   activeTab: string;
-  onTabChange: (tab: 'activity' | 'kanban' | 'viewer') => void;
+  onTabChange: (tab: 'activity' | 'kanban' | 'viewer' | 'design' | 'planning') => void;
   isExecuting: boolean;
   currentBranch: string;
+  onNewProject?: () => void;
 }
 
 const NAV_TABS = [
   { id: 'activity', label: 'Activity' },
+  { id: 'design', label: 'Design' },
+  { id: 'planning', label: 'Planning' },
   { id: 'kanban', label: 'Kanban' },
   { id: 'viewer', label: 'Viewer' },
 ] as const;
 
-export function Header({ activeTab, onTabChange, isExecuting, currentBranch }: HeaderProps) {
+export function Header({ activeTab, onTabChange, isExecuting, currentBranch, onNewProject }: HeaderProps) {
   const [showKillConfirm, setShowKillConfirm] = useState(false);
   const [isKilling, setIsKilling] = useState(false);
   const [serverStopped, setServerStopped] = useState(false);
@@ -174,7 +177,10 @@ export function Header({ activeTab, onTabChange, isExecuting, currentBranch }: H
         </button>
 
         {/* New Project Button */}
-        <button className="flex items-center gap-1 px-3 py-1.5 bg-accent-primary hover:bg-accent-primary-hover rounded text-xs font-medium text-white transition-colors">
+        <button
+          onClick={onNewProject}
+          className="flex items-center gap-1 px-3 py-1.5 bg-accent-primary hover:bg-accent-primary-hover rounded text-xs font-medium text-white transition-colors"
+        >
           + New Project
         </button>
       </div>

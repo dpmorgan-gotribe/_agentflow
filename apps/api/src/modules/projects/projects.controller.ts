@@ -8,9 +8,12 @@ import {
   Controller,
   Delete,
   Get,
+  Post,
+  Body,
   Param,
   UseGuards,
   NotFoundException,
+  BadRequestException,
   Query,
 } from '@nestjs/common';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
@@ -47,6 +50,32 @@ export class ProjectsController {
   @Get()
   async listProjects(): Promise<ProjectMetadata[]> {
     return this.projectDirectoryService.listProjects();
+  }
+
+  /**
+   * Create a new project
+   */
+  @Post()
+  async createProject(
+    @Body() body: { name: string; description?: string }
+  ): Promise<ProjectMetadata> {
+    if (!body.name || typeof body.name !== 'string') {
+      throw new BadRequestException('Project name is required');
+    }
+
+    const trimmedName = body.name.trim();
+    if (trimmedName.length < 2) {
+      throw new BadRequestException('Project name must be at least 2 characters');
+    }
+
+    if (trimmedName.length > 100) {
+      throw new BadRequestException('Project name must be at most 100 characters');
+    }
+
+    return this.projectDirectoryService.createProject(
+      trimmedName,
+      body.description?.trim()
+    );
   }
 
   /**
