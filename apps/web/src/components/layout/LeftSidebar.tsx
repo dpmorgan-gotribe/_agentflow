@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Project, ProjectWithFiles, FileNode } from '../../types';
-import { apiClient } from '../../api';
+import { apiClient, deleteProject } from '../../api';
 
 interface LeftSidebarProps {
   currentProjectId: string | null;
@@ -96,6 +96,39 @@ export function LeftSidebar({
   const [otherProjectsExpanded, setOtherProjectsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Delete confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Handle project deletion
+  const handleDeleteProject = useCallback(async () => {
+    if (!currentProjectId) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const result = await deleteProject(currentProjectId);
+
+      if (result.success) {
+        // Clear current project selection
+        onProjectChange('');
+        // Refresh projects list
+        const updatedProjects = await apiClient.get<Project[]>('/projects');
+        setProjects(updatedProjects);
+        setShowDeleteConfirm(false);
+      } else {
+        setDeleteError(result.error || 'Failed to delete project');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      setDeleteError(message);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [currentProjectId, onProjectChange]);
+
   // Fetch all projects on mount
   useEffect(() => {
     const fetchProjects = async () => {
@@ -169,9 +202,20 @@ export function LeftSidebar({
             Current Project
           </span>
           {currentProject && (
-            <span className="text-2xs px-1.5 py-0.5 rounded bg-status-success/20 text-status-success">
-              {currentProject.status}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-2xs px-1.5 py-0.5 rounded bg-status-success/20 text-status-success">
+                {currentProject.status}
+              </span>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="p-0.5 text-text-muted hover:text-status-error hover:bg-status-error/10 rounded transition-colors"
+                title="Delete project"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
           )}
         </div>
         {currentProject ? (
@@ -314,6 +358,56 @@ export function LeftSidebar({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && currentProject && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-bg-secondary border border-border-primary rounded-lg shadow-xl max-w-md w-full mx-4 p-4">
+            <h3 className="text-lg font-semibold text-text-primary mb-2">
+              Delete Project?
+            </h3>
+            <p className="text-sm text-text-secondary mb-4">
+              This will permanently delete <span className="font-medium text-text-primary">"{currentProject.name}"</span> and abort all running tasks. This cannot be undone.
+            </p>
+
+            {deleteError && (
+              <div className="mb-4 p-2 bg-status-error/10 border border-status-error/30 rounded text-sm text-status-error">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteError(null);
+                }}
+                disabled={isDeleting}
+                className="px-3 py-1.5 text-sm rounded border border-border-primary hover:bg-bg-tertiary transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteProject}
+                disabled={isDeleting}
+                className="px-3 py-1.5 text-sm rounded bg-status-error text-white hover:bg-status-error/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

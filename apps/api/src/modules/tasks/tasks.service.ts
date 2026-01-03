@@ -519,6 +519,67 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
   }
 
   /**
+   * Abort all running tasks for a project
+   *
+   * Used when deleting a project to ensure all associated workflows are stopped.
+   * Returns the count of tasks that were aborted.
+   */
+  async abortTasksForProject(projectId: string): Promise<number> {
+    const abortableStatuses: TaskStatus[] = [
+      TaskStatus.PENDING,
+      TaskStatus.ANALYZING,
+      TaskStatus.ORCHESTRATING,
+      TaskStatus.AGENT_WORKING,
+      TaskStatus.COMPLETING,
+      TaskStatus.AWAITING_APPROVAL,
+    ];
+
+    let abortedCount = 0;
+
+    if (this.useDatabase) {
+      // Database mode: find all tasks for project
+      const repo = new TaskRepository(this.db!);
+      const projectTasks = await repo.findByProject(projectId);
+
+      for (const task of projectTasks) {
+        if (abortableStatuses.includes(task.status as TaskStatus)) {
+          this.updateTaskStatus(task.id, TaskStatus.ABORTED);
+
+          // Close event stream
+          const subject = this.eventStreams.get(task.id);
+          if (subject) {
+            subject.complete();
+            this.eventStreams.delete(task.id);
+          }
+
+          abortedCount++;
+          this.logger.log(`Task ${task.id} aborted (project deletion)`);
+        }
+      }
+    } else {
+      // File mode: iterate in-memory tasks
+      for (const task of this.tasks.values()) {
+        if (task.projectId === projectId && abortableStatuses.includes(task.status)) {
+          this.updateTaskStatus(task.id, TaskStatus.ABORTED);
+
+          // Close event stream
+          const subject = this.eventStreams.get(task.id);
+          if (subject) {
+            subject.complete();
+            this.eventStreams.delete(task.id);
+          }
+
+          abortedCount++;
+          this.logger.log(`Task ${task.id} aborted (project deletion)`);
+        }
+      }
+    }
+
+    this.logger.log(`Aborted ${abortedCount} tasks for project ${projectId}`);
+    return abortedCount;
+  }
+
+  /**
    * List tasks for tenant
    */
   async findAll(tenantId: string, projectId?: string): Promise<TaskResponse[]> {

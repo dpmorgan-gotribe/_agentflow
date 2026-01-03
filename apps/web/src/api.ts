@@ -136,6 +136,21 @@ export async function cleanupProjects(): Promise<{ deleted: string[]; errors: st
 }
 
 /**
+ * Delete a single project by ID
+ * Also aborts all running tasks for the project
+ */
+export async function deleteProject(
+  projectId: string
+): Promise<{ success: boolean; abortedTasks: number; error?: string }> {
+  return fetchApi<{ success: boolean; abortedTasks: number; error?: string }>(
+    `/projects/${projectId}`,
+    {
+      method: 'DELETE',
+    }
+  );
+}
+
+/**
  * Workflow settings interface
  */
 export interface WorkflowSettings {

@@ -15,10 +15,13 @@ import {
   NotFoundException,
   BadRequestException,
   Query,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { AuthGuard, type TenantContext } from '../../common/guards/auth.guard.js';
 import { Tenant } from '../../common/decorators/tenant.decorator.js';
 import { ProjectDirectoryService, type ProjectMetadata } from './project-directory.service.js';
+import { TasksService } from '../tasks/tasks.service.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -43,7 +46,11 @@ interface ProjectWithFiles extends ProjectMetadata {
 @Controller('projects')
 @UseGuards(AuthGuard)
 export class ProjectsController {
-  constructor(private readonly projectDirectoryService: ProjectDirectoryService) {}
+  constructor(
+    private readonly projectDirectoryService: ProjectDirectoryService,
+    @Inject(forwardRef(() => TasksService))
+    private readonly tasksService: TasksService
+  ) {}
 
   /**
    * List all projects
@@ -207,6 +214,38 @@ export class ProjectsController {
       name.startsWith('.') && name !== '.aigentflow.json' ||
       ignorePatterns.includes(name)
     );
+  }
+
+  /**
+   * Delete a single project
+   *
+   * This will:
+   * 1. Abort all running tasks for the project
+   * 2. Delete the project directory from disk
+   * 3. Remove from database (if using database mode)
+   */
+  @Delete(':id')
+  async deleteProject(
+    @Param('id') id: string
+  ): Promise<{ success: boolean; abortedTasks: number; error?: string }> {
+    // First, abort all running tasks for this project
+    const abortedTasks = await this.tasksService.abortTasksForProject(id);
+
+    // Then delete the project directory
+    const result = await this.projectDirectoryService.deleteProject(id);
+
+    if (!result.success) {
+      return {
+        success: false,
+        abortedTasks,
+        error: result.error,
+      };
+    }
+
+    return {
+      success: true,
+      abortedTasks,
+    };
   }
 
   /**

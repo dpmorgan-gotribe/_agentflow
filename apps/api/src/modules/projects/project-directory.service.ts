@@ -559,6 +559,60 @@ coverage/
   }
 
   /**
+   * Delete a single project by ID
+   *
+   * Note: The caller should abort running tasks BEFORE calling this method.
+   * This method only handles file/database deletion.
+   */
+  async deleteProject(projectId: string): Promise<{ success: boolean; error?: string }> {
+    // Find project by ID
+    let projectSlug: string | undefined;
+    let projectMeta: ProjectMetadata | undefined;
+
+    for (const [slug, meta] of this.projectMap.entries()) {
+      if (meta.id === projectId) {
+        projectSlug = slug;
+        projectMeta = meta;
+        break;
+      }
+    }
+
+    if (!projectSlug || !projectMeta) {
+      return { success: false, error: `Project not found: ${projectId}` };
+    }
+
+    const projectPath = path.join(PROJECTS_BASE_DIR, projectSlug);
+
+    try {
+      // Delete from disk
+      await fs.rm(projectPath, { recursive: true, force: true });
+      this.logger.log(`Deleted project directory: ${projectSlug}`);
+
+      // Delete from database if using database mode
+      if (this.useDatabase && this.db) {
+        try {
+          const repo = new ProjectRepository(this.db);
+          await repo.delete(projectId);
+          this.logger.log(`Deleted project from database: ${projectId}`);
+        } catch (dbError) {
+          // Log but don't fail - disk deletion succeeded
+          this.logger.warn(`Failed to delete project from database: ${dbError}`);
+        }
+      }
+
+      // Remove from in-memory state
+      this.existingProjects.delete(projectSlug);
+      this.projectMap.delete(projectSlug);
+
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to delete project ${projectSlug}: ${message}`);
+      return { success: false, error: message };
+    }
+  }
+
+  /**
    * Delete all projects from disk
    */
   async deleteAllProjects(): Promise<{ deleted: string[]; errors: string[] }> {
