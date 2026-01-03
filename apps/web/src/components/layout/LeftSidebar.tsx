@@ -129,14 +129,22 @@ export function LeftSidebar({
           .map((f) => f.path);
         setExpandedPaths(new Set(firstLevelDirs));
       } catch (error) {
-        console.error('Failed to fetch project files:', error);
+        // If project not found (404), clear the stale project reference
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('404')) {
+          console.warn(`Project ${currentProjectId} not found, clearing selection`);
+          // Clear the stale project ID from store
+          onProjectChange('');
+        } else {
+          console.error('Failed to fetch project files:', error);
+        }
         setCurrentProject(null);
       } finally {
         setLoading(false);
       }
     };
     fetchProjectFiles();
-  }, [currentProjectId]);
+  }, [currentProjectId, onProjectChange]);
 
   const togglePath = useCallback((path: string) => {
     setExpandedPaths((prev) => {

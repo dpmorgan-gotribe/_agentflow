@@ -202,7 +202,8 @@ export const useAppStore = create<AppState>()(
       }),
 
       handleProjectChange: (projectId) => set({
-        currentProjectId: projectId,
+        // Convert empty string to null for proper clearing
+        currentProjectId: projectId || null,
         currentTask: null,
         events: [],
         approvalRequest: null,
