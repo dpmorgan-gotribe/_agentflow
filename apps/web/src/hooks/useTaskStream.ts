@@ -441,9 +441,24 @@ function parseStreamData(data: StreamData): ExtendedAgentEvent {
       }
     : undefined;
 
+  const agent = extractAgentName(data);
+  const status = mapTypeToStatus(data.type, data.status);
+
+  // Debug logging to diagnose sub-agent panel issue
+  if (data.type?.includes('agent') && agent !== 'orchestrator') {
+    console.log('[SSE Debug] Agent event:', {
+      type: data.type,
+      rawAgent: data.agent,
+      rawAgentId: data.agentId,
+      rawCurrentAgent: data.currentAgent,
+      extractedAgent: agent,
+      status,
+    });
+  }
+
   return {
-    agent: extractAgentName(data),
-    status: mapTypeToStatus(data.type, data.status),
+    agent,
+    status,
     message: formatEventMessage(data),
     timestamp,
     artifacts,

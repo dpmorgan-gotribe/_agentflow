@@ -81,6 +81,16 @@ interface AppState {
 function computeActiveAgents(events: AgentEvent[]): ActiveAgent[] {
   const agentMap = new Map<string, ActiveAgent>();
 
+  // Debug: Log agent events being processed
+  const agentEvents = events.filter(e => e.agent && e.agent !== 'system' && e.agent !== 'orchestrator');
+  if (agentEvents.length > 0) {
+    console.log('[Store Debug] Processing agent events:', agentEvents.map(e => ({
+      agent: e.agent,
+      status: e.status,
+      message: e.message?.substring(0, 50),
+    })));
+  }
+
   for (const event of events) {
     const agentType = event.agent;
     // Skip system and orchestrator (only show sub-agents)
@@ -93,7 +103,15 @@ function computeActiveAgents(events: AgentEvent[]): ActiveAgent[] {
       ? `${agentType}-${executionId}`
       : agentType;
 
-    if (event.status === 'agent_working' || event.status === 'analyzing') {
+    // Check for agent working statuses (agent_working, analyzing)
+    // Also include 'orchestrating' when we have a valid non-orchestrator agent (routing to agent)
+    // And 'pending' as initial state for agents about to work
+    const isAgentWorking = event.status === 'agent_working' ||
+                           event.status === 'analyzing' ||
+                           event.status === 'orchestrating' ||
+                           event.status === 'pending';
+
+    if (isAgentWorking) {
       // Agent started working - add to map
       const existing = agentMap.get(key);
       agentMap.set(key, {

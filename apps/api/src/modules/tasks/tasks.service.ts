@@ -961,12 +961,16 @@ export class TasksService implements OnModuleInit, OnApplicationShutdown {
         return {
           message: reasoning || `Starting agent: ${data.agentId}`,
           agent: data.agentId,
+          agentId: data.agentId,
+          currentAgent: data.agentId,
         };
 
       case 'workflow.agent_completed':
         return {
           message: reasoning || `Agent completed: ${data.agentId} (${data.success ? 'success' : 'failed'})`,
           agent: data.agentId,
+          agentId: data.agentId,
+          currentAgent: data.agentId,
           success: data.success,
           artifactCount: data.artifactCount,
           // Include sub-agent activity details for the UI
