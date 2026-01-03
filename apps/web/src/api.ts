@@ -205,6 +205,61 @@ export async function getProject(projectId: string): Promise<Project> {
   return fetchApi<Project>(`/projects/${projectId}`);
 }
 
+// ============================================================================
+// Orchestrator Interaction
+// ============================================================================
+
+/**
+ * Orchestrator message
+ */
+export interface OrchestratorMessage {
+  id: string;
+  taskId: string;
+  role: 'user' | 'orchestrator';
+  content: string;
+  timestamp: string;
+}
+
+/**
+ * Send a message to the orchestrator
+ */
+export async function sendOrchestratorMessage(
+  taskId: string,
+  content: string
+): Promise<OrchestratorMessage> {
+  const response = await fetchApi<{ message: OrchestratorMessage }>(
+    `/tasks/${taskId}/orchestrator/message`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }
+  );
+  return response.message;
+}
+
+/**
+ * Get orchestrator conversation history
+ */
+export async function getOrchestratorHistory(taskId: string): Promise<OrchestratorMessage[]> {
+  const response = await fetchApi<{ messages: OrchestratorMessage[] }>(
+    `/tasks/${taskId}/orchestrator/messages`
+  );
+  return response.messages;
+}
+
+/**
+ * Clear orchestrator conversation history
+ */
+export async function clearOrchestratorHistory(taskId: string): Promise<void> {
+  await fetchApi(`/tasks/${taskId}/orchestrator/history`, {
+    method: 'DELETE',
+  });
+}
+
+// ============================================================================
+// Generic API Client
+// ============================================================================
+
 /**
  * API client with typed methods
  */

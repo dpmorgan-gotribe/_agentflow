@@ -8,7 +8,7 @@ import { MainContent } from './components/layout/MainContent';
 import { ApprovalDialog } from './components/ApprovalDialog';
 import { NewProjectModal } from './components/NewProjectModal';
 import { useAppStore, useActiveAgents, useOrchestratorEvents } from './store';
-import { fetchTaskEvents } from './api';
+import { fetchTaskEvents, sendOrchestratorMessage } from './api';
 import type { Task, AgentEvent } from './types';
 
 export default function App() {
@@ -103,6 +103,20 @@ export default function App() {
     handleProjectChange(projectId);
   }, [handleProjectChange]);
 
+  // Send message to orchestrator
+  const onSendOrchestratorMessage = useCallback(async (message: string) => {
+    if (!currentTask) {
+      console.warn('No active task for orchestrator message');
+      return;
+    }
+    try {
+      await sendOrchestratorMessage(currentTask.id, message);
+    } catch (error) {
+      console.error('Failed to send orchestrator message:', error);
+      throw error; // Re-throw so the chat component can handle it
+    }
+  }, [currentTask]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
@@ -140,6 +154,8 @@ export default function App() {
           isExecuting={isExecuting}
           currentAgent={events[events.length - 1]?.agent}
           orchestratorEvents={orchestratorEvents}
+          taskId={currentTask?.id}
+          onSendMessage={onSendOrchestratorMessage}
         />
       </div>
 
