@@ -144,11 +144,12 @@ function mapTypeToStatus(type: string | undefined, status: TaskStatus | undefine
     case 'workflow.orchestrator_thinking':
       return 'orchestrating';
     case 'workflow.agent_started':
-    case 'workflow.agent_completed':
     case 'workflow.parallel_started':
+      return 'agent_working';
+    case 'workflow.agent_completed':
     case 'workflow.parallel_agent_completed':
     case 'workflow.parallel_completed':
-      return 'agent_working';
+      return 'completed';
     case 'workflow.approval_needed':
     case 'workflow.style_competition':
     case 'approval_required':
