@@ -126,6 +126,8 @@ export async function executeAgentNode(
     componentInventoryPath,
     screensPath,
     userFlowsPath,
+    // Design phase tracking
+    selectedStyleId,
   } = state;
 
   if (!currentAgent) {
@@ -168,6 +170,24 @@ export async function executeAgentNode(
         }
       : undefined;
 
+    // Determine design mode for UI Designer
+    // - mega_page: Style packages exist but no style selected yet (create styleguide)
+    // - full_design: Style has been selected/approved (generate screens)
+    const isUIDesigner = currentAgent === 'ui_designer';
+    const hasStylePackages = stylePackagePaths && stylePackagePaths.length > 0;
+    const hasSelectedStyle = !!selectedStyleId;
+
+    const designMode: DesignMode | undefined = isUIDesigner && hasStylePackages
+      ? (hasSelectedStyle ? 'full_design' : 'mega_page')
+      : undefined;
+
+    if (isUIDesigner) {
+      console.log(
+        `[execute] UI Designer dispatch: designMode=${designMode}, ` +
+        `hasStylePackages=${hasStylePackages}, hasSelectedStyle=${hasSelectedStyle}`
+      );
+    }
+
     const result = await agent.execute({
       tenantId,
       projectId,
@@ -178,6 +198,8 @@ export async function executeAgentNode(
       previousOutputs: agentOutputs,
       workflowSettings,
       designResearchPaths,
+      designMode,
+      selectedStyleId: hasSelectedStyle ? (selectedStyleId ?? undefined) : undefined,
     });
 
     const output: AgentOutput = {

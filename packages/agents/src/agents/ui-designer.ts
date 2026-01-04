@@ -195,6 +195,17 @@ interface UIDesignerRequest extends AgentRequest {
    * Estimated number of screens (used to auto-enable spec mode)
    */
   estimatedScreenCount?: number;
+  /**
+   * Explicit design mode from orchestrator
+   * - mega_page: Generate styleguide/mega page for style competition
+   * - full_design: Generate all screens using approved style
+   * This is set by executeAgentNode or parallelDispatchNode
+   */
+  designMode?: 'mega_page' | 'full_design';
+  /**
+   * Selected style package ID (for full_design mode)
+   */
+  selectedStyleId?: string;
 }
 
 /**
@@ -402,6 +413,33 @@ export class UIDesignerAgent extends BaseAgent {
       }
     }
 
+    // Check for request-level designMode (passed from executeAgentNode or parallelDispatchNode)
+    if (uiRequest?.designMode) {
+      this.log('debug', `Using request designMode: ${uiRequest.designMode}`);
+
+      if (uiRequest.designMode === 'mega_page') {
+        const stylePackageContext = context.items.find(
+          (i) => i.type === 'style_package' as never
+        );
+        if (stylePackageContext?.content) {
+          return this.buildMegaPageSystemPrompt(stylePackageContext.content as StylePackage);
+        }
+        // No style package content - let it fall through to basic mode
+        this.log('warn', 'mega_page mode requested but no style package content available');
+      } else if (uiRequest.designMode === 'full_design') {
+        const stylePackageContext = context.items.find(
+          (i) => i.type === 'style_package' as never
+        );
+        if (stylePackageContext?.content) {
+          return this.buildFullDesignSystemPrompt(stylePackageContext.content as StylePackage);
+        }
+        if (uiRequest.approvedStylePackage) {
+          return this.buildFullDesignSystemPrompt(uiRequest.approvedStylePackage);
+        }
+        this.log('warn', 'full_design mode requested but no approved style package available');
+      }
+    }
+
     // Check for specification mode (scalable generation for complex apps)
     if (this.shouldUseSpecificationMode(uiRequest)) {
       return this.buildSpecificationSystemPrompt(uiRequest);
@@ -412,11 +450,25 @@ export class UIDesignerAgent extends BaseAgent {
       return this.buildFullDesignSystemPrompt(uiRequest.approvedStylePackage);
     }
 
-    // Legacy/fallback: Check if we have stylePackage in context for mega page mode
-    // Content is pre-loaded by execute() for items with documentRef
+    // DEFENSIVE CHECK: Detect style package without explicit mode
+    // This indicates a bug in the orchestrator dispatch logic
     const stylePackageContext = context.items.find(
       (i) => i.type === 'style_package' as never
     );
+    if (stylePackageContext?.content && !designModeContext && !uiRequest?.designMode) {
+      this.log(
+        'error',
+        '[UIDesigner] BUG DETECTED: Style package context exists but no designMode provided. ' +
+        'This indicates the orchestrator dispatch logic is broken. ' +
+        'Forcing mega_page mode as safest default to prevent screen generation without approval.'
+      );
+      // Force mega_page mode - this ensures the user gets a styleguide for approval
+      // rather than immediately generating screens
+      return this.buildMegaPageSystemPrompt(stylePackageContext.content as StylePackage);
+    }
+
+    // Legacy/fallback: Check if we have stylePackage in context for mega page mode
+    // Content is pre-loaded by execute() for items with documentRef
     if (stylePackageContext?.content) {
       return this.buildMegaPageSystemPrompt(stylePackageContext.content as StylePackage);
     }

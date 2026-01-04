@@ -56,7 +56,39 @@ export function buildOrchestratorThinkingPrompt(settings?: Partial<WorkflowSetti
     : `- Style competition: EXACTLY ${styleCount} UI designers (one per style package)
    - Screen generation: Up to ${maxParallel} parallel UI designers (one per screen, max ${maxParallel} at a time)`;
 
+  // Build settings summary section
+  const settingsSummary = styleCount === 1
+    ? `## CURRENT SETTINGS (Single Style Mode)
+- stylePackageCount: 1 (Analyst creates 1 style package)
+- Style approval: USER MUST APPROVE the mega page before screen generation
+
+**EXPECTED FLOW:**
+1. Analyst → 1 style package + component inventory
+2. UI Designer → 1 mega page (designMode: mega_page)
+3. USER APPROVAL → approve/reject/request changes
+4. UI Designer → all screens (designMode: full_design)
+5. USER APPROVAL for screens
+6. Project Manager → implementation tasks
+
+**IMPORTANT:** Even with 1 style, the user MUST approve the mega page.
+Do NOT skip the approval step.`
+    : `## CURRENT SETTINGS (Style Competition Mode)
+- stylePackageCount: ${styleCount} (Analyst creates ${styleCount} style packages)
+- Style selection: USER PICKS 1 from ${styleCount} options
+
+**EXPECTED FLOW:**
+1. Analyst → ${styleCount} style packages + component inventory
+2. parallel_dispatch: ${styleCount} UI Designers → ${styleCount} mega pages
+3. USER APPROVAL → select 1 style (or reject all)
+4. UI Designer → all screens (designMode: full_design)
+5. USER APPROVAL for screens
+6. Project Manager → implementation tasks
+
+**IMPORTANT:** Use parallel_dispatch for ${styleCount} UI Designers, not single dispatch.`;
+
   return `You are the orchestrator for an AI development workflow. Your job is to analyze the current state after each step and decide what should happen next.
+
+${settingsSummary}
 
 ## Your Role
 

@@ -39,12 +39,18 @@ interface PhaseGateViolation {
  *
  * Returns a corrected decision if the original violates phase gates,
  * or null if the decision is valid.
+ *
+ * Phase gates enforced:
+ * 1. UI Designer needs style packages (from Analyst)
+ * 2. Multiple style packages (count > 1) → force parallel_dispatch for style competition
+ * 3. Stylesheet approval required before screen generation
+ * 4. Screen approval required before Project Manager
  */
 function enforcePhaseGates(
   state: OrchestratorStateType,
   decision: OrchestratorDecision
 ): { correctedDecision: OrchestratorDecision; violation: PhaseGateViolation } | null {
-  const { designPhase, stylesheetApproved, screensApproved, stylePackages } = state;
+  const { designPhase, stylesheetApproved, screensApproved, stylePackages, stylePackagePaths } = state;
 
   // Check for UI Designer dispatch that violates phase gates
   if (decision.action === 'dispatch' || decision.action === 'parallel_dispatch') {
@@ -71,8 +77,39 @@ function enforcePhaseGates(
           };
         }
 
-        // Style packages exist but not approved - need approval first
-        if (!stylesheetApproved) {
+        // Gate 2: Multiple style packages (count > 1) → force parallel_dispatch for style competition
+        // This ensures the user gets multiple options to choose from
+        if (stylePackages.length > 1 && decision.action === 'dispatch') {
+          const pendingAgents = stylePackages.map((pkg, i) => ({
+            agentId: 'ui_designer' as const,
+            executionId: `ui_designer_style_${i}`,
+            stylePackageId: (pkg as { id: string }).id,
+            stylePackagePath: stylePackagePaths?.[i],
+            priority: 'normal' as const,
+          }));
+
+          return {
+            correctedDecision: {
+              reasoning: `Phase gate enforcement: ${stylePackages.length} style packages exist - forcing parallel dispatch for style competition.`,
+              action: 'parallel_dispatch',
+              targets: pendingAgents,
+            },
+            violation: {
+              violation: 'Single dispatch used for multiple style packages',
+              currentPhase: designPhase ?? 'stylesheet',
+              requiredCondition: 'stylePackages.length > 1 requires parallel_dispatch',
+              correction: `Routing to parallel dispatch with ${stylePackages.length} UI Designers`,
+            },
+          };
+        }
+
+        // Gate 3: Style packages exist but not approved - need approval first
+        // For single style (count=1), we still need approval (no auto-approve)
+        // The mega page must be generated first, then approval requested
+        // This gate triggers AFTER UI Designer creates the mega page
+        // So we only block if there ARE mega page previews but no approval yet
+        const hasMegaPagePreviews = state.megaPagePreviews && state.megaPagePreviews.length > 0;
+        if (!stylesheetApproved && hasMegaPagePreviews) {
           return {
             correctedDecision: {
               reasoning: 'Phase gate enforcement: Stylesheet approval required before screen generation.',
