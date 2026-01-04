@@ -134,6 +134,18 @@ async function executeSingleAgent(
         }
       : undefined;
 
+    // Determine design mode based on state:
+    // - If no style selected yet, this is mega page mode (style competition)
+    // - If style selected, this is full design mode (screen generation)
+    const isUIDesigner = dispatch.agentId === 'ui_designer';
+    const hasStylePackages = state.stylePackagePaths && state.stylePackagePaths.length > 0;
+    const hasSelectedStyle = !!state.selectedStyleId;
+
+    // Only set design mode for UI Designer with style research context
+    const designMode = isUIDesigner && hasStylePackages
+      ? (hasSelectedStyle ? 'full_design' : 'mega_page')
+      : undefined;
+
     // Execute the agent with file paths for design research context
     const result = await agent.execute({
       tenantId: state.tenantId,
@@ -145,6 +157,8 @@ async function executeSingleAgent(
       previousOutputs: previousOutputsWithDefaults,
       workflowSettings: state.workflowSettings ?? DEFAULT_WORKFLOW_SETTINGS,
       designResearchPaths,
+      designMode,
+      selectedStyleId: hasSelectedStyle ? state.selectedStyleId ?? undefined : undefined,
     });
 
     return {

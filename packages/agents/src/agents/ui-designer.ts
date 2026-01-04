@@ -363,21 +363,56 @@ export class UIDesignerAgent extends BaseAgent {
   /**
    * Build system prompt for UI design
    * Overridden to support regular mockups, mega page, full design, and specification mode
+   *
+   * Mode selection priority:
+   * 1. Explicit DESIGN_MODE context item (authoritative from orchestrator)
+   * 2. Request flags (legacy/fallback)
+   * 3. Implicit detection from context (last resort)
    */
   protected buildSystemPrompt(context: AgentContext, request?: AgentRequest): string {
     const uiRequest = request as UIDesignerRequest | undefined;
+
+    // Check for explicit DESIGN_MODE context item (authoritative source)
+    const designModeContext = context.items.find(
+      (i) => i.type === ContextTypeEnum.DESIGN_MODE
+    );
+    if (designModeContext?.content) {
+      const modeContent = designModeContext.content as { mode: string; selectedStyleId?: string };
+
+      if (modeContent.mode === 'full_design') {
+        // Full design mode - need approved style package
+        const stylePackageContext = context.items.find(
+          (i) => i.type === 'style_package' as never
+        );
+        if (stylePackageContext?.content) {
+          return this.buildFullDesignSystemPrompt(stylePackageContext.content as StylePackage);
+        }
+        // Fallback to request's approvedStylePackage
+        if (uiRequest?.approvedStylePackage) {
+          return this.buildFullDesignSystemPrompt(uiRequest.approvedStylePackage);
+        }
+      } else if (modeContent.mode === 'mega_page') {
+        // Mega page mode - need style package
+        const stylePackageContext = context.items.find(
+          (i) => i.type === 'style_package' as never
+        );
+        if (stylePackageContext?.content) {
+          return this.buildMegaPageSystemPrompt(stylePackageContext.content as StylePackage);
+        }
+      }
+    }
 
     // Check for specification mode (scalable generation for complex apps)
     if (this.shouldUseSpecificationMode(uiRequest)) {
       return this.buildSpecificationSystemPrompt(uiRequest);
     }
 
-    // Check for full design mode (Sprint 5)
+    // Legacy/fallback: Check for full design mode (Sprint 5)
     if (uiRequest?.isFullDesignRequest && uiRequest.approvedStylePackage) {
       return this.buildFullDesignSystemPrompt(uiRequest.approvedStylePackage);
     }
 
-    // Check if we have stylePackage in context for mega page mode
+    // Legacy/fallback: Check if we have stylePackage in context for mega page mode
     // Content is pre-loaded by execute() for items with documentRef
     const stylePackageContext = context.items.find(
       (i) => i.type === 'style_package' as never

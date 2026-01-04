@@ -143,6 +143,8 @@ export const ContextTypeEnum = {
   COMPONENT_INVENTORY: 'component_inventory',
   /** Screens identified by Analyst */
   SCREENS: 'screens',
+  /** Design mode for UI Designer (mega_page or full_design) */
+  DESIGN_MODE: 'design_mode',
 } as const;
 
 export type ContextType = (typeof ContextTypeEnum)[keyof typeof ContextTypeEnum];
@@ -163,6 +165,7 @@ export const ContextTypeSchema = z.enum([
   'style_package',
   'component_inventory',
   'screens',
+  'design_mode',
 ]);
 
 /**

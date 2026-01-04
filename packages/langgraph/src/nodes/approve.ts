@@ -203,6 +203,7 @@ export function handleApprovalNode(
       updates.rejectedStyles = allRejections;
       updates.styleIteration = (styleIteration ?? 1) + 1;
       updates.selectedStyleId = null;
+      // Design phase stays at 'stylesheet' - need to generate new options
     } else if (response.selectedStyleId && response.approved) {
       // User approved a specific style
       const selectedPkg = stylePackages?.find((p) => p.id === response.selectedStyleId);
@@ -217,7 +218,20 @@ export function handleApprovalNode(
           modifications: response.feedback ? [response.feedback] : undefined,
         };
       }
+
+      // CRITICAL: Set phase gate flags when style is approved
+      // This gates the transition from stylesheet → screens phase
+      updates.stylesheetApproved = true;
+      updates.designPhase = 'screens';
     }
+  }
+
+  // Handle screen approval (design_review type)
+  const isScreenReview = orchestratorDecision?.approvalConfig?.type === 'design_review';
+  if (isScreenReview && response?.approved) {
+    // User approved all screens
+    updates.screensApproved = true;
+    updates.designPhase = 'complete';
   }
 
   return updates;

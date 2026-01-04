@@ -21,6 +21,13 @@ import type { StylePackage } from '../schemas/style-package.js';
 import type { ComponentInventory } from '../schemas/component-inventory.js';
 
 /**
+ * Design mode for UI Designer agent
+ * - mega_page: Generate mega page/styleguide for style competition
+ * - full_design: Generate all screens using approved style
+ */
+export type DesignMode = 'mega_page' | 'full_design';
+
+/**
  * Agent execution context passed to each agent
  */
 export interface AgentContext {
@@ -40,6 +47,10 @@ export interface AgentContext {
     screensPath?: string;
     userFlowsPath?: string;
   };
+  /** Explicit design mode for UI Designer (mega_page or full_design) */
+  designMode?: DesignMode;
+  /** Selected style package ID (for full_design mode) */
+  selectedStyleId?: string;
 }
 
 /**

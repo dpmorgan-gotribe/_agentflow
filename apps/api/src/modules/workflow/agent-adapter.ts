@@ -322,6 +322,23 @@ class AgentWrapper implements LangGraphAgent {
         }
       }
 
+      // Add explicit design mode context item when set
+      // This is the authoritative source for UI Designer mode (mega_page or full_design)
+      if (context.designMode) {
+        contextItems.push({
+          type: ContextTypeEnum.DESIGN_MODE,
+          content: {
+            mode: context.designMode,
+            selectedStyleId: context.selectedStyleId,
+          },
+          metadata: {
+            source: 'orchestrator',
+            timestamp: new Date(),
+            relevance: 1,
+          },
+        });
+      }
+
       // Add design research file paths as documentRef context items
       // This allows agents to read from files instead of receiving inline content
       if (context.designResearchPaths) {

@@ -15,6 +15,7 @@ export {
   type AgentContext,
   type AgentResult,
   type AgentRegistry,
+  type DesignMode,
 } from './execute.js';
 export {
   handleApprovalNode,

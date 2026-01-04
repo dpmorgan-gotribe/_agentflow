@@ -25,6 +25,119 @@ import {
 export { parseDecision as parseOrchestratorDecision };
 
 /**
+ * Phase gate violation error - used for logging and debugging
+ */
+interface PhaseGateViolation {
+  violation: string;
+  currentPhase: string;
+  requiredCondition: string;
+  correction: string;
+}
+
+/**
+ * Validate and enforce design phase gates
+ *
+ * Returns a corrected decision if the original violates phase gates,
+ * or null if the decision is valid.
+ */
+function enforcePhaseGates(
+  state: OrchestratorStateType,
+  decision: OrchestratorDecision
+): { correctedDecision: OrchestratorDecision; violation: PhaseGateViolation } | null {
+  const { designPhase, stylesheetApproved, screensApproved, stylePackages } = state;
+
+  // Check for UI Designer dispatch that violates phase gates
+  if (decision.action === 'dispatch' || decision.action === 'parallel_dispatch') {
+    const targets = decision.targets ?? [];
+    const hasUIDesigner = targets.some((t) => t.agentId === 'ui_designer');
+
+    if (hasUIDesigner) {
+      // Gate 1: Cannot generate screens without stylesheet approval
+      if (!stylesheetApproved && (designPhase === 'research' || designPhase === 'stylesheet')) {
+        // Check if style packages exist - if not, need to run Analyst first
+        if (!stylePackages || stylePackages.length === 0) {
+          return {
+            correctedDecision: {
+              reasoning: 'Phase gate enforcement: Need style research before UI Designer can run.',
+              action: 'dispatch',
+              targets: [{ agentId: 'analyst', priority: 'high' }],
+            },
+            violation: {
+              violation: 'UI Designer dispatched without style packages',
+              currentPhase: designPhase ?? 'research',
+              requiredCondition: 'stylePackages.length > 0',
+              correction: 'Routing to Analyst for style research',
+            },
+          };
+        }
+
+        // Style packages exist but not approved - need approval first
+        if (!stylesheetApproved) {
+          return {
+            correctedDecision: {
+              reasoning: 'Phase gate enforcement: Stylesheet approval required before screen generation.',
+              action: 'approval',
+              approvalConfig: {
+                type: 'style_selection',
+                description: 'Select a style from the available options',
+                options: stylePackages.map((s) => ({
+                  id: (s as { id: string }).id,
+                  name: (s as { name: string }).name,
+                  description: (s as { moodDescription?: string }).moodDescription ?? '',
+                  previewPath: '',
+                })),
+                allowRejectAll: true,
+                iterationCount: state.styleIteration ?? 1,
+                maxIterations: 5,
+              },
+            },
+            violation: {
+              violation: 'UI Designer dispatched for screens without stylesheet approval',
+              currentPhase: designPhase ?? 'stylesheet',
+              requiredCondition: 'stylesheetApproved === true',
+              correction: 'Requesting stylesheet approval first',
+            },
+          };
+        }
+      }
+
+      // Gate 2: Cannot proceed to PM without screen approval
+      // (This is informational - PM dispatch would be caught, not UI Designer)
+    }
+
+    // Check for Project Manager dispatch that violates phase gates
+    const hasPM = targets.some((t) =>
+      t.agentId === 'project_manager' || t.agentId === 'pm'
+    );
+
+    if (hasPM && !screensApproved && designPhase !== 'complete') {
+      return {
+        correctedDecision: {
+          reasoning: 'Phase gate enforcement: Screen approval required before Project Manager.',
+          action: 'approval',
+          approvalConfig: {
+            type: 'design_review',
+            description: 'Review and approve the generated screens',
+            options: [],
+            allowRejectAll: true,
+            iterationCount: 1,
+            maxIterations: 3,
+          },
+        },
+        violation: {
+          violation: 'Project Manager dispatched without screen approval',
+          currentPhase: designPhase ?? 'screens',
+          requiredCondition: 'screensApproved === true',
+          correction: 'Requesting screen approval first',
+        },
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Determine what triggered this thinking step
  */
 function determineTrigger(state: OrchestratorStateType): ThinkingStep['trigger'] {
@@ -164,7 +277,7 @@ export async function orchestratorThinkNode(
 ): Promise<Partial<OrchestratorStateType>> {
   const provider = getAIProvider();
 
-  // Build context for the AI
+  // Build context for the AI - includes design phase status
   const context = buildThinkingContext({
     prompt: state.prompt,
     analysis: state.analysis,
@@ -182,6 +295,13 @@ export async function orchestratorThinkNode(
     styleIteration: state.styleIteration,
     approvalResponse: state.approvalResponse,
     error: state.error,
+    userMessages: state.userMessages,
+    lastProcessedMessageIndex: state.lastProcessedMessageIndex,
+    // Design phase parameters (for phase gate enforcement)
+    designPhase: state.designPhase,
+    stylesheetApproved: state.stylesheetApproved,
+    screensApproved: state.screensApproved,
+    screenMockups: state.screenMockups,
   });
 
   try {
@@ -204,11 +324,22 @@ export async function orchestratorThinkNode(
     });
 
     // Parse the decision
-    const decision = parseDecision(response.content);
+    let decision = parseDecision(response.content);
 
     if (!decision) {
       console.error('Failed to parse orchestrator decision, using fallback');
       return createFallbackDecision(state);
+    }
+
+    // CRITICAL: Enforce phase gates to prevent workflow violations
+    // Even if the AI makes a wrong decision, we correct it here
+    const gateViolation = enforcePhaseGates(state, decision);
+    if (gateViolation) {
+      console.warn(`[PHASE GATE] Violation detected: ${gateViolation.violation.violation}`);
+      console.warn(`[PHASE GATE] Current phase: ${gateViolation.violation.currentPhase}`);
+      console.warn(`[PHASE GATE] Required: ${gateViolation.violation.requiredCondition}`);
+      console.warn(`[PHASE GATE] Correction: ${gateViolation.violation.correction}`);
+      decision = gateViolation.correctedDecision;
     }
 
     // Determine the trigger for this thinking step
@@ -334,43 +465,108 @@ function mapApprovalType(
 
 /**
  * Create a fallback decision when parsing fails
+ *
+ * Respects design phase gates:
+ * 1. research → stylesheet: Need Analyst + style packages
+ * 2. stylesheet → screens: Need stylesheetApproved === true
+ * 3. screens → complete: Need screensApproved === true
  */
 function createFallbackDecision(
   state: OrchestratorStateType
 ): Partial<OrchestratorStateType> {
   const completedAgents = state.completedAgents ?? [];
+  const { designPhase, stylesheetApproved, screensApproved, stylePackages } = state;
 
-  // Determine next agent based on what's completed
+  // Determine next agent based on what's completed AND phase gates
   let nextAgent: string | null = null;
   let agentQueue: string[] = [];
 
+  // Phase 1: Research
   if (!completedAgents.includes('analyst')) {
     nextAgent = 'analyst';
     agentQueue = ['analyst'];
-  } else if (!completedAgents.includes('architect')) {
+  }
+  // Phase 2: Architecture
+  else if (!completedAgents.includes('architect')) {
     nextAgent = 'architect';
     agentQueue = ['architect'];
-  } else if (!state.selectedStyleId && state.stylePackages?.length) {
+  }
+  // PHASE GATE: Style selection required before proceeding
+  else if (!stylesheetApproved) {
     // Need style selection
-    return {
-      status: 'awaiting_approval',
-      approvalRequest: {
-        type: 'design',
-        description: 'Select a style from the options',
-        artifacts: [],
-        options: state.stylePackages.map((s) => (s as { id: string }).id),
-      },
-    };
-  } else if (state.selectedStyleId && !completedAgents.includes('ui_designer_full')) {
+    if (stylePackages && stylePackages.length > 0) {
+      return {
+        status: 'awaiting_approval',
+        designPhase: 'stylesheet',
+        approvalRequest: {
+          type: 'design',
+          description: 'Select a style from the options',
+          artifacts: [],
+          options: stylePackages.map((s) => (s as { id: string }).id),
+        },
+        orchestratorDecision: {
+          reasoning: 'Fallback: Stylesheet approval required before screen generation',
+          action: 'approval',
+          approvalConfig: {
+            type: 'style_selection',
+            description: 'Select a style from the options',
+            options: stylePackages.map((s) => ({
+              id: (s as { id: string }).id,
+              name: (s as { name: string }).name,
+              description: (s as { moodDescription?: string }).moodDescription ?? '',
+              previewPath: '',
+            })),
+            allowRejectAll: true,
+            iterationCount: state.styleIteration ?? 1,
+            maxIterations: 5,
+          },
+        },
+      };
+    } else {
+      // No style packages yet - need analyst
+      nextAgent = 'analyst';
+      agentQueue = ['analyst'];
+    }
+  }
+  // Phase 5: Full Design (screens) - stylesheet approved, can proceed
+  else if (stylesheetApproved && !completedAgents.includes('ui_designer_full')) {
     nextAgent = 'ui_designer';
     agentQueue = ['ui_designer'];
-  } else if (!completedAgents.includes('project_manager')) {
+  }
+  // PHASE GATE: Screen approval required before PM
+  else if (!screensApproved && designPhase !== 'complete') {
+    return {
+      status: 'awaiting_approval',
+      designPhase: 'screens',
+      approvalRequest: {
+        type: 'design',
+        description: 'Review and approve the generated screens',
+        artifacts: [],
+      },
+      orchestratorDecision: {
+        reasoning: 'Fallback: Screen approval required before Project Manager',
+        action: 'approval',
+        approvalConfig: {
+          type: 'design_review',
+          description: 'Review and approve the generated screens',
+          options: [],
+          allowRejectAll: true,
+          iterationCount: 1,
+          maxIterations: 3,
+        },
+      },
+    };
+  }
+  // Phase 7: Project Planning
+  else if (!completedAgents.includes('project_manager')) {
     nextAgent = 'project_manager';
     agentQueue = ['project_manager'];
-  } else {
-    // Complete
+  }
+  // Complete
+  else {
     return {
       status: 'completed',
+      designPhase: 'complete',
       orchestratorDecision: {
         reasoning: 'All required agents have completed',
         action: 'complete',

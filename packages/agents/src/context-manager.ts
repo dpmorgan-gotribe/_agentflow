@@ -84,16 +84,22 @@ export const DEFAULT_CONTEXT_BUDGET: ContextBudget = {
     style_package: 5000,
     component_inventory: 3000,
     screens: 2000,
+    // Explicit design mode flag from orchestrator
+    design_mode: 100,
   },
   priorityOrder: [
     'current_task',
     'workflow_settings',
+    'design_mode', // Explicit mode flag should be high priority
     'project_config',
     'source_code',
     'lessons_learned',
     'agent_outputs',
     'test_results',
     'design_tokens',
+    'style_package', // File-based context
+    'component_inventory', // File-based context
+    'screens', // File-based context
     'user_flows',
     'mockups',
     'git_status',
@@ -111,6 +117,7 @@ export const AGENT_CONTEXT_FILTERS: Record<string, ContextType[]> = {
   // UI Designer only needs design-related context
   ui_designer: [
     'current_task',
+    'design_mode', // Explicit mode (mega_page or full_design)
     'design_tokens',
     'user_flows',
     'mockups',

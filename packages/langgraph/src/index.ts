@@ -76,6 +76,7 @@ export {
   type ApprovalOption,
   type StyleSelectionRequest,
   type StyleSelectionResponse,
+  type DesignMode,
 } from './nodes/index.js';
 
 // Thinking orchestrator node
