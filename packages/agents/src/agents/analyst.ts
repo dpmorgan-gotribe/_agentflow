@@ -44,6 +44,28 @@ import {
   createEmptyPromptAnalysis,
   createEmptyStyleConstraints,
 } from '../schemas/analyst-style-output.js';
+import {
+  writeArtifactFile,
+  hasOutputDir,
+  type FileWriteResult,
+} from '../utils/file-writer.js';
+
+/**
+ * File paths returned by style research for state extraction
+ *
+ * These paths are used by the execute node to populate state channels
+ * for the file-based context pattern.
+ */
+export interface StyleResearchPaths {
+  /** Paths to individual style package JSON files */
+  stylePackagePaths: string[];
+  /** Path to component inventory JSON file */
+  componentInventoryPath: string;
+  /** Path to screens JSON file */
+  screensPath: string;
+  /** Path to user flows JSON file */
+  userFlowsPath: string;
+}
 
 /**
  * Analyst Agent implementation
@@ -987,90 +1009,172 @@ Respond with valid JSON matching the StyleResearchOutput schema:
   }
 
   /**
-   * Process style research result: create artifacts
+   * Process style research result: create artifacts with file-based paths
+   *
+   * Creates artifacts in designs/research/ directory structure:
+   * - designs/research/style-packages/{id}.json - Individual style packages
+   * - designs/research/component-inventory.json - Component inventory
+   * - designs/research/screens.json - Screen definitions
+   * - designs/research/user-flows.json - User flow definitions
+   *
+   * The result includes explicit path fields for easy state extraction.
    */
   private async processStyleResearchResult(
     parsed: StyleResearchOutput,
     request: AgentRequest
-  ): Promise<{ result: StyleResearchOutput; artifacts: Artifact[] }> {
+  ): Promise<{ result: StyleResearchOutput & StyleResearchPaths; artifacts: Artifact[] }> {
     const artifacts: Artifact[] = [];
-    const projectSlug = this.slugify(parsed.domainResearch.appCategory);
+    const outputDir = request.context.outputDir;
+    const canWriteDirectly = hasOutputDir(outputDir);
 
-    // 1. Style research report (markdown)
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.REPORT,
-      path: `research/${projectSlug}-style-research.md`,
-      content: this.renderStyleResearchReport(parsed),
-      metadata: {
-        reportType: 'style_research',
-        stylePackageCount: parsed.stylePackages.length,
-        screenCount: parsed.screens.length,
-        componentCount: parsed.componentInventory.totalCount,
-      },
+    // Log whether we're writing directly or deferring to workflow
+    this.log('info', `Processing style research (direct write: ${canWriteDirectly})`, {
+      outputDir: outputDir ?? 'not available',
     });
 
-    // 2. Style research data (JSON)
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.REPORT,
-      path: `research/${projectSlug}-style-research.json`,
-      content: JSON.stringify(parsed, null, 2),
-      metadata: {
-        reportType: 'style_research',
-        format: 'json',
-      },
-    });
+    // Helper to write file and create artifact
+    const writeAndCreateArtifact = async (
+      relativePath: string,
+      content: string,
+      metadata: Record<string, unknown>
+    ): Promise<Artifact> => {
+      let writtenToFile = false;
 
-    // 3. Individual style packages (for easy access by UI designers)
-    for (const pkg of parsed.stylePackages) {
-      artifacts.push({
+      // Write file directly if outputDir is available
+      // This eliminates race conditions - files exist before agent returns
+      if (canWriteDirectly) {
+        const result = await writeArtifactFile(outputDir, relativePath, content);
+        if (result.success) {
+          writtenToFile = true;
+          this.log('debug', `Wrote file: ${relativePath} (${result.size} bytes)`);
+        } else {
+          this.log('warn', `Failed to write ${relativePath}: ${result.error}`);
+        }
+      }
+
+      return {
         id: this.generateArtifactId(),
         type: ArtifactTypeEnum.REPORT,
-        path: `styles/${projectSlug}-${this.slugify(pkg.name)}.json`,
-        content: JSON.stringify(pkg, null, 2),
+        path: relativePath,
+        // If written to file, use placeholder to save memory
+        // Workflow will skip writing since file already exists
+        content: writtenToFile ? `[File written to ${relativePath}]` : content,
         metadata: {
-          stylePackageId: pkg.id,
-          stylePackageName: pkg.name,
+          ...metadata,
+          writtenToFile,
         },
+      };
+    };
+
+    // Build paths for file-based context pattern
+    const stylePackagePaths: string[] = [];
+
+    // 1. Individual style packages (for parallel UI designers)
+    // These are the CRITICAL files that UI Designer needs to read
+    for (const pkg of parsed.stylePackages) {
+      const relativePath = `designs/research/style-packages/${pkg.id}.json`;
+      stylePackagePaths.push(relativePath);
+      const content = JSON.stringify(pkg, null, 2);
+      const artifact = await writeAndCreateArtifact(relativePath, content, {
+        stylePackageId: pkg.id,
+        stylePackageName: pkg.name,
+        forMegaPageGeneration: true,
       });
+      artifacts.push(artifact);
     }
 
-    // 4. Component inventory (for mega page generation)
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.REPORT,
-      path: `research/${projectSlug}-component-inventory.json`,
-      content: JSON.stringify(parsed.componentInventory, null, 2),
-      metadata: {
-        totalComponents: parsed.componentInventory.totalCount,
-      },
-    });
+    // 2. Component inventory (for mega page generation)
+    const componentInventoryPath = 'designs/research/component-inventory.json';
+    artifacts.push(
+      await writeAndCreateArtifact(
+        componentInventoryPath,
+        JSON.stringify(parsed.componentInventory, null, 2),
+        {
+          totalComponents: parsed.componentInventory.totalCount,
+          forMegaPageGeneration: true,
+        }
+      )
+    );
 
-    // 5. Screens and flows (for full design phase)
-    artifacts.push({
-      id: this.generateArtifactId(),
-      type: ArtifactTypeEnum.REPORT,
-      path: `research/${projectSlug}-screens-flows.json`,
-      content: JSON.stringify({
-        screens: parsed.screens,
-        userFlows: parsed.userFlows,
-      }, null, 2),
-      metadata: {
-        screenCount: parsed.screens.length,
-        flowCount: parsed.userFlows.length,
-      },
-    });
+    // 3. Screens (for full design phase)
+    const screensPath = 'designs/research/screens.json';
+    artifacts.push(
+      await writeAndCreateArtifact(
+        screensPath,
+        JSON.stringify(parsed.screens, null, 2),
+        {
+          screenCount: parsed.screens.length,
+          forFullDesign: true,
+        }
+      )
+    );
+
+    // 4. User flows (for full design phase)
+    const userFlowsPath = 'designs/research/user-flows.json';
+    artifacts.push(
+      await writeAndCreateArtifact(
+        userFlowsPath,
+        JSON.stringify(parsed.userFlows, null, 2),
+        {
+          flowCount: parsed.userFlows.length,
+          forFullDesign: true,
+        }
+      )
+    );
+
+    // 5. Style research report (markdown - for human reference)
+    artifacts.push(
+      await writeAndCreateArtifact(
+        'designs/research/style-research-report.md',
+        this.renderStyleResearchReport(parsed),
+        {
+          reportType: 'style_research',
+          stylePackageCount: parsed.stylePackages.length,
+          screenCount: parsed.screens.length,
+          componentCount: parsed.componentInventory.totalCount,
+        }
+      )
+    );
+
+    // 6. Full style research data (JSON - for debugging/reference)
+    artifacts.push(
+      await writeAndCreateArtifact(
+        'designs/research/style-research-full.json',
+        JSON.stringify(parsed, null, 2),
+        {
+          reportType: 'style_research',
+          format: 'json',
+        }
+      )
+    );
+
+    // Count how many files were written directly
+    const writtenCount = artifacts.filter(
+      (a) => (a.metadata as Record<string, unknown>)?.['writtenToFile'] === true
+    ).length;
 
     this.log('info', 'Style research complete', {
       stylePackages: parsed.stylePackages.length,
+      stylePackagePaths,
       screens: parsed.screens.length,
       userFlows: parsed.userFlows.length,
       components: parsed.componentInventory.totalCount,
+      filesWrittenDirectly: writtenCount,
+      totalArtifacts: artifacts.length,
       tenantId: request.context.tenantId,
     });
 
-    return { result: parsed, artifacts };
+    // Return result with explicit path fields for state extraction
+    const resultWithPaths: StyleResearchOutput & StyleResearchPaths = {
+      ...parsed,
+      // File-based context paths (for state extraction)
+      stylePackagePaths,
+      componentInventoryPath,
+      screensPath,
+      userFlowsPath,
+    };
+
+    return { result: resultWithPaths, artifacts };
   }
 
   /**
