@@ -994,8 +994,16 @@ Return a JSON object with this EXACT structure:
       "description": "string - What this page does",
       "path": "string - URL path starting with /",
       "layout": {
-        "type": "string - One of: single-column, two-column, sidebar, centered, fullwidth",
-        "regions": []
+        "type": "string - One of: single-column, two-column, sidebar, centered, fullwidth, custom",
+        "regions": [
+          {
+            "name": "string - Region name, e.g. 'header', 'main', 'footer'",
+            "area": "string - CSS grid area name",
+            "components": ["string[] - Component IDs in this region"]
+          }
+        ],
+        "gridTemplate": "string (optional) - CSS grid-template",
+        "gap": "string (optional) - CSS gap value"
       },
       "components": [/* UI components */]
     }
@@ -1058,6 +1066,10 @@ Return a JSON object with this EXACT structure:
 5. **All paths MUST start with /** (e.g. "/about", "/contact")
 
 6. **lineHeight is a NUMBER** (e.g. 1.5), NOT a string or object
+
+7. **layout.regions MUST be an array of objects**, NOT strings
+   - WRONG: ["header", "main", "footer"]
+   - CORRECT: [{"name": "header", "area": "header", "components": []}]
 `;
 
 /**
