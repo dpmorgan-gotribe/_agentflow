@@ -21,8 +21,10 @@ import type {
   AgentMetadata,
   AgentContext,
   AgentRequest,
+  AgentOutput,
   RoutingHints,
   Artifact,
+  ContextItem,
 } from '../types.js';
 import { AgentTypeEnum, ContextTypeEnum, ArtifactTypeEnum } from '../types.js';
 import type {
@@ -63,6 +65,7 @@ import {
 import {
   writeArtifactFile,
   hasOutputDir,
+  readJsonFile,
 } from '../utils/file-writer.js';
 import type { UIDesignerSpecification } from '../schemas/ui-designer-spec.js';
 import {
@@ -254,6 +257,63 @@ export class UIDesignerAgent extends BaseAgent {
   }
 
   /**
+   * Override execute to pre-load file content from documentRef
+   *
+   * This hydrates context items that have documentRef paths, loading their
+   * content from files before the sync buildSystemPrompt runs.
+   */
+  override async execute(request: AgentRequest): Promise<AgentOutput> {
+    // Pre-load file content for items with documentRef
+    const hydratedItems = await this.hydrateContextItems(
+      request.context.items,
+      request.context.outputDir
+    );
+
+    // Create a new request with hydrated items
+    const hydratedRequest: AgentRequest = {
+      ...request,
+      context: {
+        ...request.context,
+        items: hydratedItems,
+      },
+    };
+
+    // Call parent execute with hydrated context
+    return super.execute(hydratedRequest);
+  }
+
+  /**
+   * Hydrate context items by loading content from documentRef files
+   */
+  private async hydrateContextItems(
+    items: ContextItem[],
+    outputDir?: string
+  ): Promise<ContextItem[]> {
+    const hydratedItems: ContextItem[] = [];
+
+    for (const item of items) {
+      // If item has documentRef but no content, load from file
+      if (item.documentRef && !item.content) {
+        const content = await this.getContextContent(item, outputDir);
+        if (content) {
+          hydratedItems.push({
+            ...item,
+            content,
+          });
+          console.debug(`[UIDesigner] Loaded context from file: ${item.documentRef}`);
+        } else {
+          // Keep the item even if file read failed (for error tracking)
+          hydratedItems.push(item);
+        }
+      } else {
+        hydratedItems.push(item);
+      }
+    }
+
+    return hydratedItems;
+  }
+
+  /**
    * Check if specification mode should be used
    * Auto-enabled for complex apps (>5 screens)
    */
@@ -274,6 +334,33 @@ export class UIDesignerAgent extends BaseAgent {
   }
 
   /**
+   * Get content from a context item, reading from file if documentRef is set
+   *
+   * @param item - Context item with either content or documentRef
+   * @param outputDir - Base directory for relative paths
+   * @returns The content (parsed if JSON) or null if not available
+   */
+  private async getContextContent<T>(
+    item: { content?: unknown; documentRef?: string } | undefined,
+    outputDir?: string
+  ): Promise<T | null> {
+    if (!item) return null;
+
+    // If documentRef is set, read from file
+    if (item.documentRef) {
+      const result = await readJsonFile<T>(item.documentRef, outputDir);
+      if (result.data) {
+        return result.data;
+      }
+      console.warn(`[UIDesigner] Failed to read from ${item.documentRef}: ${result.error}`);
+      return null;
+    }
+
+    // Otherwise use inline content
+    return item.content as T | null;
+  }
+
+  /**
    * Build system prompt for UI design
    * Overridden to support regular mockups, mega page, full design, and specification mode
    */
@@ -291,6 +378,7 @@ export class UIDesignerAgent extends BaseAgent {
     }
 
     // Check if we have stylePackage in context for mega page mode
+    // Content is pre-loaded by execute() for items with documentRef
     const stylePackageContext = context.items.find(
       (i) => i.type === 'style_package' as never
     );

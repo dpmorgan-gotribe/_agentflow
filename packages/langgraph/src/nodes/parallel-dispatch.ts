@@ -98,11 +98,6 @@ async function executeSingleAgent(
       );
     }
 
-    // Find the style package for this dispatch if specified
-    const stylePackage = dispatch.stylePackageId && state.stylePackages
-      ? state.stylePackages.find((s) => (s as { id: string }).id === dispatch.stylePackageId)
-      : undefined;
-
     // Build previous outputs with all required fields
     const previousOutputsWithDefaults = filteredOutputs.map((o) => ({
       agentId: o.agentId,
@@ -113,17 +108,43 @@ async function executeSingleAgent(
       routingHints: {},
     }));
 
-    // Execute the agent
-    // Note: stylePackage and other metadata would need to be passed
-    // through the context system when the Agent interface is extended
+    // Build design research paths from dispatch (file-based context)
+    // Prefer dispatch-specific paths, fallback to state-level paths
+    const hasDesignPaths =
+      dispatch.stylePackagePath ||
+      dispatch.componentInventoryPath ||
+      dispatch.screensPath ||
+      dispatch.userFlowsPath ||
+      (state.stylePackagePaths && state.stylePackagePaths.length > 0) ||
+      state.componentInventoryPath ||
+      state.screensPath ||
+      state.userFlowsPath;
+
+    // Convert null to undefined for type compatibility
+    const designResearchPaths = hasDesignPaths
+      ? {
+          // For parallel dispatch, each agent gets a single style package path
+          stylePackagePaths: dispatch.stylePackagePath
+            ? [dispatch.stylePackagePath]
+            : (state.stylePackagePaths ?? undefined),
+          componentInventoryPath:
+            (dispatch.componentInventoryPath ?? state.componentInventoryPath) ?? undefined,
+          screensPath: (dispatch.screensPath ?? state.screensPath) ?? undefined,
+          userFlowsPath: (dispatch.userFlowsPath ?? state.userFlowsPath) ?? undefined,
+        }
+      : undefined;
+
+    // Execute the agent with file paths for design research context
     const result = await agent.execute({
       tenantId: state.tenantId,
       projectId: state.projectId,
+      projectPath: state.projectPath ?? '',
       taskId: state.taskId,
       prompt: state.prompt,
       analysis: state.analysis ?? null,
       previousOutputs: previousOutputsWithDefaults,
       workflowSettings: state.workflowSettings ?? DEFAULT_WORKFLOW_SETTINGS,
+      designResearchPaths,
     });
 
     return {

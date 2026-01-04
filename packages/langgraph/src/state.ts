@@ -57,6 +57,8 @@ export interface Artifact {
     | 'documentation';
   path: string;
   content?: string;
+  /** Optional metadata about the artifact */
+  metadata?: Record<string, unknown>;
 }
 
 export const artifactSchema = z.object({
@@ -70,6 +72,7 @@ export const artifactSchema = z.object({
   ]),
   path: z.string(),
   content: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -248,6 +251,11 @@ export const OrchestratorState = Annotation.Root({
     reducer: lastValue,
     default: () => '',
   }),
+  /** Absolute path to project output directory for artifacts */
+  projectPath: Annotation<string>({
+    reducer: lastValue,
+    default: () => '',
+  }),
   taskId: Annotation<string>({
     reducer: lastValue,
     default: () => '',
@@ -418,6 +426,34 @@ export const OrchestratorState = Annotation.Root({
   }),
 
   // ============================================================
+  // DESIGN RESEARCH FILE PATHS (for file-based context)
+  // ============================================================
+
+  // Paths to style package JSON files written by Analyst
+  stylePackagePaths: Annotation<string[]>({
+    reducer: replaceReducer,
+    default: () => [],
+  }),
+
+  // Path to component inventory JSON file written by Analyst
+  componentInventoryPath: Annotation<string | null>({
+    reducer: lastValue,
+    default: () => null,
+  }),
+
+  // Path to screens JSON file written by Analyst
+  screensPath: Annotation<string | null>({
+    reducer: lastValue,
+    default: () => null,
+  }),
+
+  // Path to user flows JSON file written by Analyst
+  userFlowsPath: Annotation<string | null>({
+    reducer: lastValue,
+    default: () => null,
+  }),
+
+  // ============================================================
   // MEGA PAGE STATE CHANNELS
   // ============================================================
 
@@ -549,6 +585,7 @@ export type OrchestratorStateType = typeof OrchestratorState.State;
 export function createInitialState(input: {
   tenantId: string;
   projectId: string;
+  projectPath?: string;
   taskId: string;
   prompt: string;
   workflowSettings?: Partial<WorkflowSettings>;
@@ -557,6 +594,7 @@ export function createInitialState(input: {
   const schema = z.object({
     tenantId: z.string().uuid(),
     projectId: z.string().uuid(),
+    projectPath: z.string().optional(),
     taskId: z.string().uuid(),
     prompt: z.string().min(1),
   });
@@ -572,6 +610,7 @@ export function createInitialState(input: {
   return {
     tenantId: validated.tenantId,
     projectId: validated.projectId,
+    projectPath: validated.projectPath ?? '',
     taskId: validated.taskId,
     prompt: validated.prompt,
     status: 'pending',
@@ -604,6 +643,11 @@ export function createInitialState(input: {
     styleCompetition: null,
     // Component inventory
     componentInventory: null,
+    // Design research file paths
+    stylePackagePaths: [],
+    componentInventoryPath: null,
+    screensPath: null,
+    userFlowsPath: null,
     // Mega page previews
     megaPagePreviews: [],
     // Workflow settings

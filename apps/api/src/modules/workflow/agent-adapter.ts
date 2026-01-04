@@ -322,6 +322,71 @@ class AgentWrapper implements LangGraphAgent {
         }
       }
 
+      // Add design research file paths as documentRef context items
+      // This allows agents to read from files instead of receiving inline content
+      if (context.designResearchPaths) {
+        const { stylePackagePaths, componentInventoryPath, screensPath, userFlowsPath } =
+          context.designResearchPaths;
+
+        // Add style package paths (for UI Designer in mega page mode)
+        if (stylePackagePaths && stylePackagePaths.length > 0) {
+          for (const stylePath of stylePackagePaths) {
+            contextItems.push({
+              type: ContextTypeEnum.STYLE_PACKAGE,
+              content: null, // Content will be read from file
+              documentRef: stylePath,
+              metadata: {
+                source: 'analyst',
+                timestamp: new Date(),
+                relevance: 1,
+              },
+            });
+          }
+        }
+
+        // Add component inventory path
+        if (componentInventoryPath) {
+          contextItems.push({
+            type: ContextTypeEnum.COMPONENT_INVENTORY,
+            content: null,
+            documentRef: componentInventoryPath,
+            metadata: {
+              source: 'analyst',
+              timestamp: new Date(),
+              relevance: 1,
+            },
+          });
+        }
+
+        // Add screens path
+        if (screensPath) {
+          contextItems.push({
+            type: ContextTypeEnum.SCREENS,
+            content: null,
+            documentRef: screensPath,
+            metadata: {
+              source: 'analyst',
+              timestamp: new Date(),
+              relevance: 1,
+            },
+          });
+        }
+
+        // Add user flows path (as mockups since it's related to design)
+        if (userFlowsPath) {
+          contextItems.push({
+            type: ContextTypeEnum.USER_FLOWS,
+            content: null,
+            documentRef: userFlowsPath,
+            metadata: {
+              source: 'analyst',
+              timestamp: new Date(),
+              relevance: 1,
+            },
+          });
+        }
+      }
+
       // Build the full agent context
       const agentContext: AgentsAgentContext = {
         projectId: context.projectId,
@@ -341,6 +406,8 @@ class AgentWrapper implements LangGraphAgent {
         items: contextItems,
         previousOutputs: context.previousOutputs,
         constraints: DEFAULT_CONSTRAINTS,
+        // Pass project path for file-based artifact output
+        outputDir: context.projectPath,
       };
 
       // Build the request for the agent

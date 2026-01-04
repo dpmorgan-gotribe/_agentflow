@@ -134,3 +134,79 @@ export async function writeArtifactFiles(
 export function hasOutputDir(outputDir: string | undefined): outputDir is string {
   return typeof outputDir === 'string' && outputDir.length > 0;
 }
+
+/**
+ * File read result
+ */
+export interface FileReadResult {
+  /** Content read from file */
+  content: string | null;
+  /** Whether read was successful */
+  success: boolean;
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * Read a file from the output directory
+ *
+ * @param filePath - Absolute or relative path to read
+ * @param baseDir - Optional base directory for relative paths
+ * @returns Result with content
+ */
+export async function readArtifactFile(
+  filePath: string,
+  baseDir?: string
+): Promise<FileReadResult> {
+  const absolutePath = baseDir ? path.resolve(baseDir, filePath) : filePath;
+
+  // Validate path safety if baseDir is provided
+  if (baseDir && !isPathSafe(filePath, baseDir)) {
+    return {
+      content: null,
+      success: false,
+      error: `Path traversal detected: ${filePath}`,
+    };
+  }
+
+  try {
+    const content = await fs.readFile(absolutePath, { encoding: 'utf-8' });
+    return {
+      content,
+      success: true,
+    };
+  } catch (error) {
+    return {
+      content: null,
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Read and parse a JSON file
+ *
+ * @param filePath - Absolute or relative path to JSON file
+ * @param baseDir - Optional base directory for relative paths
+ * @returns Parsed JSON content or null on error
+ */
+export async function readJsonFile<T = unknown>(
+  filePath: string,
+  baseDir?: string
+): Promise<{ data: T | null; error?: string }> {
+  const result = await readArtifactFile(filePath, baseDir);
+  if (!result.success || !result.content) {
+    return { data: null, error: result.error };
+  }
+
+  try {
+    const data = JSON.parse(result.content) as T;
+    return { data };
+  } catch (error) {
+    return {
+      data: null,
+      error: `JSON parse error: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}

@@ -34,6 +34,14 @@ export const AgentDispatchSchema = z.object({
   styleHint: z.string().optional(),
   /** Style package ID (for UI designers in competition) */
   stylePackageId: z.string().optional(),
+  /** Path to style package JSON file (file-based context) */
+  stylePackagePath: z.string().optional(),
+  /** Path to component inventory JSON file (file-based context) */
+  componentInventoryPath: z.string().optional(),
+  /** Path to screens JSON file (file-based context) */
+  screensPath: z.string().optional(),
+  /** Path to user flows JSON file (file-based context) */
+  userFlowsPath: z.string().optional(),
   /** Specific context to pass to this agent */
   contextRefs: z.array(z.string()).optional(),
   /** Priority for this dispatch */

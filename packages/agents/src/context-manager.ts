@@ -80,6 +80,10 @@ export const DEFAULT_CONTEXT_BUDGET: ContextBudget = {
     current_task: 500,
     agent_outputs: 2000, // Increased for agent outputs
     workflow_settings: 200,
+    // File-based context types (loaded from disk, bypasses token budget)
+    style_package: 5000,
+    component_inventory: 3000,
+    screens: 2000,
   },
   priorityOrder: [
     'current_task',

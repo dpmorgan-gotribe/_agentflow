@@ -137,6 +137,12 @@ export const ContextTypeEnum = {
   CURRENT_TASK: 'current_task',
   AGENT_OUTPUTS: 'agent_outputs',
   WORKFLOW_SETTINGS: 'workflow_settings',
+  /** Style package for UI Designer mega page mode */
+  STYLE_PACKAGE: 'style_package',
+  /** Component inventory for UI Designer */
+  COMPONENT_INVENTORY: 'component_inventory',
+  /** Screens identified by Analyst */
+  SCREENS: 'screens',
 } as const;
 
 export type ContextType = (typeof ContextTypeEnum)[keyof typeof ContextTypeEnum];
@@ -154,6 +160,9 @@ export const ContextTypeSchema = z.enum([
   'current_task',
   'agent_outputs',
   'workflow_settings',
+  'style_package',
+  'component_inventory',
+  'screens',
 ]);
 
 /**
@@ -322,6 +331,8 @@ export const AgentContextSchema = z.object({
   previousOutputs: z.array(z.unknown()),
   constraints: AgentConstraintsSchema,
   auth: AuthContextSchema.optional(),
+  /** Absolute path to project output directory for artifacts */
+  outputDir: z.string().optional(),
 });
 
 export type AgentContext = z.infer<typeof AgentContextSchema>;

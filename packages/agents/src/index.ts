@@ -316,7 +316,7 @@ export {
 } from './schemas/analyst-output.js';
 
 // Analyst agent
-export { AnalystAgent } from './agents/analyst.js';
+export { AnalystAgent, type StyleResearchPaths } from './agents/analyst.js';
 
 // Analyst style research schemas (design workflow)
 export {
